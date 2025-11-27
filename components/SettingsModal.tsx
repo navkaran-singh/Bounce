@@ -1,12 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Moon, Sun, Monitor, X, CloudRain, Trees, Waves, Save, Download, Upload, Check, Cloud, LogOut, User } from 'lucide-react';
 import { useStore } from '../store';
 import { Theme, SoundType } from '../types';
 import { supabase } from '../services/supabase';
 import { AuthModal } from './AuthModal';
 import { usePlatform } from '../hooks/usePlatform';
+import { useNotifications } from '../hooks/useNotifications'; // 👈 NEW
+import { Bell, BellOff } from 'lucide-react'; // 👈 NEW ICONS
+// Add this line at the top
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -24,6 +28,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [isAuthOpen, setIsAuthOpen] = useState(false);
     const { isWeb, isIOS, isAndroid, isNative } = usePlatform();
+
+    const { requestPermission, scheduleReminder, clearReminders } = useNotifications();
+    const [reminderTime, setReminderTime] = useState(localStorage.getItem('bounce_reminder') || '');
+
+    const handleToggleReminder = async () => {
+        if (reminderTime) {
+            // Turn Off
+            await clearReminders();
+            setReminderTime('');
+            localStorage.removeItem('bounce_reminder');
+        } else {
+            // Turn On
+            const granted = await requestPermission();
+            if (granted) {
+                // Default to 9:00 PM
+                const defaultTime = "21:00";
+                setReminderTime(defaultTime);
+                localStorage.setItem('bounce_reminder', defaultTime);
+                await scheduleReminder(21, 0);
+                if (isNative) Haptics.impact({ style: ImpactStyle.Medium });
+            } else {
+                alert("Notification permission needed for reminders.");
+            }
+        }
+    };
+
+    const handleTimeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newTime = e.target.value;
+        setReminderTime(newTime);
+        localStorage.setItem('bounce_reminder', newTime);
+
+        const [h, m] = newTime.split(':').map(Number);
+        await scheduleReminder(h, m);
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -67,6 +105,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         }
     };
 
+    const handleDragEnd = (event: any, info: PanInfo) => {
+        if (info.offset.y > 100) { // If dragged down 100px
+            onClose();
+        }
+    };
+
     const themes: { id: Theme; label: string; icon: React.ReactNode }[] = [
         { id: 'dark', label: 'Bioluminescent', icon: <Moon size={18} /> },
         { id: 'light', label: 'Daylight', icon: <Sun size={18} /> },
@@ -99,8 +143,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="bg-dark-800 dark:bg-dark-800 bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl pointer-events-auto relative overflow-y-auto max-h-[85vh]"
+
+                        // 👇 ADD THESE 3 LINES
+                        drag="y"
+                        dragConstraints={{ top: 0 }}
+                        onDragEnd={handleDragEnd}
+
+                        className="bg-dark-800 flex flex-col dark:bg-dark-800 bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl pointer-events-auto relative overflow-y-auto max-h-[85vh]"
                     >
+                        {/* 👇 ADD DRAG HANDLE */}
+                        <div className="w-full flex justify-center mb-4 cursor-grab active:cursor-grabbing flex-none">
+                            <div className="w-12 h-1.5 bg-gray-300 dark:bg-white/20 rounded-full" />
+                        </div>
+
                         {/* Header */}
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
@@ -112,7 +167,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                             </button>
                         </div>
 
-                        <div className="space-y-8">
+                        {/* Scrollable Content */}
+                        <div className="space-y-8 overflow-y-auto flex-1 pb-10">
                             {/* Identity Section */}
                             <div>
                                 <h3 className="text-sm font-semibold text-gray-500 dark:text-white/40 uppercase tracking-wider mb-4">Identity & Habits</h3>
@@ -255,15 +311,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                 </div>
                             </div>
 
+                            {/* Notification Section */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-500 dark:text-white/40 uppercase tracking-wider mb-4">Daily Check-in</h3>
+                                <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-100 dark:border-white/10 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-full ${reminderTime ? 'bg-primary-cyan/20 text-primary-cyan' : 'bg-gray-200 dark:bg-white/10 text-gray-400'}`}>
+                                            {reminderTime ? <Bell size={18} /> : <BellOff size={18} />}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-900 dark:text-white">Safety Net Reminder</p>
+                                            <p className="text-xs text-gray-500 dark:text-white/40">Remind me to bounce if I haven't yet.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        {reminderTime && (
+                                            <input
+                                                type="time"
+                                                value={reminderTime}
+                                                onChange={handleTimeChange}
+                                                className="bg-transparent text-sm font-bold text-gray-900 dark:text-white outline-none border-b border-gray-300 dark:border-white/20 w-20"
+                                            />
+                                        )}
+                                        <button
+                                            onClick={handleToggleReminder}
+                                            className={`w-10 h-6 rounded-full p-1 transition-colors ${reminderTime ? 'bg-primary-cyan' : 'bg-gray-300 dark:bg-white/10'}`}
+                                        >
+                                            <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${reminderTime ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="text-center mt-8">
+                                <p className="text-xs text-gray-400 dark:text-white/20">Bounce v0.1 • {isWeb ? 'Web' : 'Native'} • {isIOS ? 'iOS' : isAndroid ? 'Android' : 'Desktop'}</p>
+                            </div>
+
                             <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
 
                         </div>
-
-                        {/* Footer */}
-                        <div className="text-center mt-8">
-                            <p className="text-xs text-gray-400 dark:text-white/20">Bounce v0.1 • {isWeb ? 'Web' : 'Native'} • {isIOS ? 'iOS' : isAndroid ? 'Android' : 'Desktop'}</p>
-                        </div>
-
                     </motion.div>
                 </div>
             )}

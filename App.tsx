@@ -14,12 +14,46 @@ import { Particles } from './components/Particles';
 import { IconGenerator } from './components/IconGenerator';
 import { InstallPrompt } from './components/InstallPrompt';
 
+// 👇 1. IMPORT CAPACITOR PLUGINS
+import { App as CapacitorApp } from '@capacitor/app';
+import { StatusBar, Style } from '@capacitor/status-bar';
+
 import { usePlatform } from './hooks/usePlatform';
 
 const App: React.FC = () => {
   const { currentView, theme, initializeAuth, loadFromSupabase, setView, identity } = useStore();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  usePlatform();
+
+  // 👇 CHANGE: Capture the flag so we know if we are on Android
+  const { isNative } = usePlatform();
+
+  // 👇 NEW: Native Logic (Status Bar & Back Button)
+  useEffect(() => {
+    if (isNative) {
+      // A. STATUS BAR: Make it transparent (Glass Effect)
+      const configureStatusBar = async () => {
+        try {
+          await StatusBar.setStyle({ style: Style.Dark });
+          // This creates the "Full Screen" effect under the battery/time
+          await StatusBar.setOverlaysWebView({ overlay: true });
+        } catch (e) {
+          console.log("Status bar config skipped (web mode)");
+        }
+      };
+      configureStatusBar();
+
+      // B. BACK BUTTON: Prevent app from closing immediately
+      CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+        if (!canGoBack) {
+          // Optional: Minimize app instead of killing it
+          // CapacitorApp.minimizeApp(); 
+          console.log("Back pressed at root");
+        } else {
+          window.history.back();
+        }
+      });
+    }
+  }, [isNative]);
 
   // Initialize Auth Listener & Check Session
   // Inside App.tsx

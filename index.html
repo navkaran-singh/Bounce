@@ -3,16 +3,13 @@
 
 <head>
   <meta charset="UTF-8" />
-
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
   <meta name="apple-mobile-web-app-capable" content="yes" />
-
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Bounce" />
-
-  <meta name="theme-color" content="#0a0a0a" />
+  <meta name="theme-color" content="#0F0F10" />
 
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.json" />
@@ -30,26 +27,11 @@
       theme: {
         extend: {
           colors: {
-            dark: {
-              900: '#0F0F10',
-              800: '#18181B',
-              700: '#27272A',
-            },
-            light: {
-              50: '#F8FAFC',
-              100: '#F1F5F9',
-              200: '#E2E8F0',
-              900: '#0F172A',
-            },
-            primary: {
-              cyan: '#0dccf2',
-              purple: '#7F00FF',
-              blue: '#00BFFF',
-            }
+            dark: { 900: '#0F0F10', 800: '#18181B', 700: '#27272A' },
+            light: { 50: '#F8FAFC', 100: '#F1F5F9', 200: '#E2E8F0', 900: '#0F172A' },
+            primary: { cyan: '#0dccf2', purple: '#7F00FF', blue: '#00BFFF' }
           },
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-          },
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
           animation: {
             'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             'float': 'float 6s ease-in-out infinite',
@@ -64,8 +46,45 @@
       },
     }
   </script>
+
   <style>
-    /* Custom Scrollbar */
+    /* 1. FORCE SOLID BACKGROUND (Fixes Transparency Glitches) */
+    html,
+    body,
+    #root {
+      background-color: #0F0F10 !important;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* 2. SAFE AREA (Status Bar) */
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* 3. SURGICAL GPU ACCELERATION (Only on Root, not everything) */
+    #root {
+      transform: translateZ(0);
+      will-change: transform;
+    }
+
+    /* 4. KILL THE BLUR (Fixes Rendering Artifacts on Modals) */
+    .backdrop-blur-sm,
+    .backdrop-blur-md,
+    .backdrop-blur-xl,
+    .backdrop-blur-\[2px\] {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      /* Replace blur with a solid dark overlay */
+      background-color: rgba(10, 10, 10, 0.96) !important;
+    }
+
+    /* Scrollbar & Tap Highlight */
     ::-webkit-scrollbar {
       width: 4px;
     }
@@ -79,12 +98,10 @@
       border-radius: 2px;
     }
 
-    /* Disable tap highlight & bounce scroll on body */
     * {
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* PREVENT OVERSCROLL: Keeps the app feeling "Native" */
     body {
       overscroll-behavior-y: none;
     }

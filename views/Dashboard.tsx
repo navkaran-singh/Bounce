@@ -1,4 +1,5 @@
-
+import { App as CapacitorApp } from '@capacitor/app'; // 👈 NEW
+import { usePlatform } from '../hooks/usePlatform'; // 👈 NEW
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, BarChart3, List, Zap, ThermometerSnowflake, AlertCircle, Dices, Check, Wind, Volume2, VolumeX, Eye, EyeOff, Hammer, Shield, Timer, Undo2, CloudRain, Trees, Waves, Flame, X, Calendar, PenLine, Target, Sprout, Anchor, Battery, Mic } from 'lucide-react';
@@ -16,6 +17,10 @@ import { VoiceMode } from '../components/VoiceMode'; // NEW
 import { WeeklyStory } from '../components/WeeklyStory'; // NEW
 import { SoundType, DailyLog } from '../types';
 import { EnergyValve } from '../components/EnergyValve';
+
+// 👇 1. IMPORT CAPACITOR PLUGINS
+// Add NotificationType
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';;
 
 export const Dashboard: React.FC = () => {
     const { state, actions } = useResilienceEngine();
@@ -53,6 +58,65 @@ export const Dashboard: React.FC = () => {
         volcano: 'https://assets.mixkit.co/active_storage/sfx/2443/2443-preview.mp3', // Volcano
         stream: 'https://assets.mixkit.co/active_storage/sfx/207/207-preview.mp3', // Stream
     };
+
+    // ... existing hooks
+    const { isNative } = usePlatform(); // 👈 GET NATIVE FLAG
+
+    const triggerHaptic = async (type: 'click' | 'success' | 'failure' | 'hold' = 'click') => {
+        if (!isNative) return;
+
+        try {
+            switch (type) {
+                case 'click':
+                    // Sharp, crisp click for buttons
+                    await Haptics.impact({ style: ImpactStyle.Medium });
+                    break;
+                case 'hold':
+                    // Heavy thud for starting the hold
+                    await Haptics.impact({ style: ImpactStyle.Heavy });
+                    break;
+                case 'success':
+                    // The "Da-Dum" pattern (Premium feel)
+                    await Haptics.notification({ type: NotificationType.Success });
+                    break;
+                case 'failure':
+                    await Haptics.notification({ type: NotificationType.Error });
+                    break;
+            }
+        } catch (e) {
+            // Android Fallback: Manual vibration patterns if Capacitor fails
+            if (navigator.vibrate) {
+                if (type === 'success') navigator.vibrate([50, 30, 100]); // Da-dum
+                else navigator.vibrate(20); // Tick
+            }
+        }
+    };
+
+    // 👇 ADD THIS EFFECT BLOCK
+    useEffect(() => {
+        if (!isNative) return;
+
+        const backListener = CapacitorApp.addListener('backButton', () => {
+            // Priority 1: Close Modals if open
+            if (isSettingsOpen) setIsSettingsOpen(false);
+            else if (isBreathingOpen) setIsBreathingOpen(false);
+            else if (isReflectionOpen) setIsReflectionOpen(false);
+            else if (isFocusOpen) setIsFocusOpen(false);
+            else if (isGoalsOpen) setIsGoalsOpen(false);
+            else if (isEnergyOpen) setIsEnergyOpen(false);
+            else if (isVoiceOpen) setIsVoiceOpen(false);
+            else if (showSoundControls) setShowSoundControls(false);
+            // Priority 2: If no modals, minimize app (Go to home screen)
+            else {
+                CapacitorApp.minimizeApp();
+            }
+        });
+
+        // Cleanup listener on unmount
+        return () => {
+            backListener.then(handler => handler.remove());
+        };
+    }, [isNative, isSettingsOpen, isBreathingOpen, isReflectionOpen, isFocusOpen, isGoalsOpen, isEnergyOpen, isVoiceOpen, showSoundControls]);
 
     // Sound Effect Logic
     useEffect(() => {
@@ -92,7 +156,11 @@ export const Dashboard: React.FC = () => {
     const startHold = () => {
         if (isCurrentHabitDone) return;
         setIsHolding(true);
+        // triggerHaptic(ImpactStyle.Medium); // 👈 ADD THIS (Press)
+        triggerHaptic('hold'); // 👈 USE HOLD TYPE
         intervalRef.current = setTimeout(() => {
+            // triggerHaptic(ImpactStyle.Heavy); // 👈 ADD THIS (Success)
+            triggerHaptic('success'); // 👈 USE SUCCESS TYPE
             actions.completeTask(currentHabitIndex);
             setIsHolding(false);
 
@@ -184,8 +252,9 @@ export const Dashboard: React.FC = () => {
     else if (isHolding) orbState = 'active';
 
     return (
-        <div className="h-full flex flex-col relative transition-colors duration-300">
+        <div className="h-full w-full flex flex-col relative transition-colors duration-300 overflow-hidden">
 
+            {/* OVERLAYS */}
             {/* OVERLAYS */}
             <WeeklyStory /> {/* PREMIUM: AI Weekly Review */}
             <VoiceMode
@@ -294,7 +363,7 @@ export const Dashboard: React.FC = () => {
                                 {/* Sound & Settings Row */}
                                 <div className="flex items-center gap-2 relative">
                                     {/* PREMIUM: Smart Energy Button */}
-                                    {/* <button
+                                    <button
                                         onClick={() => setIsEnergyOpen(true)}
                                         className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors relative z-50 ${currentEnergyLevel
                                             ? currentEnergyLevel === 'low' ? 'bg-red-500/20 text-red-500' : currentEnergyLevel === 'high' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'
@@ -302,7 +371,7 @@ export const Dashboard: React.FC = () => {
                                             }`}
                                     >
                                         <Battery size={16} />
-                                    </button> */}
+                                    </button>
 
                                     {/* PREMIUM: Voice Logger Button */}
                                     <button
@@ -444,9 +513,7 @@ export const Dashboard: React.FC = () => {
             </AnimatePresence>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col items-center justify-center relative z-0">
-
-                {/* Zen Mode Toggle */}
+            <div className="flex-1 flex flex-col items-center justify-start pt-16 relative z-0 overflow-y-auto w-full no-scrollbar pb-32">                {/* Zen Mode Toggle */}
                 <button
                     onClick={() => setZenMode(!zenMode)}
                     className="absolute top-4 right-6 z-30 text-gray-400 dark:text-white/20 hover:text-primary-cyan transition-colors"
@@ -633,7 +700,7 @@ export const Dashboard: React.FC = () => {
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                                     transition={{ delay: 0.1 }}
                                     onClick={() => setIsReflectionOpen(true)}
-                                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary-cyan text-black backdrop-blur-xl shadow-xl shadow-cyan-500/20 text-sm font-bold hover:scale-105 transition-transform"
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary-cyan text-black dark:text-white backdrop-blur-xl shadow-xl shadow-cyan-500/20 text-sm font-bold hover:scale-105 transition-transform"
                                 >
                                     <PenLine size={16} /> Add Note
                                 </motion.button>
@@ -650,16 +717,27 @@ export const Dashboard: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
                         className="px-6 py-4 border-t border-gray-200 dark:border-white/10 bg-white/80 dark:bg-dark-900/80 backdrop-blur-md flex justify-between items-center z-10"
                     >
-                        <NavItem icon={<List size={24} />} label="Habits" active />
+                        <NavItem
+                            icon={<List size={24} />}
+                            label="Habits"
+                            active
+                            onClick={() => triggerHaptic()} // 👈 Add it here
+                        />
                         <NavItem
                             icon={<Sprout size={24} />}
                             label="Growth"
-                            onClick={() => setView('growth')}
+                            onClick={() => {
+                                triggerHaptic(); // 👈 Add it here
+                                setView('growth');
+                            }}
                         />
                         <NavItem
                             icon={<BarChart3 size={24} />}
                             label="Stats"
-                            onClick={() => setView('stats')}
+                            onClick={() => {
+                                triggerHaptic(); // 👈 Add it here
+                                setView('stats');
+                            }}
                         />
                         <button
                             onClick={() => actions.toggleFreeze(true)}
