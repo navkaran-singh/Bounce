@@ -11,6 +11,8 @@ import { History } from './views/History';
 import { Growth } from './views/Growth';
 import { PanicModal } from './components/PanicModal';
 import { Particles } from './components/Particles';
+import { IconGenerator } from './components/IconGenerator';
+import { InstallPrompt } from './components/InstallPrompt';
 
 import { usePlatform } from './hooks/usePlatform';
 
@@ -127,6 +129,7 @@ const App: React.FC = () => {
         )}
       </main>
       <PanicModal />
+      <InstallPrompt />
     </div>
   );
 };

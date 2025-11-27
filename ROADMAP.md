@@ -42,14 +42,15 @@ Outcome: You can refresh the page and data stays.
 
 Note: Voice Mode deferred to v1.1 for platform optimization.
 
-🟡 Day 4: iOS "PWA" Polish (CURRENT STEP)
-[ ] Task: Create manifest.json (Name, Icons, Theme Color, Standalone Mode).
+🟡 Day 4: iOS "PWA" Polish
 
-[ ] Task: Add meta tags for Apple Touch Icons and Status Bar styling.
+[ ] Task: Create manifest.json (Name, Icons, Theme Color).
 
-[ ] Task: Create "Add to Home Screen" tutorial modal (detects iOS Safari).
+[ ] Task: Add "Add to Home Screen" tutorial modal for iOS Safari users.
 
-[ ] Task: Implement the "Wallpaper Generator" (Canvas API) as the iOS "Widget" replacement.
+[ ] Task: Implement webcal logic (Calendar Feed).
+
+Tech: Use a library like ics (npm) to generate the feed string dynamically based on the user's active habit.
 
 Day 5: Payments (Web)
 [ ] Task: Integrate Polar.sh or Stripe Checkout.

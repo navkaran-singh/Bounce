@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -13,6 +13,7 @@
     "@supabase/supabase-js": "^2.86.0",
     "expo-speech-recognition": "^3.0.0",
     "framer-motion": "^12.23.24",
+    "ics": "^3.8.1",
     "lucide-react": "^0.554.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
