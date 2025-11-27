@@ -5,6 +5,7 @@ export type Theme = 'dark' | 'light' | 'system';
 export type EnergyLevel = 'low' | 'medium' | 'high';
 export type SoundType = 'rain' | 'forest' | 'stream' | 'volcano' | 'wind';
 export type BreathPattern = 'coherence' | 'box' | '478' | 'sigh';
+import { supabase } from './services/supabase';
 
 export interface Message {
   id: string;
@@ -45,9 +46,12 @@ export interface WeeklyInsight {
   viewed: boolean;
 }
 
+import { User } from '@supabase/supabase-js';
+
 export interface UserState {
   // Premium Status
   isPremium: boolean;
+  user: User | null; // Supabase User
 
   // Navigation
   currentView: AppView;
@@ -120,4 +124,9 @@ export interface UserState {
   markReviewViewed: (id: string) => void;
   handleVoiceLog: (text: string, type: 'note' | 'habit' | 'intention') => void;
   addMicroHabit: (habit: string) => void;
+
+  // Supabase Sync
+  initializeAuth: () => void;
+  loadFromSupabase: () => Promise<void>;
+  syncToSupabase: () => Promise<void>;
 }

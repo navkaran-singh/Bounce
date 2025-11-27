@@ -51,8 +51,10 @@ export const Onboarding: React.FC = () => {
     setIsGenerating(true);
     try {
       const suggestions = await generateHabits(identity);
-      if (suggestions.high && suggestions.high.length === 3) {
-        setHabitInputs(suggestions.high);
+
+      // FIX: Check for 'low' (Tiny habits), not 'high'
+      if (suggestions.low && suggestions.low.length === 3) {
+        setHabitInputs(suggestions.low); // <--- LOAD THE TINY HABITS
         setGeneratedHabits(suggestions);
       } else {
         fallbackSuggestions();
@@ -119,14 +121,14 @@ export const Onboarding: React.FC = () => {
       setMessages(newMessages);
 
       setTimeout(() => {
-        // If we have AI generated habits, use them, but update 'high' with user inputs (in case they edited)
+        // If we have AI generated habits, use them, but update 'low' with user inputs (since they are editing the tiny versions)
         const finalHabits = generatedHabits ? {
           ...generatedHabits,
-          high: validHabits // User might have edited the high energy ones
+          low: validHabits // User edited the LOW energy ones
         } : {
-          high: validHabits,
-          medium: validHabits, // Fallback if no AI
-          low: validHabits // Fallback if no AI
+          high: validHabits.map(h => `${h} (Full)`), // Fallback: Create fake high version
+          medium: validHabits.map(h => `${h} (Half)`), // Fallback: Create fake medium version
+          low: validHabits
         };
 
         setHabitsWithLevels(finalHabits);
@@ -205,8 +207,8 @@ export const Onboarding: React.FC = () => {
                   <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-cyan to-primary-purple shrink-0 shadow-[0_0_10px_rgba(13,204,242,0.3)]" />
                 )}
                 <div className={`p-4 rounded-2xl backdrop-blur-md border border-white/10 whitespace-pre-wrap shadow-sm ${msg.sender === 'user'
-                    ? 'bg-dark-800/10 dark:bg-white/10 text-dark-900 dark:text-white'
-                    : 'bg-white dark:bg-dark-800/80 text-dark-700 dark:text-white/90'
+                  ? 'bg-dark-800/10 dark:bg-white/10 text-dark-900 dark:text-white'
+                  : 'bg-white dark:bg-dark-800/80 text-dark-700 dark:text-white/90'
                   }`}>
                   <p className="text-[15px] leading-relaxed">{msg.text}</p>
                 </div>

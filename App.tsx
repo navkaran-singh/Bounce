@@ -1,5 +1,7 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { supabase } from './services/supabase';
 import { useStore } from './store';
 import { Onboarding } from './views/Onboarding';
 import { Contract } from './views/Contract';
@@ -10,8 +12,59 @@ import { Growth } from './views/Growth';
 import { PanicModal } from './components/PanicModal';
 import { Particles } from './components/Particles';
 
+import { usePlatform } from './hooks/usePlatform';
+
 const App: React.FC = () => {
-  const { currentView, theme } = useStore();
+  const { currentView, theme, initializeAuth, loadFromSupabase, setView, identity } = useStore();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  usePlatform();
+
+  // Initialize Auth Listener & Check Session
+  // Inside App.tsx
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        // 1. Set a timeout to kill the spinner after 3 seconds max (Safety Valve)
+        const timeout = setTimeout(() => setIsCheckingAuth(false), 3000);
+
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session) {
+          console.log("Session found, loading data...");
+          await loadFromSupabase();
+          setView('dashboard');
+        } else {
+          console.log("No session, entering Guest Mode.");
+          // Fix: Check if user has local identity (Guest Mode persistence)
+          if (identity) {
+            console.log("Guest identity found, staying on Dashboard.");
+            setView('dashboard');
+          } else {
+            // Only redirect to onboarding if truly new
+            // setView('onboarding'); 
+          }
+        }
+
+        clearTimeout(timeout); // Clear safety valve if we finished fast
+      } catch (e) {
+        console.error("Auth check failed", e);
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkSession();
+
+    // Keep this separate to listen for auth changes (like signing out)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        loadFromSupabase();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Handle Theme Logic
   useEffect(() => {
@@ -33,10 +86,10 @@ const App: React.FC = () => {
     applyTheme(theme);
 
     if (theme === 'system') {
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        const handleChange = () => applyTheme('system');
-        mediaQuery.addEventListener('change', handleChange);
-        return () => mediaQuery.removeEventListener('change', handleChange);
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => applyTheme('system');
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
     }
 
   }, [theme]);
@@ -54,8 +107,8 @@ const App: React.FC = () => {
       case 'growth':
         return <Growth />;
       case 'history':
-         // Fallback if state persists old view, redirect to stats or dashboard
-        return <Stats />; 
+        // Fallback if state persists old view, redirect to stats or dashboard
+        return <Stats />;
       default:
         return <Onboarding />;
     }
@@ -65,7 +118,13 @@ const App: React.FC = () => {
     <div className="relative w-full h-[100dvh] bg-light-50 dark:bg-[#0F0F10] text-gray-900 dark:text-white overflow-hidden font-sans selection:bg-primary-cyan/30 transition-colors duration-300">
       <Particles />
       <main className="w-full h-full max-w-md mx-auto relative shadow-2xl bg-light-50 dark:bg-[#0F0F10]/80 backdrop-blur-sm">
-        {renderView()}
+        {isCheckingAuth ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="animate-spin text-primary-cyan" size={48} />
+          </div>
+        ) : (
+          renderView()
+        )}
       </main>
       <PanicModal />
     </div>

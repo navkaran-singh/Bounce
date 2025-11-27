@@ -15,6 +15,7 @@ import { EnergyMenu } from '../components/EnergyMenu'; // NEW
 import { VoiceMode } from '../components/VoiceMode'; // NEW
 import { WeeklyStory } from '../components/WeeklyStory'; // NEW
 import { SoundType, DailyLog } from '../types';
+import { EnergyValve } from '../components/EnergyValve';
 
 export const Dashboard: React.FC = () => {
     const { state, actions } = useResilienceEngine();
@@ -293,7 +294,7 @@ export const Dashboard: React.FC = () => {
                                 {/* Sound & Settings Row */}
                                 <div className="flex items-center gap-2 relative">
                                     {/* PREMIUM: Smart Energy Button */}
-                                    <button
+                                    {/* <button
                                         onClick={() => setIsEnergyOpen(true)}
                                         className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors relative z-50 ${currentEnergyLevel
                                             ? currentEnergyLevel === 'low' ? 'bg-red-500/20 text-red-500' : currentEnergyLevel === 'high' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'
@@ -301,7 +302,7 @@ export const Dashboard: React.FC = () => {
                                             }`}
                                     >
                                         <Battery size={16} />
-                                    </button>
+                                    </button> */}
 
                                     {/* PREMIUM: Voice Logger Button */}
                                     <button
@@ -505,6 +506,17 @@ export const Dashboard: React.FC = () => {
                         streak={state.streak}
                     />
                 </motion.div>
+
+                {/* ⚡ NEW PLACEMENT: Integrated into the Habit Flow */}
+                <div className="w-[90%] max-w-md mb-2 flex justify-end z-20">
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: zenMode ? 0 : 1 }}
+                        className={zenMode ? 'pointer-events-none' : ''}
+                    >
+                        <EnergyValve />
+                    </motion.div>
+                </div>
 
                 {/* Action/Info Card - The "Deck" */}
                 <motion.div

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.86.0",
     "expo-speech-recognition": "^3.0.0",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.554.0",
