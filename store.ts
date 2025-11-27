@@ -15,8 +15,8 @@ const loadState = () => {
 
 const saveState = (state: Partial<UserState>) => {
   try {
-    const { identity, microHabits, energyTime, resilienceScore, streak, shields, lastCompletedDate, missedYesterday, isFrozen, resilienceStatus, theme, dailyCompletedIndices, history, totalCompletions, soundEnabled, soundType, soundVolume, goal, dismissedTooltips, isPremium, weeklyInsights, currentEnergyLevel } = state;
-    const dataToSave = { identity, microHabits, energyTime, resilienceScore, streak, shields, lastCompletedDate, missedYesterday, isFrozen, resilienceStatus, theme, dailyCompletedIndices, history, totalCompletions, soundEnabled, soundType, soundVolume, goal, dismissedTooltips, isPremium, weeklyInsights, currentEnergyLevel };
+    const { identity, microHabits, habitRepository, energyTime, resilienceScore, streak, shields, lastCompletedDate, missedYesterday, isFrozen, resilienceStatus, theme, dailyCompletedIndices, history, totalCompletions, soundEnabled, soundType, soundVolume, goal, dismissedTooltips, isPremium, weeklyInsights, currentEnergyLevel } = state;
+    const dataToSave = { identity, microHabits, habitRepository, energyTime, resilienceScore, streak, shields, lastCompletedDate, missedYesterday, isFrozen, resilienceStatus, theme, dailyCompletedIndices, history, totalCompletions, soundEnabled, soundType, soundVolume, goal, dismissedTooltips, isPremium, weeklyInsights, currentEnergyLevel };
     localStorage.setItem('bounce_state', JSON.stringify(dataToSave));
   } catch (e) {
     // Ignore write errors
@@ -35,6 +35,7 @@ export const useStore = create<UserState>((set, get) => ({
 
   identity: '',
   microHabits: [],
+  habitRepository: { high: [], medium: [], low: [] },
   currentHabitIndex: 0,
   energyTime: '',
   currentEnergyLevel: null,
@@ -110,6 +111,16 @@ export const useStore = create<UserState>((set, get) => ({
     saveState(get());
   },
 
+  setHabitsWithLevels: (habitRepository) => {
+    set({
+      habitRepository,
+      microHabits: habitRepository.high, // Default to high energy
+      currentEnergyLevel: 'high',
+      currentHabitIndex: 0
+    });
+    saveState(get());
+  },
+
   // --- NEW ACTION HERE ---
   addMicroHabit: (habit) => {
     set((state) => {
@@ -139,26 +150,21 @@ export const useStore = create<UserState>((set, get) => ({
   // Smart Energy Check-in Logic
   setEnergyLevel: (level) => {
     const state = get();
-    const currentHabits = [...state.microHabits];
+    let newHabits = [...state.microHabits];
 
-    // AI Logic: Adjust habit based on energy
-    if (level === 'low') {
-      // Fallback: Ensure current habit is the easiest possible version
-      // If we have a habit that looks like "1 minute" or "1 rep", use it, otherwise modify
-      // For demo, we just append "(Easy Mode)" if not present
-      const easyHabit = currentHabits[0].includes("Easy") ? currentHabits[0] : `${currentHabits[0]} (Tiny Version)`;
-      // Temporarily override the current slot for today
-      currentHabits[state.currentHabitIndex] = easyHabit;
-    }
-    else if (level === 'high') {
-      // Stretch Goal
-      const hardHabit = currentHabits[state.currentHabitIndex].includes("Challenge")
-        ? currentHabits[state.currentHabitIndex]
-        : `${currentHabits[state.currentHabitIndex]} + Bonus`;
-      currentHabits[state.currentHabitIndex] = hardHabit;
+    // If we have habits in the repository for this level, use them
+    if (state.habitRepository && state.habitRepository[level] && state.habitRepository[level].length > 0) {
+      newHabits = state.habitRepository[level];
+    } else {
+      // Fallback logic if repository is empty (legacy support)
+      if (level === 'low') {
+        newHabits = state.microHabits.map(h => h.includes("Easy") ? h : `${h} (Tiny Version)`);
+      } else if (level === 'high') {
+        newHabits = state.microHabits.map(h => h.includes("Bonus") ? h : `${h} + Bonus`);
+      }
     }
 
-    set({ currentEnergyLevel: level, microHabits: currentHabits });
+    set({ currentEnergyLevel: level, microHabits: newHabits, currentHabitIndex: 0 });
     saveState(get());
   },
 
@@ -253,6 +259,7 @@ export const useStore = create<UserState>((set, get) => ({
     const resetState = {
       identity: '',
       microHabits: [],
+      habitRepository: { high: [], medium: [], low: [] },
       currentHabitIndex: 0,
       energyTime: '',
       resilienceScore: 50,

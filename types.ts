@@ -65,6 +65,7 @@ export interface UserState {
   // User Data
   identity: string;
   microHabits: string[]; // Array of 3 variations
+  habitRepository: Record<EnergyLevel, string[]>; // Stored habits for each level
   currentHabitIndex: number; // Which variation is active
   energyTime: string;
   currentEnergyLevel: EnergyLevel | null; // For the Smart Energy Check-in
@@ -103,6 +104,7 @@ export interface UserState {
   // Actions
   setIdentity: (identity: string) => void;
   setMicroHabits: (habits: string[]) => void;
+  setHabitsWithLevels: (habits: Record<EnergyLevel, string[]>) => void;
   cycleMicroHabit: () => void; // Shuffle action
   setEnergyTime: (time: string) => void;
   setEnergyLevel: (level: EnergyLevel) => void; // Smart Energy Action

@@ -26,9 +26,10 @@ const Tooltip: React.FC<{ text: string; onClose: () => void; delay?: number }> =
 );
 
 export const Onboarding: React.FC = () => {
-  const { identity, setIdentity, setMicroHabits, setEnergyTime, setView, dismissedTooltips, dismissTooltip } = useStore();
+  const { identity, setIdentity, setHabitsWithLevels, setEnergyTime, setView, dismissedTooltips, dismissTooltip } = useStore();
   const [inputValue, setInputValue] = useState('');
   const [habitInputs, setHabitInputs] = useState<string[]>(['', '', '']);
+  const [generatedHabits, setGeneratedHabits] = useState<{ high: string[], medium: string[], low: string[] } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -50,10 +51,10 @@ export const Onboarding: React.FC = () => {
     setIsGenerating(true);
     try {
       const suggestions = await generateHabits(identity);
-      if (suggestions.length === 3) {
-        setHabitInputs(suggestions);
+      if (suggestions.high && suggestions.high.length === 3) {
+        setHabitInputs(suggestions.high);
+        setGeneratedHabits(suggestions);
       } else {
-        // Fallback to hardcoded logic if AI fails or returns invalid data
         fallbackSuggestions();
       }
     } catch (error) {
@@ -66,21 +67,26 @@ export const Onboarding: React.FC = () => {
 
   const fallbackSuggestions = () => {
     const idLower = identity.toLowerCase();
-    let suggestions = ["Drink 1 glass of water", "Take 3 deep breaths", "Stretch for 1 minute"];
+    let high = ["Drink 1 glass of water", "Take 3 deep breaths", "Stretch for 1 minute"];
+    let medium = ["Drink 1/2 glass", "Take 1 deep breath", "Stretch 30s"];
+    let low = ["Sip water", "Close eyes", "Stand up"];
 
     if (idLower.includes("write") || idLower.includes("author")) {
-      suggestions = ["Write 1 sentence", "Open your notes app", "Read 1 paragraph"];
+      high = ["Write 500 words", "Edit 1 chapter", "Outline next scene"];
+      medium = ["Write 1 paragraph", "Edit 1 page", "Review notes"];
+      low = ["Write 1 sentence", "Open document", "Read last sentence"];
     } else if (idLower.includes("run") || idLower.includes("athlete") || idLower.includes("fit")) {
-      suggestions = ["Put on running shoes", "Do 5 jumping jacks", "Fill water bottle"];
+      high = ["Run 5km", "Sprint intervals", "Gym session"];
+      medium = ["Run 1km", "Jog 10 mins", "Home workout"];
+      low = ["Put on shoes", "Do 5 jumping jacks", "Fill water bottle"];
     } else if (idLower.includes("code") || idLower.includes("dev")) {
-      suggestions = ["Open VS Code", "Write one comment", "Review one function"];
-    } else if (idLower.includes("music") || idLower.includes("art")) {
-      suggestions = ["Pick up instrument", "Draw one line", "Listen to one song"];
-    } else if (idLower.includes("calm") || idLower.includes("meditat")) {
-      suggestions = ["Close eyes 10s", "Take 1 deep breath", "Sit straight"];
+      high = ["Code 1 hour", "Solve 1 LeetCode", "Build feature"];
+      medium = ["Code 15 mins", "Refactor function", "Read docs"];
+      low = ["Open VS Code", "Write one comment", "Review one function"];
     }
 
-    setHabitInputs(suggestions);
+    setHabitInputs(high);
+    setGeneratedHabits({ high, medium, low });
   };
 
   const handleSend = (value: string | string[]) => {
@@ -113,7 +119,18 @@ export const Onboarding: React.FC = () => {
       setMessages(newMessages);
 
       setTimeout(() => {
-        setMicroHabits(validHabits);
+        // If we have AI generated habits, use them, but update 'high' with user inputs (in case they edited)
+        const finalHabits = generatedHabits ? {
+          ...generatedHabits,
+          high: validHabits // User might have edited the high energy ones
+        } : {
+          high: validHabits,
+          medium: validHabits, // Fallback if no AI
+          low: validHabits // Fallback if no AI
+        };
+
+        setHabitsWithLevels(finalHabits);
+
         const nextBotMsg: Message = {
           id: 'bot-3',
           sender: 'bot',
