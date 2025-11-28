@@ -52,6 +52,14 @@ const App: React.FC = () => {
           window.history.back();
         }
       });
+
+      // 👇 C. DEEP LINK LISTENER (Add this block)
+      CapacitorApp.addListener('appUrlOpen', (data) => {
+        console.log('App opened with URL:', data.url);
+        // The supabase client (initialized in services/supabase.ts) 
+        // automatically listens for the #access_token in the URL.
+        // We just need to ensure the app catches the launch event.
+      });
     }
   }, [isNative]);
 

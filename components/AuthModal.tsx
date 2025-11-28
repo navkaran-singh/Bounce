@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, ArrowRight, Loader2, Check, ShieldCheck } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { usePlatform } from '../hooks/usePlatform';
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -15,6 +16,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     const [sent, setSent] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // 👇 1. GET PLATFORM FLAG
+    const { isNative } = usePlatform();
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!email.trim()) return;
@@ -22,11 +26,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         setLoading(true);
         setError(null);
 
+        // 👇 2. DYNAMIC REDIRECT LOGIC
+        const redirectTo = isNative
+            ? 'com.bounce.app://login-callback' // Android App Scheme
+            : window.location.origin;           // Website URL
+
         try {
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {
-                    emailRedirectTo: window.location.origin,
+                    emailRedirectTo: redirectTo, // 👈 USE VARIABLE HERE
                 },
             });
 
