@@ -18,7 +18,7 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-    const { theme, setTheme, soundType, setSoundType, identity, setIdentity, microHabits, setMicroHabits, importData, user, habitRepository } = useStore();
+    const { theme, setTheme, soundType, setSoundType, identity, setIdentity, microHabits, setMicroHabits, habitRepository, user, logout, getExportData, importData } = useStore();
 
     console.log("Current Store User:", user);
 
@@ -31,6 +31,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
     const { requestPermission, scheduleReminder, clearReminders } = useNotifications();
     const [reminderTime, setReminderTime] = useState(localStorage.getItem('bounce_reminder') || '');
+
+    // 👇 FIX: Sign Out Logic
+    const handleSignOut = async () => {
+        await logout(); // Calls the store action which clears state & supabase
+        onClose();      // Close modal
+    };
 
     const handleToggleReminder = async () => {
         if (reminderTime) {
@@ -78,17 +84,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         onClose();
     };
 
+    // 👇 FIX: Export Logic
     const handleExport = () => {
-        const data = localStorage.getItem('bounce_state');
-        if (data) {
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `bounce-data-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
+        const data = getExportData(); // Get live data string
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bounce-backup-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
     };
 
     const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -272,8 +277,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                                     <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{user.email}</p>
                                                 </div>
                                             </div>
+                                            {/* 👇 UPDATED SIGN OUT BUTTON */}
                                             <button
-                                                onClick={() => supabase.auth.signOut()}
+                                                onClick={handleSignOut}
                                                 className="w-full flex items-center justify-center gap-2 p-2 bg-white dark:bg-white/5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 text-xs font-bold transition-colors border border-gray-200 dark:border-white/10"
                                             >
                                                 <LogOut size={14} /> Sign Out

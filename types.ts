@@ -53,6 +53,10 @@ export interface UserState {
   isPremium: boolean;
   user: User | null; // Supabase User
 
+  setUser: (user: User | null) => void; // 👈 Ensure this exists
+  logout: () => Promise<void>;          // 👈 NEW
+  getExportData: () => string;          // 👈 NEW
+
   // Navigation
   currentView: AppView;
 
