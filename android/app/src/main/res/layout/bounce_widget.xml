@@ -1,0 +1,78 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:padding="12dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true">
+        
+        <TextView
+            android:id="@+id/widget_streak"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:text="🌱 Day 0"
+            android:textColor="#80FFFFFF" 
+            android:textStyle="normal"
+            android:textSize="12sp"
+            android:letterSpacing="0.1" />
+
+        </RelativeLayout>
+
+    <ImageView
+        android:layout_width="140dp"
+        android:layout_height="140dp"
+        android:src="@drawable/widget_orb"
+        android:layout_centerInParent="true"
+        android:alpha="0.9" />
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true">
+
+        <TextView
+            android:id="@+id/appwidget_text_glow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:includeFontPadding="false"
+            android:text="--"
+            android:textColor="#0dccf2"
+            android:textSize="42sp"
+            android:fontFamily="sans-serif-light"
+            android:shadowColor="#600dccf2"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="15" />
+
+        <TextView
+            android:id="@+id/appwidget_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:includeFontPadding="false"
+            android:text="--"
+            android:textColor="#ffffff"
+            android:textSize="42sp"
+            android:fontFamily="sans-serif-light" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/widget_habit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="4dp"
+        android:gravity="center"
+        android:text="Loading..."
+        android:textColor="#CCFFFFFF"
+        android:textSize="12sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textStyle="italic" />
+
+</RelativeLayout>

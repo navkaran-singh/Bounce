@@ -17,6 +17,7 @@ import { VoiceMode } from '../components/VoiceMode'; // NEW
 import { WeeklyStory } from '../components/WeeklyStory'; // NEW
 import { SoundType, DailyLog } from '../types';
 import { EnergyValve } from '../components/EnergyValve';
+import { Preferences } from '@capacitor/preferences'; // Add Import
 
 // 👇 1. IMPORT CAPACITOR PLUGINS
 // Add NotificationType
@@ -91,6 +92,23 @@ export const Dashboard: React.FC = () => {
             }
         }
     };
+
+    // Inside Dashboard component...
+    useEffect(() => {
+        const syncWidget = async () => {
+            await Preferences.set({ key: 'resilience_score', value: state.score.toString() });
+
+            // ✅ KEEP THIS (But we will rebrand it visually)
+            await Preferences.set({ key: 'streak', value: state.streak.toString() });
+
+            // ❌ DELETE THIS LINE (Fixes the TS Error)
+            // await Preferences.set({ key: 'freeze_tokens', value: state.freezeTokens.toString() });
+
+            const currentHabitText = microHabits[currentHabitIndex] || "Bounce Back";
+            await Preferences.set({ key: 'current_habit', value: currentHabitText });
+        };
+        syncWidget();
+    }, [state.score, state.streak, currentHabitIndex, microHabits]); // Remove state.freezeTokens dependency
 
     // 👇 ADD THIS EFFECT BLOCK
     useEffect(() => {

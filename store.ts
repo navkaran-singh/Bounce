@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { UserState, ResilienceStatus, DailyLog, WeeklyInsight } from './types';
 import { supabase } from './services/supabase';
+import { Preferences } from '@capacitor/preferences';
 
 // Helper to get persist data
 const loadState = () => {
@@ -535,3 +536,11 @@ export const useStore = create<UserState>((set, get) => ({
   }
 
 }));
+
+const updateWidgetData = async (score: number) => {
+  // We save it as a string
+  await Preferences.set({
+    key: 'resilience_score',
+    value: score.toString()
+  });
+};
