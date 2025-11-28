@@ -53,12 +53,38 @@ const App: React.FC = () => {
         }
       });
 
-      // 👇 C. DEEP LINK LISTENER (Add this block)
-      CapacitorApp.addListener('appUrlOpen', (data) => {
+      // 👇 C. DEEP LINK LISTENER (Updated Logic)
+      CapacitorApp.addListener('appUrlOpen', async (data) => {
         console.log('App opened with URL:', data.url);
-        // The supabase client (initialized in services/supabase.ts) 
-        // automatically listens for the #access_token in the URL.
-        // We just need to ensure the app catches the launch event.
+
+        // 1. Check if the URL contains Supabase auth tokens (access_token, refresh_token)
+        // These usually come after the '#' symbol
+        if (data.url.includes('#')) {
+          const hash = data.url.split('#')[1];
+          const params = new URLSearchParams(hash);
+
+          const access_token = params.get('access_token');
+          const refresh_token = params.get('refresh_token');
+
+          if (access_token && refresh_token) {
+            console.log("Tokens found! Logging in...");
+
+            // 2. Manually set the session in Supabase
+            const { error } = await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+
+            if (!error) {
+              // 3. Success! Force update the View
+              console.log("Login successful.");
+              await loadFromSupabase(); // Refresh user data
+              setView('dashboard');     // Send user to app
+            } else {
+              console.error("Login failed:", error);
+            }
+          }
+        }
       });
     }
   }, [isNative]);
