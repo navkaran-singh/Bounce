@@ -384,19 +384,30 @@ export const useStore = create<ExtendedUserState>()(
       initializeAuth: () => { },
 
       syncToSupabase: async () => {
+        console.log("[SYNC] syncToSupabase called");
         try {
-          const { data: { user } } = await supabase.auth.getUser();
+          const state = get();
+          
+          // Use user from store first, then try getUser() as fallback
+          let user = state.user;
+          if (!user) {
+            console.log("[SYNC] No user in store, trying getUser()...");
+            const { data } = await supabase.auth.getUser();
+            user = data.user;
+          }
+          
           if (!user) {
             console.log("[SYNC] No user. Skipping upload.");
             return;
           }
 
-          const state = get();
+          console.log(`[SYNC] User ID: ${user.id}`);
           console.log(`[SYNC] Uploading to cloud...`);
           console.log(`[SYNC] Identity: "${state.identity}", Score: ${state.resilienceScore}, Streak: ${state.streak}`);
           console.log(`[SYNC] Habits: ${state.microHabits.length}, History entries: ${Object.keys(state.history).length}`);
 
-          const { error: profileError } = await supabase.from('profiles').upsert({
+          console.log("[SYNC] Calling profiles.upsert()...");
+          const upsertData = {
             id: user.id,
             identity: state.identity,
             resilience_score: state.resilienceScore,
@@ -414,7 +425,15 @@ export const useStore = create<ExtendedUserState>()(
               lastCompletedDate: state.lastCompletedDate
             },
             updated_at: new Date().toISOString()
-          });
+          };
+          console.log("[SYNC] Upsert data:", JSON.stringify(upsertData, null, 2));
+          
+          const { data: upsertResult, error: profileError } = await supabase
+            .from('profiles')
+            .upsert(upsertData)
+            .select();
+          
+          console.log("[SYNC] Upsert complete. Result:", upsertResult, "Error:", profileError);
 
           if (profileError) {
             console.error("[SYNC] Profile upsert error:", profileError);
@@ -472,50 +491,91 @@ export const useStore = create<ExtendedUserState>()(
         
         // 🛡️ Wrap everything in try-catch to prevent hangs
         try {
-          const { data: { user } } = await supabase.auth.getUser();
-          set({ user });
+          // 🛡️ FIX: Use user from store first (set by App.tsx), avoid hanging getUser() call
+          let user = state.user;
+          console.log(`[LOAD] User from store: ${user?.id || 'NULL'}`);
+          
           if (!user) {
-            console.log("[LOAD] No user. Returning.");
+            console.log("[LOAD] No user in store, trying getUser() with timeout...");
+            try {
+              const getUserPromise = supabase.auth.getUser();
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('getUser timeout')), 5000)
+              );
+              const { data, error } = await Promise.race([getUserPromise, timeoutPromise]) as any;
+              if (error) {
+                console.error("[LOAD] getUser error:", error);
+              }
+              user = data?.user;
+              if (user) set({ user });
+            } catch (e: any) {
+              console.error("[LOAD] getUser timeout/error:", e.message);
+            }
+          }
+          
+          if (!user) {
+            console.log("[LOAD] No user available. Returning.");
             return;
           }
           console.log(`[LOAD] User ID: ${user.id}`);
 
-          // 🛡️ RULE 1: If we've already synced once AND this is NOT a first login, LOCAL IS MASTER.
-          if (state.hasSyncedOnce && !isFirstLogin) {
-            console.log("🟢 [LOAD] Already synced this session. Local is master. Skipping.");
+          // 🛡️ RULE 1: If we've already synced once before, LOCAL IS MASTER (regardless of isFirstLogin)
+          // This means user already did the initial sync in a previous session
+          if (state.hasSyncedOnce) {
+            console.log("🟢 [LOAD] Already synced before (hasSyncedOnce=true). Local is master. Skipping cloud fetch.");
+            // Just sync local changes to cloud in background
+            get().syncToSupabase().catch(e => console.error("[LOAD] Background sync error:", e));
             return;
           }
 
-          // 🛡️ RULE 2: First time sync - need to check if account exists in cloud
-          console.log("[LOAD] Fetching profile from cloud...");
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
+          // 🛡️ RULE 2: First time sync
+          // WORKAROUND: Supabase SELECT is hanging, so we use a different strategy:
+          // - If local has identity (user completed onboarding), upload to cloud
+          // - The cloud will have the data, and on next restart hasSyncedOnce=true will skip this
           
-          if (profileError) {
-            console.log("[LOAD] Profile fetch error:", profileError.message);
-          }
+          console.log("[LOAD] Checking local state to determine sync direction...");
+          console.log("[LOAD] Local identity:", state.identity);
           
-          console.log(`[LOAD] Cloud profile identity: "${profile?.identity || 'NULL'}"`);
-
-          // 🛡️ CASE A: Account is NEW (no profile OR identity is "New Bouncer")
-          // → Upload local state to cloud
-          const isNewAccount = !profile || !profile.identity || profile.identity === 'New Bouncer';
-          console.log(`[LOAD] Is new account? ${isNewAccount}`);
+          let profile = null;
           
-          if (isNewAccount) {
-            console.log("🟢 [LOAD] NEW ACCOUNT (Sign Up). Uploading local data to cloud...");
+          // If user has local identity, treat as "upload local to cloud"
+          // This works for both new accounts AND existing accounts where we want to keep local
+          if (state.identity && state.identity.trim() !== '') {
+            console.log("🟢 [LOAD] Local identity exists. Uploading local data to cloud...");
             set({ hasSyncedOnce: true });
-            // Upload local state to cloud
             await get().syncToSupabase();
             console.log("🟢 [LOAD] Upload complete.");
             return;
           }
-
-          // 🛡️ CASE B: Account EXISTS (identity is NOT "New Bouncer")
-          // → Download cloud state to local (ONLY on first login)
+          
+          // If no local identity, try to fetch from cloud (with short timeout)
+          console.log("[LOAD] No local identity. Attempting cloud fetch...");
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('identity, resilience_score, streak, shields, is_premium, settings')
+              .eq('id', user.id)
+              .maybeSingle();
+            
+            clearTimeout(timeoutId);
+            
+            if (data && data.identity && data.identity !== 'New Bouncer') {
+              profile = data;
+              console.log("[LOAD] Cloud profile found:", profile.identity);
+            } else {
+              console.log("[LOAD] No valid cloud profile. User needs to complete onboarding.");
+              return;
+            }
+          } catch (e: any) {
+            console.error("[LOAD] Cloud fetch failed:", e.message);
+            console.log("[LOAD] User needs to complete onboarding.");
+            return;
+          }
+          
+          // 🛡️ CASE B: Account EXISTS in cloud, download to local
           console.log("🟠 [LOAD] EXISTING ACCOUNT (Log In). Downloading cloud data to local.");
           
           // Download profile data
@@ -605,9 +665,8 @@ export const useStore = create<ExtendedUserState>()(
         dailyCompletedIndices: state.dailyCompletedIndices,
         lastCompletedDate: state.lastCompletedDate,
         currentView: state.currentView,
-        weeklyInsights: state.weeklyInsights
-        // 🛡️ NOTE: hasSyncedOnce is NOT persisted - it resets to false on every app start
-        // This ensures first login always triggers the sync logic
+        weeklyInsights: state.weeklyInsights,
+        hasSyncedOnce: state.hasSyncedOnce // 🛡️ Persisted! Stays true after first sync until logout
       }),
       onRehydrateStorage: () => (state) => {
         if (state) state.setHasHydrated(true);

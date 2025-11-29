@@ -52,17 +52,32 @@ const App: React.FC = () => {
         
         if (accessToken && refreshToken) {
           console.log("[APP] Magic link detected in URL. Setting session...");
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          });
+          console.log("[APP] Access token (first 20 chars):", accessToken.substring(0, 20));
           
-          if (!error) {
-            // Clear the hash from URL
-            window.history.replaceState(null, '', window.location.pathname);
-            // This will trigger SIGNED_IN event which handles the rest
-          } else {
-            console.error("[APP] Failed to set session from magic link:", error);
+          try {
+            // Add timeout to prevent infinite hang
+            const setSessionPromise = supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
+            
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('setSession timeout after 10s')), 10000)
+            );
+            
+            const { error } = await Promise.race([setSessionPromise, timeoutPromise]) as any;
+            
+            console.log("[APP] setSession completed. Error:", error?.message || 'none');
+            
+            if (!error) {
+              // Clear the hash from URL
+              window.history.replaceState(null, '', window.location.pathname);
+              console.log("[APP] URL hash cleared. SIGNED_IN event should fire.");
+            } else {
+              console.error("[APP] Failed to set session from magic link:", error);
+            }
+          } catch (e: any) {
+            console.error("[APP] setSession error/timeout:", e.message);
           }
         }
         
