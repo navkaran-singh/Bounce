@@ -1,19 +1,54 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Cloud, ArrowRight } from 'lucide-react';
+import { X, Mail, ArrowRight } from 'lucide-react';
+import { auth, googleProvider, sendSignInLinkToEmail, signInWithRedirect, actionCodeSettings, nativeRedirectUrl } from '../services/firebase';
+import { useStore } from '../store';
+import { Capacitor } from '@capacitor/core';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-// Placeholder for Phase 2 - Firebase Auth
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+  const [email, setEmail] = useState('');
+  const [isEmailSent, setIsEmailSent] = useState(false);
+  const [error, setError] = useState('');
+  const { user } = useStore();
+
+  const handleMagicLinkSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+        const isNative = Capacitor.isNativePlatform();
+        const redirectUrl = isNative ? nativeRedirectUrl : window.location.origin;
+        await sendSignInLinkToEmail(auth, email, actionCodeSettings(redirectUrl));
+        window.localStorage.setItem('emailForSignIn', email);
+        setIsEmailSent(true);
+    } catch (err) {
+        console.error(err);
+        setError('Could not send sign-in link. Please try again.');
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithRedirect(auth, googleProvider);
+    } catch (err) {
+      console.error(err);
+      setError('Could not sign in with Google. Please try again.');
+    }
+  };
+
+  if (user) {
+    return null; // Or a sign-out view
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -22,14 +57,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
 
-          {/* Modal */}
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             className="bg-white dark:bg-dark-800 w-full max-w-md rounded-3xl p-8 shadow-2xl relative overflow-hidden"
           >
-            {/* Close Button */}
             <button
               onClick={onClose}
               className="absolute top-4 right-4 p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-400"
@@ -38,28 +71,59 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </button>
 
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-primary-cyan/10 rounded-full flex items-center justify-center mb-4 text-primary-cyan">
-                <Cloud size={32} />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                Cloud Sync Coming Soon
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-white/60 mb-6">
-                Your data is safely stored on this device. Cloud backup and cross-device sync will be available in a future update.
-              </p>
-              
-              <div className="w-full bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-2xl p-4 mb-6">
-                <p className="text-sm text-green-700 dark:text-green-400">
-                  ✓ Your progress is automatically saved locally
-                </p>
-              </div>
+              {!isEmailSent ? (
+                <>
+                  <div className="w-16 h-16 bg-primary-cyan/10 rounded-full flex items-center justify-center mb-4 text-primary-cyan">
+                    <Mail size={32} />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    Sign In or Sign Up
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-white/60 mb-6">
+                    We'll send a magic link to your email. No password needed.
+                  </p>
+                  
+                  <form onSubmit={handleMagicLinkSignIn} className="w-full flex flex-col gap-4">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email"
+                      required
+                      className="w-full p-4 bg-gray-100 dark:bg-dark-700 rounded-xl border border-transparent focus:outline-none focus:ring-2 focus:ring-primary-cyan"
+                    />
+                    <button
+                      type="submit"
+                      className="w-full py-4 bg-primary-cyan text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                    >
+                      Send Magic Link <ArrowRight size={20} />
+                    </button>
+                  </form>
 
-              <button
-                onClick={onClose}
-                className="w-full py-4 bg-primary-cyan text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-              >
-                Got it <ArrowRight size={20} />
-              </button>
+                  <div className="my-4 text-xs text-gray-400">OR</div>
+
+                  <button 
+                    onClick={handleGoogleSignIn}
+                    className="w-full py-4 bg-white dark:bg-dark-700 border border-gray-200 dark:border-dark-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-dark-600 transition-colors"
+                  >
+                    <img src="/google.svg" alt="Google" className="w-5 h-5" /> Sign In with Google
+                  </button>
+
+                  {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mb-4 text-green-500">
+                    <Mail size={32} />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    Check your inbox!
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-white/60">
+                    We've sent a magic link to <strong>{email}</strong>. Click the link to sign in.
+                  </p>
+                </>
+              )}
             </div>
           </motion.div>
         </div>

@@ -1,7 +1,9 @@
-﻿import { create } from 'zustand';
+
+import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { UserState, ResilienceStatus, DailyLog, WeeklyInsight } from './types';
+import { UserState, DailyLog, WeeklyInsight } from './types';
 import { Preferences } from '@capacitor/preferences';
+import { auth, db, doc, setDoc, getDoc, serverTimestamp, writeBatch, onAuthStateChanged, User } from './services/firebase';
 
 const capacitorStorage = {
   getItem: async (name: string): Promise<string | null> => {
@@ -18,9 +20,14 @@ const capacitorStorage = {
 
 interface ExtendedUserState extends UserState {
   lastUpdated: number;
+  lastSync: number;
   _hasHydrated: boolean;
+  user: User | null;
   setHasHydrated: (state: boolean) => void;
   completeHabit: (habitIndex: number) => void;
+  syncToFirebase: (isNewUser?: boolean) => Promise<void>;
+  loadFromFirebase: () => Promise<void>;
+  initializeAuth: () => () => void; // Returns unsubscribe function
 }
 
 export const useStore = create<ExtendedUserState>()(
@@ -32,6 +39,7 @@ export const useStore = create<ExtendedUserState>()(
       isPremium: false,
       user: null,
       lastUpdated: 0,
+      lastSync: 0,
       setUser: (user) => set({ user }),
       theme: 'dark',
       soundEnabled: false,
@@ -60,7 +68,8 @@ export const useStore = create<ExtendedUserState>()(
       freezeExpiry: null,
 
       logout: async () => {
-        set({ user: null, identity: '', microHabits: [], habitRepository: { high: [], medium: [], low: [] }, history: {}, streak: 0, resilienceScore: 50, currentView: 'onboarding', lastUpdated: 0 });
+        await auth.signOut();
+        set({ user: null, identity: '', microHabits: [], habitRepository: { high: [], medium: [], low: [] }, history: {}, streak: 0, resilienceScore: 50, currentView: 'onboarding', lastUpdated: 0, lastSync: 0 });
         await Preferences.remove({ key: 'bounce_state' });
       },
       getExportData: () => JSON.stringify({ ...get(), timestamp: new Date().toISOString() }, null, 2),
@@ -144,15 +153,152 @@ export const useStore = create<ExtendedUserState>()(
       generateWeeklyReview: () => set(state => ({ weeklyInsights: [...state.weeklyInsights, { id: Date.now().toString(), startDate: new Date(Date.now() - 604800000).toISOString(), endDate: new Date().toISOString(), story: ['Week complete!'], pattern: 'Check', suggestion: 'Keep going.', viewed: false }] })),
       markReviewViewed: (id) => set(state => ({ weeklyInsights: state.weeklyInsights.map(i => i.id === id ? { ...i, viewed: true } : i) })),
       handleVoiceLog: (text, type) => { const state = get(); if (type === 'intention') state.setDailyIntention(new Date().toISOString(), text); else if (type === 'habit') state.addMicroHabit(text); },
-      initializeAuth: () => {},
-      syncToSupabase: async () => {},
-      loadFromSupabase: async () => {}
+      
+      initializeAuth: () => {
+        return onAuthStateChanged(auth, (user) => {
+          const state = get();
+          if (user) {
+            if (state.user?.uid !== user.uid) {
+              set({ user });
+              get().loadFromFirebase(); 
+            }
+          } else {
+            set({ user: null });
+          }
+        });
+      },
+
+      syncToFirebase: async (isNewUser = false) => {
+        const state = get();
+        if (!state.user || !state._hasHydrated) return;
+
+        // If it's a new user, we don't sync to firebase, we load from it.
+        // The exception is when there's no data on firebase yet.
+        if (isNewUser) {
+          await state.loadFromFirebase();
+          return;
+        }
+
+        if (state.lastUpdated <= state.lastSync && !isNewUser) return; // No local changes to sync
+
+        try {
+          const userRef = doc(db, 'users', state.user.uid);
+          const batch = writeBatch(db);
+
+          const userProfile = {
+            identity: state.identity,
+            resilienceScore: state.resilienceScore,
+            streak: state.streak,
+            shields: state.shields,
+            settings: {
+              theme: state.theme,
+              soundEnabled: state.soundEnabled,
+              goal: state.goal,
+              energyTime: state.energyTime,
+              habitRepository: state.habitRepository,
+            },
+            updatedAt: serverTimestamp(),
+          };
+          batch.set(userRef, userProfile, { merge: true });
+
+          for (const dateKey in state.history) {
+            const logRef = doc(db, 'users', state.user.uid, 'logs', dateKey);
+            batch.set(logRef, state.history[dateKey], { merge: true });
+          }
+
+          await batch.commit();
+          set({ lastSync: Date.now() });
+        } catch (error) {
+          console.error("Firebase Sync Error:", error);
+          // Handle offline queuing implicitly via service worker or other PWA features
+        }
+      },
+
+      loadFromFirebase: async () => {
+        const state = get();
+        if (!state.user) return;
+
+        try {
+          const userRef = doc(db, 'users', state.user.uid);
+          const userSnap = await getDoc(userRef);
+
+          if (userSnap.exists()) {
+            const remoteData = userSnap.data();
+            const remoteTimestamp = remoteData.updatedAt?.toMillis() || 0;
+
+            // On first sync for a new device, cloud wins.
+            // Otherwise, local-first prevails.
+            if (state.lastSync === 0 || remoteTimestamp > state.lastUpdated) {
+              const { settings, ...profile } = remoteData;
+              
+              set({
+                ...profile,
+                ...(settings || {}),
+                lastSync: Date.now(),
+                lastUpdated: Date.now(), // to avoid immediate re-sync
+              });
+
+              // Now, get the logs
+              // For simplicity, we're fetching all logs. In a real-world scenario, you might paginate this.
+              const logsCollectionRef = collection(db, 'users', state.user.uid, 'logs');
+              const logsSnapshot = await getDocs(logsCollectionRef);
+              const newHistory = { ...state.history };
+              logsSnapshot.forEach(logDoc => {
+                newHistory[logDoc.id] = logDoc.data() as DailyLog;
+              });
+              set({ history: newHistory });
+
+            } else {
+              // Local is newer or equal, so push local to remote
+              await state.syncToFirebase();
+            }
+          } else {
+            // No remote data, so this is a first-time user on any device.
+            // Push local data to remote.
+            await state.syncToFirebase(true); // Special flag to indicate initial push
+          }
+        } catch (error) {
+          console.error("Firebase Load Error:", error);
+        }
+      },
     }),
     {
       name: 'bounce_state',
       storage: createJSONStorage(() => capacitorStorage),
-      partialize: (state) => ({ theme: state.theme, user: state.user, identity: state.identity, soundEnabled: state.soundEnabled, microHabits: state.microHabits, habitRepository: state.habitRepository, history: state.history, resilienceScore: state.resilienceScore, streak: state.streak, lastUpdated: state.lastUpdated, dailyCompletedIndices: state.dailyCompletedIndices, lastCompletedDate: state.lastCompletedDate, currentView: state.currentView, weeklyInsights: state.weeklyInsights }),
-      onRehydrateStorage: () => (state) => { if (state) state.setHasHydrated(true); },
+      partialize: (state) => ({ 
+        theme: state.theme, 
+        user: state.user, 
+        identity: state.identity, 
+        soundEnabled: state.soundEnabled, 
+        microHabits: state.microHabits, 
+        habitRepository: state.habitRepository, 
+        history: state.history, 
+        resilienceScore: state.resilienceScore, 
+        streak: state.streak, 
+        lastUpdated: state.lastUpdated,
+        lastSync: state.lastSync, 
+        dailyCompletedIndices: state.dailyCompletedIndices, 
+        lastCompletedDate: state.lastCompletedDate, 
+        currentView: state.currentView, 
+        weeklyInsights: state.weeklyInsights 
+      }),
+      onRehydrateStorage: () => (state) => { 
+        if (state) {
+          state.setHasHydrated(true);
+          // After rehydration, initialize auth and perform initial sync
+          state.initializeAuth();
+        }
+      },
     }
   )
+);
+
+// Auto-sync listener
+useStore.subscribe(
+  (state, prevState) => {
+    if (state._hasHydrated && state.lastUpdated > prevState.lastUpdated) {
+      // Debounce or throttle this call in a real app to avoid excessive writes
+      useStore.getState().syncToFirebase();
+    }
+  }
 );
