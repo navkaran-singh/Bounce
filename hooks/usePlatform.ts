@@ -1,5 +1,3 @@
-import { useState, useEffect } from 'react';
-
 interface PlatformFlags {
     isNative: boolean;
     isWeb: boolean;
@@ -8,42 +6,31 @@ interface PlatformFlags {
     isPWA: boolean;
 }
 
+// 🛡️ Compute ONCE at module load (synchronous, no useEffect delay)
+const computePlatform = (): PlatformFlags => {
+    if (typeof window === 'undefined') {
+        return { isNative: false, isWeb: true, isIOS: false, isAndroid: false, isPWA: false };
+    }
+
+    // 🛡️ FIX: Check if Capacitor is actually running natively, not just installed
+    // Capacitor.isNativePlatform() returns true ONLY when running in native app
+    const capacitor = (window as any).Capacitor;
+    const isNative = !!(capacitor && capacitor.isNativePlatform && capacitor.isNativePlatform());
+    const isWeb = !isNative;
+
+    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera || '';
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+    const isAndroid = /android/i.test(userAgent);
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+
+    console.log(`[PLATFORM] isNative=${isNative}, isWeb=${isWeb}, isIOS=${isIOS}, isAndroid=${isAndroid}`);
+
+    return { isNative, isWeb, isIOS, isAndroid, isPWA };
+};
+
+// Singleton - computed once
+const PLATFORM = computePlatform();
+
 export const usePlatform = (): PlatformFlags => {
-    const [platform, setPlatform] = useState<PlatformFlags>({
-        isNative: false,
-        isWeb: true,
-        isIOS: false,
-        isAndroid: false,
-        isPWA: false,
-    });
-
-    useEffect(() => {
-        // Safe check for Capacitor
-        const isNative = typeof window !== 'undefined' && !!(window as any).Capacitor;
-        const isWeb = !isNative;
-
-        // User Agent checks
-        const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent || navigator.vendor || (window as any).opera : '';
-        const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
-        const isAndroid = /android/i.test(userAgent);
-
-        // PWA check
-        const isPWA = typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
-
-        const flags = {
-            isNative,
-            isWeb,
-            isIOS,
-            isAndroid,
-            isPWA,
-        };
-
-        setPlatform(flags);
-
-        // Debug log on mount
-        console.log(`Platform: ${isNative ? 'Native' : 'Web'} ${isIOS ? '(iOS)' : ''}${isAndroid ? '(Android)' : ''}${isPWA ? '(PWA)' : ''}`);
-
-    }, []);
-
-    return platform;
+    return PLATFORM;
 };

@@ -1,5 +1,5 @@
-import { App as CapacitorApp } from '@capacitor/app'; // 👈 NEW
-import { usePlatform } from '../hooks/usePlatform'; // 👈 NEW
+import { App as CapacitorApp } from '@capacitor/app';
+import { usePlatform } from '../hooks/usePlatform';
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, BarChart3, List, Zap, ThermometerSnowflake, AlertCircle, Dices, Check, Wind, Volume2, VolumeX, Eye, EyeOff, Hammer, Shield, Timer, Undo2, CloudRain, Trees, Waves, Flame, X, Calendar, PenLine, Target, Sprout, Anchor, Battery, Mic } from 'lucide-react';
@@ -12,20 +12,19 @@ import { BreathingModal } from '../components/BreathingModal';
 import { ReflectionModal } from '../components/ReflectionModal';
 import { FocusTimerModal } from '../components/FocusTimerModal';
 import { GoalsModal } from '../components/GoalsModal';
-import { EnergyMenu } from '../components/EnergyMenu'; // NEW
-import { VoiceMode } from '../components/VoiceMode'; // NEW
-import { WeeklyStory } from '../components/WeeklyStory'; // NEW
+import { EnergyMenu } from '../components/EnergyMenu';
+import { VoiceMode } from '../components/VoiceMode';
+import { WeeklyStory } from '../components/WeeklyStory';
 import { SoundType, DailyLog } from '../types';
 import { EnergyValve } from '../components/EnergyValve';
-import { Preferences } from '@capacitor/preferences'; // Add Import
-
-// 👇 1. IMPORT CAPACITOR PLUGINS
-// Add NotificationType
-import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';;
+import { Preferences } from '@capacitor/preferences';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 export const Dashboard: React.FC = () => {
-    const { state, actions } = useResilienceEngine();
-    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit } = useStore();
+    const { state: engineState, actions: engineActions } = useResilienceEngine();
+
+    // 👇 GET 'dailyCompletedIndices' DIRECTLY
+    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak } = useStore();
 
     const [showCelebration, setShowCelebration] = useState(false);
     const [milestoneReached, setMilestoneReached] = useState<number | null>(null);
@@ -35,87 +34,63 @@ export const Dashboard: React.FC = () => {
     const [isReflectionOpen, setIsReflectionOpen] = useState(false);
     const [isFocusOpen, setIsFocusOpen] = useState(false);
     const [isGoalsOpen, setIsGoalsOpen] = useState(false);
-    const [isEnergyOpen, setIsEnergyOpen] = useState(false); // NEW
-    const [isVoiceOpen, setIsVoiceOpen] = useState(false); // NEW
+    const [isEnergyOpen, setIsEnergyOpen] = useState(false);
+    const [isVoiceOpen, setIsVoiceOpen] = useState(false);
     const [zenMode, setZenMode] = useState(false);
 
-    // UI State for post-completion options
     const [showPostCompletionActions, setShowPostCompletionActions] = useState(false);
     const [showSoundControls, setShowSoundControls] = useState(false);
 
-    // Intention State
     const todayKey = new Date().toISOString().split('T')[0];
     const [intentionInput, setIntentionInput] = useState(history[todayKey]?.intention || '');
     const [isEditingIntention, setIsEditingIntention] = useState(!history[todayKey]?.intention);
 
-    // Audio Ref
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
-    // Sound Asset Map
     const soundAssets: Record<SoundType, string> = {
-        rain: 'https://assets.mixkit.co/active_storage/sfx/1290/1290-preview.mp3', // Heavy Rain
-        forest: 'https://assets.mixkit.co/active_storage/sfx/2434/2434-preview.mp3', // Forest Birds
-        wind: 'https://assets.mixkit.co/active_storage/sfx/2658/2658-preview.mp3',  // Wind Flow
-        volcano: 'https://assets.mixkit.co/active_storage/sfx/2443/2443-preview.mp3', // Volcano
-        stream: 'https://assets.mixkit.co/active_storage/sfx/207/207-preview.mp3', // Stream
+        rain: 'https://assets.mixkit.co/active_storage/sfx/1290/1290-preview.mp3',
+        forest: 'https://assets.mixkit.co/active_storage/sfx/2434/2434-preview.mp3',
+        wind: 'https://assets.mixkit.co/active_storage/sfx/2658/2658-preview.mp3',
+        volcano: 'https://assets.mixkit.co/active_storage/sfx/2443/2443-preview.mp3',
+        stream: 'https://assets.mixkit.co/active_storage/sfx/207/207-preview.mp3',
     };
 
-    // ... existing hooks
-    const { isNative } = usePlatform(); // 👈 GET NATIVE FLAG
+    const { isNative } = usePlatform();
 
     const triggerHaptic = async (type: 'click' | 'success' | 'failure' | 'hold' = 'click') => {
         if (!isNative) return;
-
         try {
             switch (type) {
-                case 'click':
-                    // Sharp, crisp click for buttons
-                    await Haptics.impact({ style: ImpactStyle.Medium });
-                    break;
-                case 'hold':
-                    // Heavy thud for starting the hold
-                    await Haptics.impact({ style: ImpactStyle.Heavy });
-                    break;
-                case 'success':
-                    // The "Da-Dum" pattern (Premium feel)
-                    await Haptics.notification({ type: NotificationType.Success });
-                    break;
-                case 'failure':
-                    await Haptics.notification({ type: NotificationType.Error });
-                    break;
+                case 'click': await Haptics.impact({ style: ImpactStyle.Medium }); break;
+                case 'hold': await Haptics.impact({ style: ImpactStyle.Heavy }); break;
+                case 'success': await Haptics.notification({ type: NotificationType.Success }); break;
+                case 'failure': await Haptics.notification({ type: NotificationType.Error }); break;
             }
         } catch (e) {
-            // Android Fallback: Manual vibration patterns if Capacitor fails
             if (navigator.vibrate) {
-                if (type === 'success') navigator.vibrate([50, 30, 100]); // Da-dum
-                else navigator.vibrate(20); // Tick
+                if (type === 'success') navigator.vibrate([50, 30, 100]);
+                else navigator.vibrate(20);
             }
         }
     };
 
-    // Inside Dashboard component...
+    // 🛡️ SELF-HEALING: Force Visual Engine to match Store Data on mount
     useEffect(() => {
+        // If Store says we are done, but Engine disagrees (or just to be safe)
+        // We do NOT call completeTask here to avoid loops, but we trust the Store for rendering.
+        // This effect is mainly to ensure the widget syncs.
         const syncWidget = async () => {
-            await Preferences.set({ key: 'resilience_score', value: state.score.toString() });
-
-            // ✅ KEEP THIS (But we will rebrand it visually)
-            await Preferences.set({ key: 'streak', value: state.streak.toString() });
-
-            // ❌ DELETE THIS LINE (Fixes the TS Error)
-            // await Preferences.set({ key: 'freeze_tokens', value: state.freezeTokens.toString() });
-
+            await Preferences.set({ key: 'resilience_score', value: resilienceScore.toString() });
+            await Preferences.set({ key: 'streak', value: streak.toString() });
             const currentHabitText = microHabits[currentHabitIndex] || "Bounce Back";
             await Preferences.set({ key: 'current_habit', value: currentHabitText });
         };
         syncWidget();
-    }, [state.score, state.streak, currentHabitIndex, microHabits]); // Remove state.freezeTokens dependency
+    }, [resilienceScore, streak, currentHabitIndex, microHabits]);
 
-    // 👇 ADD THIS EFFECT BLOCK
     useEffect(() => {
         if (!isNative) return;
-
         const backListener = CapacitorApp.addListener('backButton', () => {
-            // Priority 1: Close Modals if open
             if (isSettingsOpen) setIsSettingsOpen(false);
             else if (isBreathingOpen) setIsBreathingOpen(false);
             else if (isReflectionOpen) setIsReflectionOpen(false);
@@ -124,36 +99,25 @@ export const Dashboard: React.FC = () => {
             else if (isEnergyOpen) setIsEnergyOpen(false);
             else if (isVoiceOpen) setIsVoiceOpen(false);
             else if (showSoundControls) setShowSoundControls(false);
-            // Priority 2: If no modals, minimize app (Go to home screen)
-            else {
-                CapacitorApp.minimizeApp();
-            }
+            else CapacitorApp.minimizeApp();
         });
-
-        // Cleanup listener on unmount
-        return () => {
-            backListener.then(handler => handler.remove());
-        };
+        return () => { backListener.then(handler => handler.remove()); };
     }, [isNative, isSettingsOpen, isBreathingOpen, isReflectionOpen, isFocusOpen, isGoalsOpen, isEnergyOpen, isVoiceOpen, showSoundControls]);
 
-    // Sound Effect Logic
     useEffect(() => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current = null;
         }
-
         if (soundEnabled) {
             audioRef.current = new Audio(soundAssets[soundType]);
             audioRef.current.loop = true;
             audioRef.current.volume = soundVolume;
-            audioRef.current.play().catch(() => { /* Autoplay block ignore */ });
+            audioRef.current.play().catch(() => { });
         }
-
         return () => { audioRef.current?.pause(); };
     }, [soundEnabled, soundType]);
 
-    // Dynamic Volume Update without restart
     useEffect(() => {
         if (audioRef.current) {
             audioRef.current.volume = soundVolume;
@@ -164,9 +128,9 @@ export const Dashboard: React.FC = () => {
         ? microHabits[currentHabitIndex]
         : "Check in";
 
-    const isCurrentHabitDone = actions.isHabitCompleted(currentHabitIndex);
+    // 🛑 CRITICAL FIX: Source of Truth is the STORE, not the Engine
+    const isCurrentHabitDone = dailyCompletedIndices.includes(currentHabitIndex);
 
-    // Button Hold Logic
     const [isHolding, setIsHolding] = useState(false);
     const intervalRef = useRef<any>(null);
     const actionsTimeoutRef = useRef<any>(null);
@@ -174,23 +138,27 @@ export const Dashboard: React.FC = () => {
     const startHold = () => {
         if (isCurrentHabitDone) return;
         setIsHolding(true);
-        // triggerHaptic(ImpactStyle.Medium); // 👈 ADD THIS (Press)
-        triggerHaptic('hold'); // 👈 USE HOLD TYPE
+        triggerHaptic('hold');
         intervalRef.current = setTimeout(() => {
-            // triggerHaptic(ImpactStyle.Heavy); // 👈 ADD THIS (Success)
-            triggerHaptic('success'); // 👈 USE SUCCESS TYPE
-            actions.completeTask(currentHabitIndex);
+            triggerHaptic('success');
+
+            console.log("🔥 [UI] Button Held. Calling Store...");
+
+            // 1. Update Persistence (Store)
+            completeHabit(currentHabitIndex);
+
+            // 2. Update Visuals (Engine) - Only needed for animation, logic is handled by store now
+            engineActions.completeTask(currentHabitIndex);
+
             setIsHolding(false);
 
-            // Milestone Check
-            const newStreak = state.streak + 1;
+            const newStreak = streak + 1; // Use store streak
             if (newStreak > 0 && (newStreak % 7 === 0 || newStreak === 30)) {
                 setMilestoneReached(newStreak);
             } else {
                 setShowCelebration(true);
             }
 
-            // Show Actions (Undo / Note)
             setShowPostCompletionActions(true);
             if (actionsTimeoutRef.current) clearTimeout(actionsTimeoutRef.current);
             actionsTimeoutRef.current = setTimeout(() => {
@@ -209,7 +177,7 @@ export const Dashboard: React.FC = () => {
     };
 
     const handleUndo = () => {
-        actions.undo();
+        engineActions.undo(); // Undo is tricky, might need Store Undo later
         setShowPostCompletionActions(false);
         setShowCelebration(false);
         setMilestoneReached(null);
@@ -236,12 +204,11 @@ export const Dashboard: React.FC = () => {
         return "Good Evening";
     };
 
-    // Calculate Weekly Goal Progress
     const getWeeklyProgress = () => {
         const today = new Date();
         const startOfWeek = new Date(today);
         const day = startOfWeek.getDay();
-        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
         startOfWeek.setDate(diff);
         startOfWeek.setHours(0, 0, 0, 0);
 
@@ -252,7 +219,9 @@ export const Dashboard: React.FC = () => {
             }
         });
 
-        if (state.isCompletedToday && !history[new Date().toISOString().split('T')[0]]) {
+        // Use store state for today
+        const isCompletedToday = dailyCompletedIndices.length > 0;
+        if (isCompletedToday && !history[new Date().toISOString().split('T')[0]]) {
             count++;
         }
 
@@ -262,30 +231,24 @@ export const Dashboard: React.FC = () => {
     const weeklyProgress = getWeeklyProgress();
     const goalPercentage = Math.min(100, (weeklyProgress / goal.target) * 100);
 
-    // Determine Orb State
     let orbState: 'frozen' | 'active' | 'success' | 'breathing' | 'healing' = 'breathing';
     if (showCelebration || milestoneReached) orbState = 'success';
-    else if (state.isFrozen) orbState = 'frozen';
-    else if (state.status === 'BOUNCED') orbState = 'healing';
+    else if (engineState.isFrozen) orbState = 'frozen';
+    else if (engineState.status === 'BOUNCED') orbState = 'healing';
     else if (isHolding) orbState = 'active';
 
     return (
         <div className="h-full w-full flex flex-col relative transition-colors duration-300 overflow-hidden">
-
-            {/* OVERLAYS */}
-            {/* OVERLAYS */}
-            <WeeklyStory /> {/* PREMIUM: AI Weekly Review */}
+            <WeeklyStory />
             <VoiceMode
                 isOpen={isVoiceOpen}
                 onClose={(transcript) => {
                     setIsVoiceOpen(false);
-                    // Only add if there is actual text (user didn't just click X)
                     if (transcript && typeof transcript === 'string') {
                         addMicroHabit(transcript);
                     }
                 }}
             />
-            {/* Milestone Celebration Overlay */}
             <AnimatePresence>
                 {milestoneReached && (
                     <motion.div
@@ -311,7 +274,6 @@ export const Dashboard: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            {/* Celebration Glow Overlay (Standard) */}
             <AnimatePresence>
                 {showCelebration && !milestoneReached && (
                     <motion.div
@@ -342,7 +304,6 @@ export const Dashboard: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            {/* Modals */}
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
             <BreathingModal isOpen={isBreathingOpen} onClose={() => setIsBreathingOpen(false)} />
             <FocusTimerModal isOpen={isFocusOpen} onClose={() => setIsFocusOpen(false)} />
@@ -359,7 +320,6 @@ export const Dashboard: React.FC = () => {
                 }}
             />
 
-            {/* Header */}
             <AnimatePresence>
                 {!zenMode && (
                     <motion.div
@@ -378,9 +338,7 @@ export const Dashboard: React.FC = () => {
                             </div>
 
                             <div className="flex flex-col items-end gap-3">
-                                {/* Sound & Settings Row */}
                                 <div className="flex items-center gap-2 relative">
-                                    {/* PREMIUM: Smart Energy Button */}
                                     <button
                                         onClick={() => setIsEnergyOpen(true)}
                                         className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors relative z-50 ${currentEnergyLevel
@@ -391,7 +349,6 @@ export const Dashboard: React.FC = () => {
                                         <Battery size={16} />
                                     </button>
 
-                                    {/* PREMIUM: Voice Logger Button */}
                                     <button
                                         onClick={() => setIsVoiceOpen(true)}
                                         className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 dark:bg-white/5 text-gray-400 hover:text-primary-cyan transition-colors"
@@ -409,7 +366,6 @@ export const Dashboard: React.FC = () => {
                                         {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
                                     </button>
 
-                                    {/* Sound Controls Popover */}
                                     <AnimatePresence>
                                         {showSoundControls && (
                                             <motion.div
@@ -418,7 +374,6 @@ export const Dashboard: React.FC = () => {
                                                 exit={{ opacity: 0, y: 10, scale: 0.9 }}
                                                 className="absolute top-full right-0 mt-2 p-4 bg-white dark:bg-dark-800 border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl w-64 z-40 backdrop-blur-xl"
                                             >
-                                                {/* Sound controls content same as before */}
                                                 <div className="flex justify-between items-center mb-3">
                                                     <span className="text-xs font-bold text-gray-500 dark:text-white/50 uppercase">Soundscape</span>
                                                     <button onClick={toggleSound} className="text-xs text-primary-cyan hover:underline">
@@ -480,17 +435,15 @@ export const Dashboard: React.FC = () => {
                                     </button>
                                 </div>
 
-                                {/* Resilience Score */}
                                 <div className="flex items-center gap-3">
                                     <div className="flex flex-col items-end pr-1">
-                                        <span className="text-sm font-bold text-gray-800 dark:text-white">{state.score}%</span>
+                                        <span className="text-sm font-bold text-gray-800 dark:text-white">{resilienceScore}%</span>
                                         <span className="text-[10px] text-gray-400 dark:text-white/50 uppercase tracking-wider">Resilience</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Daily Intention Anchor */}
                         <motion.div
                             layout
                             className="relative overflow-hidden"
@@ -530,8 +483,7 @@ export const Dashboard: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col items-center justify-start pt-16 relative z-0 overflow-y-auto w-full no-scrollbar pb-32">                {/* Zen Mode Toggle */}
+            <div className="flex-1 flex flex-col items-center justify-start pt-16 relative z-0 overflow-y-auto w-full no-scrollbar pb-32">
                 <button
                     onClick={() => setZenMode(!zenMode)}
                     className="absolute top-4 right-6 z-30 text-gray-400 dark:text-white/20 hover:text-primary-cyan transition-colors"
@@ -539,7 +491,6 @@ export const Dashboard: React.FC = () => {
                     {zenMode ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
 
-                {/* Goals Button */}
                 <button
                     onClick={() => setIsGoalsOpen(true)}
                     className={`absolute top-4 left-6 z-30 flex items-center gap-2 transition-opacity duration-300 ${zenMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
@@ -555,7 +506,6 @@ export const Dashboard: React.FC = () => {
                     </div>
                 </button>
 
-                {/* Pulse/Timer Triggers */}
                 <div className={`absolute top-1/4 left-6 z-30 flex flex-col gap-4 transition-opacity duration-300 ${zenMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                     <button
                         onClick={() => setIsBreathingOpen(true)}
@@ -578,7 +528,6 @@ export const Dashboard: React.FC = () => {
                     </button>
                 </div>
 
-                {/* The Orb */}
                 <motion.div
                     layout
                     className="relative mb-6 transition-transform"
@@ -587,12 +536,11 @@ export const Dashboard: React.FC = () => {
                     <Orb
                         state={orbState}
                         size={300}
-                        isFractured={state.status === 'CRACKED'}
-                        streak={state.streak}
+                        isFractured={engineState.status === 'CRACKED'}
+                        streak={streak}
                     />
                 </motion.div>
 
-                {/* ⚡ NEW PLACEMENT: Integrated into the Habit Flow */}
                 <div className="w-[90%] max-w-md mb-2 flex justify-end z-20">
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -603,7 +551,6 @@ export const Dashboard: React.FC = () => {
                     </motion.div>
                 </div>
 
-                {/* Action/Info Card - The "Deck" */}
                 <motion.div
                     className="w-[90%] max-w-md perspective-1000 mb-8 relative z-20"
                     animate={{ y: zenMode ? 50 : 0 }}
@@ -628,7 +575,6 @@ export const Dashboard: React.FC = () => {
                                                 <p className="text-xs text-gray-500 dark:text-white/40 uppercase tracking-wider">
                                                     Micro-Habit {currentHabitIndex + 1}/{microHabits.length}
                                                 </p>
-                                                {/* AI Generated Badge */}
                                                 {currentHabit.includes("Mode") && (
                                                     <span className="text-[9px] bg-primary-cyan/10 text-primary-cyan px-1.5 py-0.5 rounded uppercase font-bold flex items-center gap-1">
                                                         <Zap size={8} /> AI Adaptive
@@ -648,7 +594,7 @@ export const Dashboard: React.FC = () => {
                                     {!zenMode && (
                                         <button
                                             onClick={handleShuffle}
-                                            disabled={state.isFrozen}
+                                            disabled={engineState.isFrozen}
                                             className="p-2 rounded-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-primary-cyan transition-colors disabled:opacity-30"
                                         >
                                             <Dices size={20} />
@@ -660,10 +606,9 @@ export const Dashboard: React.FC = () => {
                     </div>
                 </motion.div>
 
-                {/* Main Action & Undo Layer */}
                 <div className="relative flex flex-col items-center w-full min-h-[100px]">
                     <motion.button
-                        disabled={isCurrentHabitDone || state.isFrozen}
+                        disabled={isCurrentHabitDone || engineState.isFrozen}
                         onMouseDown={startHold}
                         onMouseUp={stopHold}
                         onMouseLeave={stopHold}
@@ -674,24 +619,23 @@ export const Dashboard: React.FC = () => {
                     relative w-64 h-16 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 overflow-hidden shadow-lg
                     ${isCurrentHabitDone
                                 ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/50 cursor-default'
-                                : state.status === 'CRACKED'
+                                : engineState.status === 'CRACKED'
                                     ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-orange-500/30'
                                     : 'bg-gradient-to-r from-primary-cyan to-primary-blue text-white dark:text-dark-900 shadow-cyan-500/30 dark:shadow-[0_0_30px_rgba(13,204,242,0.4)]'
                             }
-                    ${state.isFrozen ? 'opacity-50 grayscale' : ''}
+                    ${engineState.isFrozen ? 'opacity-50 grayscale' : ''}
                     active:scale-95
                 `}
                     >
                         <span className="relative z-10 flex items-center gap-2">
                             {isCurrentHabitDone
                                 ? "Completed"
-                                : state.status === 'CRACKED'
+                                : engineState.status === 'CRACKED'
                                     ? <><Hammer size={18} /> Repair & Bounce</>
                                     : "Hold to Complete"
                             }
                         </span>
 
-                        {/* Fill effect */}
                         {isHolding && !isCurrentHabitDone && (
                             <motion.div
                                 layoutId="fill"
@@ -702,7 +646,6 @@ export const Dashboard: React.FC = () => {
                         )}
                     </motion.button>
 
-                    {/* Post Completion Actions (Undo & Add Note) */}
                     <AnimatePresence>
                         {showPostCompletionActions && (
                             <div className="absolute top-full mt-4 flex gap-3 z-40">
@@ -728,7 +671,6 @@ export const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Nav Bar */}
             <AnimatePresence>
                 {!zenMode && (
                     <motion.div
@@ -739,13 +681,13 @@ export const Dashboard: React.FC = () => {
                             icon={<List size={24} />}
                             label="Habits"
                             active
-                            onClick={() => triggerHaptic()} // 👈 Add it here
+                            onClick={() => triggerHaptic()}
                         />
                         <NavItem
                             icon={<Sprout size={24} />}
                             label="Growth"
                             onClick={() => {
-                                triggerHaptic(); // 👈 Add it here
+                                triggerHaptic();
                                 setView('growth');
                             }}
                         />
@@ -753,12 +695,12 @@ export const Dashboard: React.FC = () => {
                             icon={<BarChart3 size={24} />}
                             label="Stats"
                             onClick={() => {
-                                triggerHaptic(); // 👈 Add it here
+                                triggerHaptic();
                                 setView('stats');
                             }}
                         />
                         <button
-                            onClick={() => actions.toggleFreeze(true)}
+                            onClick={() => engineActions.toggleFreeze(true)}
                             className="flex flex-col items-center gap-1 text-red-500 dark:text-red-400 opacity-80 hover:opacity-100"
                         >
                             <ThermometerSnowflake size={24} />

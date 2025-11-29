@@ -32,11 +32,17 @@ export const useResilienceEngine = () => {
     currentHabitIndex,
     generateWeeklyReview,
     weeklyInsights,
-    isPremium
+    isPremium,
+    _hasHydrated  // 🛡️ ADD THIS
   } = store;
 
   // Check for missed days, daily resets, and Premium Automation
   useEffect(() => {
+    // 🛡️ CRITICAL: Do NOT run any logic until store has loaded from disk
+    if (!_hasHydrated) {
+      console.log("[ENGINE] Waiting for hydration...");
+      return;
+    }
     if (isFrozen) return;
 
     const checkState = () => {
@@ -112,7 +118,7 @@ export const useResilienceEngine = () => {
     const interval = setInterval(checkState, 60000);
     return () => clearInterval(interval);
 
-  }, [lastCompletedDate, isFrozen, resilienceStatus, resilienceScore, updateResilience, dailyCompletedIndices, shields, isPremium]);
+  }, [_hasHydrated, lastCompletedDate, isFrozen, resilienceStatus, resilienceScore, updateResilience, dailyCompletedIndices, shields, isPremium]);
 
   const completeTask = (habitIndex: number) => {
     // SNAPSHOT for Undo

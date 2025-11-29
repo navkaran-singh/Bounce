@@ -31,6 +31,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             ? 'com.bounce.app://login-callback' // Android App Scheme
             : window.location.origin;           // Website URL
 
+        // const redirectTo = window.location.origin;
         try {
             const { error } = await supabase.auth.signInWithOtp({
                 email,
