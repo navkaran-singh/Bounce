@@ -1,18 +1,17 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, signInWithRedirect, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, serverTimestamp, writeBatch, collection, getDocs } from 'firebase/firestore';
 import { getPerformance } from 'firebase/performance';
 import { getAnalytics } from 'firebase/analytics';
 
-// TODO: Replace with your app's Firebase project configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
+  apiKey: "AIzaSyB77G4YH_22Gj3f_3gBFErEFWWWhzGB_8Q",
+  authDomain: "bounce-5e606.firebaseapp.com",
+  projectId: "bounce-5e606",
+  storageBucket: "bounce-5e606.firebasestorage.app",
+  messagingSenderId: "912074925338",
+  appId: "1:912074925338:web:ec05c74853f01e6e4978a3",
+  measurementId: "G-WKPVXNX6QM"
 };
 
 // Initialize Firebase
@@ -25,8 +24,8 @@ const analytics = getAnalytics(app);
 const googleProvider = new GoogleAuthProvider();
 
 const actionCodeSettings = (redirectUrl?: string) => ({
-    url: redirectUrl || window.location.origin,
-    handleCodeInApp: true,
+  url: redirectUrl || window.location.origin,
+  handleCodeInApp: true,
 });
 
 const nativeRedirectUrl = 'com.bounce.app://login-callback';
@@ -46,6 +45,8 @@ export {
   getDoc,
   serverTimestamp,
   writeBatch,
+  collection,
+  getDocs,
   actionCodeSettings,
   nativeRedirectUrl
 };

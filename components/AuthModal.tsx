@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, ArrowRight } from 'lucide-react';
-import { auth, googleProvider, sendSignInLinkToEmail, signInWithRedirect, actionCodeSettings, nativeRedirectUrl } from '../services/firebase';
+import { auth, googleProvider, sendSignInLinkToEmail, actionCodeSettings, nativeRedirectUrl } from '../services/firebase';
+import { signInWithPopup } from 'firebase/auth';
 import { useStore } from '../store';
 import { Capacitor } from '@capacitor/core';
 
@@ -23,21 +24,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     try {
         const isNative = Capacitor.isNativePlatform();
         const redirectUrl = isNative ? nativeRedirectUrl : window.location.origin;
+        console.log("[AUTH] Sending magic link to:", email);
+        console.log("[AUTH] Redirect URL:", redirectUrl);
+        console.log("[AUTH] Action code settings:", actionCodeSettings(redirectUrl));
         await sendSignInLinkToEmail(auth, email, actionCodeSettings(redirectUrl));
         window.localStorage.setItem('emailForSignIn', email);
         setIsEmailSent(true);
-    } catch (err) {
-        console.error(err);
-        setError('Could not send sign-in link. Please try again.');
+        console.log("[AUTH] Magic link sent successfully!");
+    } catch (err: any) {
+        console.error("[AUTH] Magic link error:", err);
+        console.error("[AUTH] Error code:", err?.code);
+        console.error("[AUTH] Error message:", err?.message);
+        setError(err?.message || 'Could not send sign-in link. Please try again.');
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setError('');
+    const isNative = Capacitor.isNativePlatform();
+    
     try {
-      await signInWithRedirect(auth, googleProvider);
-    } catch (err) {
-      console.error(err);
-      setError('Could not sign in with Google. Please try again.');
+      if (isNative) {
+        // Native: Use redirect (opens system browser)
+        console.log("[AUTH] Starting Google sign-in with redirect (native)...");
+        const { signInWithRedirect } = await import('firebase/auth');
+        await signInWithRedirect(auth, googleProvider);
+        // User will be redirected, auth state will update when they return
+      } else {
+        // Web: Use popup
+        console.log("[AUTH] Starting Google sign-in with popup (web)...");
+        const result = await signInWithPopup(auth, googleProvider);
+        console.log("[AUTH] Google sign-in success:", result.user.email);
+        onClose();
+      }
+    } catch (err: any) {
+      console.error("[AUTH] Google sign-in error:", err);
+      console.error("[AUTH] Error code:", err?.code);
+      console.error("[AUTH] Error message:", err?.message);
+      setError(err?.message || 'Could not sign in with Google. Please try again.');
     }
   };
 

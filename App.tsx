@@ -14,6 +14,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { usePlatform } from './hooks/usePlatform';
 import { auth, isSignInWithEmailLink, signInWithEmailLink } from './services/firebase';
+import { getRedirectResult } from 'firebase/auth';
 
 const App: React.FC = () => {
   const { currentView, theme, setView, identity, _hasHydrated, setHasHydrated, initializeAuth, user } = useStore();
@@ -21,8 +22,25 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const unsubscribe = initializeAuth();
-    return () => unsubscribe(); // Cleanup subscription on component unmount
-  }, [initializeAuth]);
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  // Handle Google redirect result (for native platforms)
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          console.log("[AUTH] Redirect sign-in success:", result.user.email);
+        }
+      } catch (err) {
+        console.error("[AUTH] Redirect result error:", err);
+      }
+    };
+    handleRedirectResult();
+  }, []);
 
   // Handle magic link sign-in
   useEffect(() => {
@@ -35,11 +53,9 @@ const App: React.FC = () => {
         signInWithEmailLink(auth, email, window.location.href)
         .then(() => {
           window.localStorage.removeItem('emailForSignIn');
-          // User is signed in, and the onAuthStateChanged listener in the store will handle the rest.
         })
         .catch((err) => {
-          console.error(err);
-          // Handle error
+          console.error("[AUTH] Magic link error:", err);
         });
       }
     }

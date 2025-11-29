@@ -131,8 +131,10 @@ export interface UserState {
   handleVoiceLog: (text: string, type: 'note' | 'habit' | 'intention') => void;
   addMicroHabit: (habit: string) => void;
 
-  // Cloud Sync (placeholder for Firebase)
-  initializeAuth: () => void;
+  // Cloud Sync (Firebase)
+  initializeAuth: () => (() => void) | void;
   loadFromSupabase: () => Promise<void>;
   syncToSupabase: () => Promise<void>;
+  loadFromFirebase: () => Promise<void>;
+  syncToFirebase: () => Promise<void>;
 }
