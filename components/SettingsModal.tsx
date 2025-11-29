@@ -4,7 +4,6 @@ import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Moon, Sun, Monitor, X, CloudRain, Trees, Waves, Save, Download, Upload, Check, Cloud, LogOut, User } from 'lucide-react';
 import { useStore } from '../store';
 import { Theme, SoundType } from '../types';
-import { supabase } from '../services/supabase';
 import { AuthModal } from './AuthModal';
 import { usePlatform } from '../hooks/usePlatform';
 import { useNotifications } from '../hooks/useNotifications'; // 👈 NEW

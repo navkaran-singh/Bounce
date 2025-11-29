@@ -1,12 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { supabase } from './services/supabase';
 import { useStore } from './store';
 import { Onboarding } from './views/Onboarding';
 import { Contract } from './views/Contract';
 import { Dashboard } from './views/Dashboard';
 import { Stats } from './views/Stats';
-import { History } from './views/History';
 import { Growth } from './views/Growth';
 import { PanicModal } from './components/PanicModal';
 import { Particles } from './components/Particles';
@@ -16,136 +14,36 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { usePlatform } from './hooks/usePlatform';
 
 const App: React.FC = () => {
-  const { currentView, theme, loadFromSupabase, setView, identity, setUser, _hasHydrated, setHasHydrated } = useStore();
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const { currentView, theme, setView, identity, _hasHydrated, setHasHydrated } = useStore();
   const { isNative } = usePlatform();
 
-  // Safety Timer (Just in case hydration is somehow blocked)
+  // Safety Timer - force hydration if stuck
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
       if (!_hasHydrated) {
-        console.warn("[APP] Hydration Slow. Forcing.");
+        console.warn("[APP] Hydration slow. Forcing.");
         setHasHydrated(true);
       }
     }, 1000);
     return () => clearTimeout(safetyTimer);
   }, [_hasHydrated, setHasHydrated]);
 
-  // Auth Init
+  // Simple init - check if user has COMPLETED onboarding (has identity AND habits)
+  const { microHabits } = useStore();
+  
   useEffect(() => {
-    if (!_hasHydrated) return; // Wait for disk load
+    if (!_hasHydrated) return;
+    
+    console.log("[APP] Hydrated. Identity:", identity, "Habits:", microHabits.length);
+    
+    // Only redirect to dashboard if user has BOTH identity AND habits (completed onboarding)
+    if (identity && microHabits.length > 0 && currentView === 'onboarding') {
+      console.log("[APP] Onboarding complete, going to dashboard");
+      setView('dashboard');
+    }
+  }, [_hasHydrated, identity, microHabits.length, currentView, setView]);
 
-    // 🛡️ SAFETY: Force render after 3 seconds no matter what
-    const forceRenderTimer = setTimeout(() => {
-      console.warn("[APP] Auth timeout. Forcing render.");
-      setIsCheckingAuth(false);
-    }, 3000);
-
-    const initApp = async () => {
-      try {
-        console.log("[APP] Checking session...");
-        
-        // 🛡️ FIX: Handle magic link redirect on WEB (URL contains access_token in hash)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-        
-        if (accessToken && refreshToken) {
-          console.log("[APP] Magic link detected in URL. Setting session...");
-          console.log("[APP] Access token (first 20 chars):", accessToken.substring(0, 20));
-          
-          try {
-            // Add timeout to prevent infinite hang
-            const setSessionPromise = supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken
-            });
-            
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('setSession timeout after 10s')), 10000)
-            );
-            
-            const { error } = await Promise.race([setSessionPromise, timeoutPromise]) as any;
-            
-            console.log("[APP] setSession completed. Error:", error?.message || 'none');
-            
-            if (!error) {
-              // Clear the hash from URL
-              window.history.replaceState(null, '', window.location.pathname);
-              console.log("[APP] URL hash cleared. SIGNED_IN event should fire.");
-            } else {
-              console.error("[APP] Failed to set session from magic link:", error);
-            }
-          } catch (e: any) {
-            console.error("[APP] setSession error/timeout:", e.message);
-          }
-        }
-        
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log("[APP] getSession result:", !!session);
-
-        if (session) {
-          setUser(session.user);
-          
-          // 🛡️ Check if this is a fresh login (hasSyncedOnce is false) or app restart
-          const state = useStore.getState();
-          if (!state.hasSyncedOnce) {
-            // Fresh login - let loadFromSupabase decide whether to upload or download
-            console.log("[APP] Fresh login detected. Calling loadFromSupabase(true)...");
-            await loadFromSupabase(true);
-          } else {
-            // App restart - local is master
-            console.log("[APP] App restart. Local is master.");
-            loadFromSupabase(false).catch(e => console.error("[APP] Sync error:", e));
-          }
-          
-          if (currentView === 'onboarding' && useStore.getState().identity) {
-            setView('dashboard');
-          }
-        } else {
-          setUser(null);
-          if (!identity) setView('onboarding');
-        }
-      } catch (e) {
-        console.error("Auth init error", e);
-      } finally {
-        clearTimeout(forceRenderTimer);
-        console.log("[APP] Auth check complete. Rendering app.");
-        setIsCheckingAuth(false);
-      }
-    };
-
-    initApp();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AUTH] Event: ${event}`);
-      
-      // 🛡️ IGNORE INITIAL_SESSION - we handle it in initApp above
-      if (event === 'INITIAL_SESSION') {
-        console.log("[AUTH] Ignoring INITIAL_SESSION (handled by initApp)");
-        return;
-      }
-
-      setUser(session?.user ?? null);
-
-      if (event === 'SIGNED_IN' && session?.user) {
-        // 🛡️ This fires on ACTUAL sign-in (magic link click)
-        console.log("[AUTH] SIGNED_IN event. Calling loadFromSupabase(true)...");
-        await loadFromSupabase(true); // isFirstLogin = true
-        setView('dashboard');
-
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setView('onboarding');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [_hasHydrated]);
-
-  // ... (Keep existing Theme/Native listeners/RenderView)
-
-  // Native listeners
+  // Native platform setup
   useEffect(() => {
     if (isNative) {
       const configureStatusBar = async () => {
@@ -157,27 +55,12 @@ const App: React.FC = () => {
       configureStatusBar();
 
       CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-        if (!canGoBack) { } else { window.history.back(); }
-      });
-
-      CapacitorApp.addListener('appUrlOpen', async (data) => {
-        if (data.url.includes('#')) {
-          const hash = data.url.split('#')[1];
-          const params = new URLSearchParams(hash);
-          const access_token = params.get('access_token');
-          const refresh_token = params.get('refresh_token');
-
-          if (access_token && refresh_token) {
-            const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-            if (!error) {
-              setView('dashboard');
-            }
-          }
-        }
+        if (canGoBack) window.history.back();
       });
     }
   }, [isNative]);
 
+  // Theme handling
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -199,7 +82,8 @@ const App: React.FC = () => {
     }
   };
 
-  if (!_hasHydrated || isCheckingAuth) {
+  // Show loader only during hydration
+  if (!_hasHydrated) {
     return (
       <div className="relative w-full h-[100dvh] bg-light-50 dark:bg-[#0F0F10] flex items-center justify-center">
         <Loader2 className="animate-spin text-primary-cyan" size={48} />

@@ -1,11 +1,9 @@
-
 export type AppView = 'onboarding' | 'contract' | 'dashboard' | 'stats' | 'growth' | 'history';
 export type ResilienceStatus = 'ACTIVE' | 'CRACKED' | 'BOUNCED' | 'FROZEN';
 export type Theme = 'dark' | 'light' | 'system';
 export type EnergyLevel = 'low' | 'medium' | 'high';
 export type SoundType = 'rain' | 'forest' | 'stream' | 'volcano' | 'wind';
 export type BreathPattern = 'coherence' | 'box' | '478' | 'sigh';
-import { supabase } from './services/supabase';
 
 export interface Message {
   id: string;
@@ -20,7 +18,7 @@ export interface DailyLog {
   completedIndices: number[];
   energy?: EnergyLevel;
   note?: string;
-  intention?: string; // Feature: Morning Anchor
+  intention?: string;
 }
 
 export interface Badge {
@@ -28,7 +26,7 @@ export interface Badge {
   label: string;
   icon: string;
   unlocked: boolean;
-  requirement: number; // Total completions needed
+  requirement: number;
 }
 
 export interface Goal {
@@ -40,22 +38,26 @@ export interface WeeklyInsight {
   id: string;
   startDate: string;
   endDate: string;
-  story: string[]; // Array of story segments (e.g., "You crushed Monday...", "Wednesday was tough...")
-  pattern: string; // "Low energy on Wednesdays"
-  suggestion: string; // "Auto-shrink habit..."
+  story: string[];
+  pattern: string;
+  suggestion: string;
   viewed: boolean;
 }
 
-import { User } from '@supabase/supabase-js';
+// Simple user type for future cloud sync
+export interface AppUser {
+  id: string;
+  email?: string;
+}
 
 export interface UserState {
   // Premium Status
   isPremium: boolean;
-  user: User | null; // Supabase User
+  user: AppUser | null;
 
-  setUser: (user: User | null) => void; // 👈 Ensure this exists
-  logout: () => Promise<void>;          // 👈 NEW
-  getExportData: () => string;          // 👈 NEW
+  setUser: (user: AppUser | null) => void;
+  logout: () => Promise<void>;
+  getExportData: () => string;
 
   // Navigation
   currentView: AppView;
@@ -65,18 +67,18 @@ export interface UserState {
   setTheme: (theme: Theme) => void;
   soundEnabled: boolean;
   soundType: SoundType;
-  soundVolume: number; // 0.0 to 1.0
+  soundVolume: number;
   toggleSound: () => void;
   setSoundType: (type: SoundType) => void;
   setSoundVolume: (volume: number) => void;
 
   // User Data
   identity: string;
-  microHabits: string[]; // Array of 3 variations
-  habitRepository: Record<EnergyLevel, string[]>; // Stored habits for each level
-  currentHabitIndex: number; // Which variation is active
+  microHabits: string[];
+  habitRepository: Record<EnergyLevel, string[]>;
+  currentHabitIndex: number;
   energyTime: string;
-  currentEnergyLevel: EnergyLevel | null; // For the Smart Energy Check-in
+  currentEnergyLevel: EnergyLevel | null;
 
   // Goals
   goal: Goal;
@@ -94,11 +96,11 @@ export interface UserState {
   totalCompletions: number;
   lastCompletedDate: string | null;
   missedYesterday: boolean;
-  dailyCompletedIndices: number[]; // Track which habit indices are done today
+  dailyCompletedIndices: number[];
 
   // Historical Data
-  history: Record<string, DailyLog>; // YYYY-MM-DD -> Log
-  weeklyInsights: WeeklyInsight[]; // Stored weekly reviews
+  history: Record<string, DailyLog>;
+  weeklyInsights: WeeklyInsight[];
 
   // Undo Capabilities
   undoState: Partial<UserState> | null;
@@ -107,15 +109,15 @@ export interface UserState {
 
   // Freeze Protocol
   isFrozen: boolean;
-  freezeExpiry: number | null; // Timestamp
+  freezeExpiry: number | null;
 
   // Actions
   setIdentity: (identity: string) => void;
   setMicroHabits: (habits: string[]) => void;
   setHabitsWithLevels: (habits: Record<EnergyLevel, string[]>) => void;
-  cycleMicroHabit: () => void; // Shuffle action
+  cycleMicroHabit: () => void;
   setEnergyTime: (time: string) => void;
-  setEnergyLevel: (level: EnergyLevel) => void; // Smart Energy Action
+  setEnergyLevel: (level: EnergyLevel) => void;
   completeDailyBounce: () => void;
   updateResilience: (updates: Partial<Pick<UserState, 'resilienceScore' | 'resilienceStatus' | 'streak' | 'shields' | 'lastCompletedDate' | 'missedYesterday' | 'dailyCompletedIndices' | 'totalCompletions'>>) => void;
   logReflection: (date: string, energy: EnergyLevel, note: string) => void;
@@ -123,13 +125,13 @@ export interface UserState {
   toggleFreeze: (active: boolean) => void;
   setView: (view: AppView) => void;
   resetProgress: () => void;
-  importData: (data: string) => boolean; // Returns success
-  generateWeeklyReview: () => void; // Trigger AI analysis
+  importData: (data: string) => boolean;
+  generateWeeklyReview: () => void;
   markReviewViewed: (id: string) => void;
   handleVoiceLog: (text: string, type: 'note' | 'habit' | 'intention') => void;
   addMicroHabit: (habit: string) => void;
 
-  // Supabase Sync
+  // Cloud Sync (placeholder for Firebase)
   initializeAuth: () => void;
   loadFromSupabase: () => Promise<void>;
   syncToSupabase: () => Promise<void>;
