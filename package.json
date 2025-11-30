@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^7.4.0",
     "@capacitor/android": "^7.4.4",
     "@capacitor/app": "^7.1.0",
     "@capacitor/cli": "^7.4.4",
@@ -21,7 +22,7 @@
     "@capacitor/status-bar": "^7.0.3",
     "@google/generative-ai": "^0.24.1",
     "expo-speech-recognition": "^3.0.0",
-    "firebase": "^12.6.0",
+    "firebase": "^11.10.0",
     "framer-motion": "^12.23.24",
     "ics": "^3.8.1",
     "lucide-react": "^0.554.0",

@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, ArrowRight } from 'lucide-react';
+import { X, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { auth, googleProvider, sendSignInLinkToEmail, actionCodeSettings, nativeRedirectUrl } from '../services/firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
 import { useStore } from '../store';
 import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -22,34 +23,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     e.preventDefault();
     setError('');
     try {
-        const isNative = Capacitor.isNativePlatform();
-        const redirectUrl = isNative ? nativeRedirectUrl : window.location.origin;
-        console.log("[AUTH] Sending magic link to:", email);
-        console.log("[AUTH] Redirect URL:", redirectUrl);
-        console.log("[AUTH] Action code settings:", actionCodeSettings(redirectUrl));
-        await sendSignInLinkToEmail(auth, email, actionCodeSettings(redirectUrl));
-        window.localStorage.setItem('emailForSignIn', email);
-        setIsEmailSent(true);
-        console.log("[AUTH] Magic link sent successfully!");
+      const isNative = Capacitor.isNativePlatform();
+      const redirectUrl = isNative ? nativeRedirectUrl : window.location.origin;
+      console.log("[AUTH] Sending magic link to:", email);
+      console.log("[AUTH] Redirect URL:", redirectUrl);
+      console.log("[AUTH] Action code settings:", actionCodeSettings(redirectUrl));
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings(redirectUrl));
+      window.localStorage.setItem('emailForSignIn', email);
+      setIsEmailSent(true);
+      console.log("[AUTH] Magic link sent successfully!");
     } catch (err: any) {
-        console.error("[AUTH] Magic link error:", err);
-        console.error("[AUTH] Error code:", err?.code);
-        console.error("[AUTH] Error message:", err?.message);
-        setError(err?.message || 'Could not send sign-in link. Please try again.');
+      console.error("[AUTH] Magic link error:", err);
+      console.error("[AUTH] Error code:", err?.code);
+      console.error("[AUTH] Error message:", err?.message);
+      setError(err?.message || 'Could not send sign-in link. Please try again.');
     }
   };
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleGoogleSignIn = async () => {
     setError('');
+    setIsLoading(true);
     const isNative = Capacitor.isNativePlatform();
-    
+
     try {
       if (isNative) {
-        // Native: Use redirect (opens system browser)
-        console.log("[AUTH] Starting Google sign-in with redirect (native)...");
-        const { signInWithRedirect } = await import('firebase/auth');
-        await signInWithRedirect(auth, googleProvider);
-        // User will be redirected, auth state will update when they return
+        // Native: Use Capacitor Firebase Authentication plugin (native Google Sign-In UI)
+        console.log("[AUTH] Starting native Google sign-in...");
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        console.log("[AUTH] Native sign-in result:", result);
+        
+        // Get the ID token and create a Firebase credential
+        const idToken = result.credential?.idToken;
+        if (idToken) {
+          const credential = GoogleAuthProvider.credential(idToken);
+          await signInWithCredential(auth, credential);
+          console.log("[AUTH] Native Google sign-in success:", result.user?.email);
+          onClose();
+        } else {
+          throw new Error('No ID token received from Google');
+        }
       } else {
         // Web: Use popup
         console.log("[AUTH] Starting Google sign-in with popup (web)...");
@@ -62,6 +76,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       console.error("[AUTH] Error code:", err?.code);
       console.error("[AUTH] Error message:", err?.message);
       setError(err?.message || 'Could not sign in with Google. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -106,7 +122,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   <p className="text-sm text-gray-500 dark:text-white/60 mb-6">
                     We'll send a magic link to your email. No password needed.
                   </p>
-                  
+
                   <form onSubmit={handleMagicLinkSignIn} className="w-full flex flex-col gap-4">
                     <input
                       type="email"
@@ -126,11 +142,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
                   <div className="my-4 text-xs text-gray-400">OR</div>
 
-                  <button 
+                  <button
                     onClick={handleGoogleSignIn}
-                    className="w-full py-4 bg-white dark:bg-dark-700 border border-gray-200 dark:border-dark-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-dark-600 transition-colors"
+                    disabled={isLoading}
+                    className="w-full py-4 bg-white dark:bg-dark-700 border border-gray-200 dark:border-dark-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-dark-600 transition-colors disabled:opacity-50"
                   >
-                    <img src="/google.svg" alt="Google" className="w-5 h-5" /> Sign In with Google
+                    {isLoading ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      <>
+                        <img src="/google.svg" alt="Google" className="w-5 h-5" /> Sign In with Google
+                      </>
+                    )}
                   </button>
 
                   {error && <p className="text-red-500 text-sm mt-4">{error}</p>}

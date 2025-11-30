@@ -1,0 +1,14 @@
+[
+    {
+        "relation": [
+            "delegate_permission/common.handle_all_urls"
+        ],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "com.bounce.app",
+            "sha256_cert_fingerprints": [
+                "26:7B:5F:D0:A4:14:81:F3:F5:11:26:E3:1D:BD:CB:D9:98:12:3E:66:73:59:D3:7E:95:81:CE:7B:5A:56:05:CB"
+            ]
+        }
+    }
+]

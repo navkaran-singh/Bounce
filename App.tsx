@@ -42,24 +42,56 @@ const App: React.FC = () => {
     handleRedirectResult();
   }, []);
 
-  // Handle magic link sign-in
+  // Handle magic link sign-in (web and native)
   useEffect(() => {
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-      let email = window.localStorage.getItem('emailForSignIn');
-      if (!email) {
-        email = window.prompt('Please provide your email for confirmation');
+    const handleMagicLink = async (url: string) => {
+      console.log("[AUTH] Checking magic link URL:", url);
+      if (isSignInWithEmailLink(auth, url)) {
+        console.log("[AUTH] Valid magic link detected!");
+        
+        // Try to get email from localStorage (works on both web and native via Capacitor)
+        let email = window.localStorage.getItem('emailForSignIn');
+        
+        if (!email) {
+          // Fallback: prompt user for email
+          email = window.prompt('Please provide your email for confirmation');
+        }
+        
+        if (email) {
+          try {
+            await signInWithEmailLink(auth, email, url);
+            console.log("[AUTH] Magic link sign-in success!");
+            window.localStorage.removeItem('emailForSignIn');
+            // Clear URL params on web
+            if (!isNative) {
+              window.history.replaceState(null, '', window.location.pathname);
+            }
+          } catch (err) {
+            console.error("[AUTH] Magic link error:", err);
+          }
+        }
       }
-      if(email) {
-        signInWithEmailLink(auth, email, window.location.href)
-        .then(() => {
-          window.localStorage.removeItem('emailForSignIn');
-        })
-        .catch((err) => {
-          console.error("[AUTH] Magic link error:", err);
-        });
-      }
+    };
+
+    // Check current URL (for web)
+    handleMagicLink(window.location.href);
+
+    // Listen for app URL open events (for native deep links)
+    let urlOpenListener: any;
+    if (isNative) {
+      urlOpenListener = CapacitorApp.addListener('appUrlOpen', (data) => {
+        console.log("[AUTH] App opened with URL:", data.url);
+        handleMagicLink(data.url);
+      });
     }
-  }, []);
+
+    // Cleanup listener on unmount
+    return () => {
+      if (urlOpenListener) {
+        urlOpenListener.remove();
+      }
+    };
+  }, [isNative]);
 
   // Safety Timer
   useEffect(() => {
@@ -72,10 +104,10 @@ const App: React.FC = () => {
   }, [_hasHydrated, setHasHydrated]);
 
   const { microHabits } = useStore();
-  
+
   useEffect(() => {
     if (!_hasHydrated) return;
-    
+
     if (user && identity && microHabits.length > 0 && currentView === 'onboarding') {
       setView('dashboard');
     }
