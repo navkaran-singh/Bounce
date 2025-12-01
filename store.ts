@@ -75,6 +75,11 @@ export const useStore = create<ExtendedUserState>()(
       isFrozen: false,
       freezeExpiry: null,
 
+      // Recovery Mode (Resilience Engine 2.0)
+      recoveryMode: false,
+      consecutiveMisses: 0,
+      lastMissedDate: null,
+
       logout: async () => {
         await auth.signOut();
         set({
@@ -131,7 +136,7 @@ export const useStore = create<ExtendedUserState>()(
       completeHabit: (habitIndex) => {
         const state = get();
         if (state.dailyCompletedIndices.includes(habitIndex)) return;
-        
+
         // Capture current state for undo BEFORE making changes
         const undoSnapshot = {
           resilienceScore: state.resilienceScore,
@@ -144,25 +149,43 @@ export const useStore = create<ExtendedUserState>()(
           dailyCompletedIndices: [...state.dailyCompletedIndices],
           history: JSON.parse(JSON.stringify(state.history)) // Deep copy
         };
-        
+
         const newIndices = [...state.dailyCompletedIndices, habitIndex];
         const now = new Date().toISOString();
         const dateKey = now.split('T')[0];
         const newHistory = { ...state.history };
-        newHistory[dateKey] = { date: dateKey, completedIndices: newIndices };
+        newHistory[dateKey] = { ...newHistory[dateKey], date: dateKey, completedIndices: newIndices };
         const isNewDay = !state.lastCompletedDate || state.lastCompletedDate.split('T')[0] !== dateKey;
-        
+
+        // Calculate new streak and check for shield earning
+        const newStreak = isNewDay ? state.streak + 1 : state.streak;
+        const earnedShield = isNewDay && newStreak > 0 && newStreak % 7 === 0;
+
+        // Determine new status - completing a habit exits recovery/cracked state
+        let newStatus: 'ACTIVE' | 'BOUNCED' = 'ACTIVE';
+        let bonusPoints = 5;
+        if (state.resilienceStatus === 'CRACKED' || state.resilienceStatus === 'RECOVERING') {
+          newStatus = 'BOUNCED';
+          bonusPoints = 15; // Bonus for bouncing back
+        }
+
         // Single set call with both undoState and new values
         set({
           undoState: undoSnapshot,
           dailyCompletedIndices: newIndices,
           lastCompletedDate: now,
-          streak: isNewDay ? state.streak + 1 : state.streak,
-          resilienceScore: Math.min(100, state.resilienceScore + 5),
+          streak: newStreak,
+          shields: earnedShield ? (state.shields || 0) + 1 : state.shields,
+          resilienceScore: Math.min(100, state.resilienceScore + bonusPoints),
+          resilienceStatus: newStatus,
+          totalCompletions: (state.totalCompletions || 0) + 1,
           history: newHistory,
+          recoveryMode: false, // Clear recovery mode on completion
+          missedYesterday: false,
+          consecutiveMisses: 0,
           lastUpdated: Date.now()
         });
-        
+
         console.log("[HABIT] Completed habit", habitIndex, "- undoState saved with streak:", undoSnapshot.streak);
       },
       updateResilience: (updates) => {
@@ -197,6 +220,109 @@ export const useStore = create<ExtendedUserState>()(
       }),
 
       toggleFreeze: (active) => set({ isFrozen: active, freezeExpiry: active ? Date.now() + 86400000 : null, resilienceStatus: active ? 'FROZEN' : 'ACTIVE', lastUpdated: Date.now() }),
+
+      // Recovery Mode Actions (Resilience Engine 2.0)
+      checkMissedDay: () => {
+        const state = get();
+        if (!state._hasHydrated || state.isFrozen || state.recoveryMode) return;
+
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const last = state.lastCompletedDate ? new Date(state.lastCompletedDate) : null;
+
+        if (!last) return;
+
+        const lastDateKey = last.toISOString().split('T')[0];
+        const oneDay = 24 * 60 * 60 * 1000;
+        const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const lastDay = new Date(last.getFullYear(), last.getMonth(), last.getDate());
+        const diffDays = Math.floor((todayDate.getTime() - lastDay.getTime()) / oneDay);
+
+        // If missed yesterday (diffDays > 1 means at least one full day gap)
+        if (diffDays > 1 && lastDateKey !== state.lastMissedDate) {
+          console.log("[RECOVERY] Missed day detected, activating recovery mode");
+          set({
+            recoveryMode: true,
+            consecutiveMisses: state.consecutiveMisses + 1,
+            lastMissedDate: today,
+            missedYesterday: true,
+            resilienceStatus: 'RECOVERING',
+            resilienceScore: Math.max(0, state.resilienceScore - 10),
+            lastUpdated: Date.now()
+          });
+        }
+      },
+
+      activateRecoveryMode: () => {
+        set({
+          recoveryMode: true,
+          resilienceStatus: 'RECOVERING',
+          lastUpdated: Date.now()
+        });
+      },
+
+      dismissRecoveryMode: () => {
+        set({
+          recoveryMode: false,
+          resilienceStatus: 'ACTIVE',
+          lastUpdated: Date.now()
+        });
+      },
+
+      applyRecoveryOption: (option) => {
+        const state = get();
+
+        switch (option) {
+          case 'one-minute-reset':
+            // Set energy to low, filter for easiest habits
+            const lowHabits = state.habitRepository?.low?.length > 0
+              ? state.habitRepository.low
+              : state.microHabits;
+            set({
+              recoveryMode: false,
+              currentEnergyLevel: 'low',
+              microHabits: lowHabits,
+              currentHabitIndex: 0,
+              resilienceStatus: 'ACTIVE',
+              lastUpdated: Date.now()
+            });
+            console.log("[RECOVERY] One-minute reset applied - switched to low energy habits");
+            break;
+
+          case 'use-shield':
+            if ((state.shields || 0) > 0) {
+              set({
+                recoveryMode: false,
+                shields: state.shields - 1,
+                streak: state.streak, // Preserve streak
+                missedYesterday: false,
+                consecutiveMisses: 0,
+                resilienceStatus: 'ACTIVE',
+                resilienceScore: Math.min(100, state.resilienceScore + 10), // Restore some score
+                lastUpdated: Date.now()
+              });
+              console.log("[RECOVERY] Shield used - streak preserved");
+            }
+            break;
+
+          case 'gentle-restart':
+            set({
+              recoveryMode: false,
+              streak: 0,
+              consecutiveMisses: 0,
+              missedYesterday: false,
+              resilienceStatus: 'BOUNCED',
+              resilienceScore: 50, // Reset to baseline
+              lastUpdated: Date.now()
+            });
+            console.log("[RECOVERY] Gentle restart - streak reset, badges preserved");
+            break;
+        }
+
+        // Sync to Firebase
+        get().syncToFirebase();
+      },
+
       saveUndoState: () => {
         const { resilienceScore, resilienceStatus, streak, shields, totalCompletions, lastCompletedDate, missedYesterday, dailyCompletedIndices, history } = get();
         set({ undoState: { resilienceScore, resilienceStatus, streak, shields, totalCompletions, lastCompletedDate, missedYesterday, dailyCompletedIndices, history } });
@@ -208,22 +334,22 @@ export const useStore = create<ExtendedUserState>()(
           console.log("[UNDO] No undo state available");
           return;
         }
-        
+
         console.log("[UNDO] Restoring state:", undoState);
-        
+
         // Simply restore the previous state - the undo state already has the correct values
         // including the streak from before the habit was completed
         const today = new Date().toISOString().split('T')[0];
         const newHistory = { ...(undoState.history || state.history) };
-        
+
         // Update today's history entry with the restored completed indices
         if (newHistory[today]) {
-          newHistory[today] = { 
-            ...newHistory[today], 
-            completedIndices: undoState.dailyCompletedIndices ?? [] 
+          newHistory[today] = {
+            ...newHistory[today],
+            completedIndices: undoState.dailyCompletedIndices ?? []
           };
         }
-        
+
         set({
           resilienceScore: undoState.resilienceScore ?? state.resilienceScore,
           resilienceStatus: undoState.resilienceStatus ?? state.resilienceStatus,
@@ -237,9 +363,9 @@ export const useStore = create<ExtendedUserState>()(
           undoState: null,
           lastUpdated: Date.now()
         });
-        
+
         console.log("[UNDO] State restored, new streak:", undoState.streak);
-        
+
         // Sync to Firebase
         get().syncToFirebase();
       },
@@ -254,14 +380,14 @@ export const useStore = create<ExtendedUserState>()(
       initializeAuth: () => {
         return onAuthStateChanged(auth, async (firebaseUser) => {
           const state = get();
-          
+
           if (firebaseUser) {
             // User signed in
             const isNewLogin = state.user?.uid !== firebaseUser.uid;
             if (isNewLogin) {
               console.log("[AUTH] User signed in:", firebaseUser.email);
               set({ user: toAppUser(firebaseUser) });
-              
+
               // Determine if this is Sign Up (new account) or Log In (existing account)
               await get().handleFirstSync();
             }
@@ -293,7 +419,7 @@ export const useStore = create<ExtendedUserState>()(
             // Check if cloud has real data (identity set)
             const cloudData = userSnap.data();
             const cloudHasRealData = cloudData.identity && cloudData.identity.trim() !== '';
-            
+
             if (cloudHasRealData) {
               // EXISTING account with data - download cloud data (overwrite local)
               console.log("[SYNC] EXISTING ACCOUNT - downloading cloud data");
@@ -304,7 +430,7 @@ export const useStore = create<ExtendedUserState>()(
               await get().syncToFirebase(true);
             }
           }
-          
+
           set({ lastSync: Date.now() });
         } catch (error) {
           console.error("[SYNC] First sync error:", error);
@@ -318,7 +444,7 @@ export const useStore = create<ExtendedUserState>()(
 
         try {
           const { settings, ...profile } = cloudData;
-          
+
           // Load logs/history
           const logsCollectionRef = collection(db, 'users', state.user.uid, 'logs');
           const logsSnapshot = await getDocs(logsCollectionRef);
@@ -339,10 +465,15 @@ export const useStore = create<ExtendedUserState>()(
           set({
             identity: profile.identity || '',
             resilienceScore: profile.resilienceScore ?? 50,
+            resilienceStatus: profile.resilienceStatus ?? 'ACTIVE',
             streak: profile.streak ?? 0,
             shields: profile.shields ?? 0,
             totalCompletions: profile.totalCompletions ?? 0,
             isPremium: profile.isPremium ?? false,
+            // Recovery Mode
+            recoveryMode: profile.recoveryMode ?? false,
+            consecutiveMisses: profile.consecutiveMisses ?? 0,
+            lastMissedDate: profile.lastMissedDate ?? null,
             dailyCompletedIndices: todayCompletedIndices,
             lastCompletedDate: profile.lastCompletedDate || null,
             theme: settings?.theme || state.theme,
@@ -356,7 +487,7 @@ export const useStore = create<ExtendedUserState>()(
             lastSync: Date.now(),
             lastUpdated: cloudLastUpdated, // Preserve cloud timestamp
           });
-          
+
           console.log("[SYNC] Cloud data downloaded successfully, history entries:", Object.keys(history).length);
         } catch (error) {
           console.error("[SYNC] Download error:", error);
@@ -382,11 +513,16 @@ export const useStore = create<ExtendedUserState>()(
           const userProfile = {
             identity: state.identity,
             resilienceScore: state.resilienceScore,
+            resilienceStatus: state.resilienceStatus,
             streak: state.streak,
             shields: state.shields,
             lastCompletedDate: state.lastCompletedDate,
             totalCompletions: state.totalCompletions,
             isPremium: state.isPremium,
+            // Recovery Mode
+            recoveryMode: state.recoveryMode,
+            consecutiveMisses: state.consecutiveMisses,
+            lastMissedDate: state.lastMissedDate,
             settings: {
               theme: state.theme,
               soundEnabled: state.soundEnabled,
@@ -404,7 +540,7 @@ export const useStore = create<ExtendedUserState>()(
             const logRef = doc(db, 'users', state.user.uid, 'logs', dateKey);
             batch.set(logRef, state.history[dateKey], { merge: true });
           }
-          
+
           console.log("[SYNC] Syncing", Object.keys(state.history).length, "daily logs");
 
           await batch.commit();
@@ -465,7 +601,9 @@ export const useStore = create<ExtendedUserState>()(
         habitRepository: state.habitRepository,
         history: state.history,
         resilienceScore: state.resilienceScore,
+        resilienceStatus: state.resilienceStatus,
         streak: state.streak,
+        shields: state.shields,
         lastUpdated: state.lastUpdated,
         lastSync: state.lastSync,
         dailyCompletedIndices: state.dailyCompletedIndices,
@@ -475,6 +613,10 @@ export const useStore = create<ExtendedUserState>()(
         goal: state.goal,
         totalCompletions: state.totalCompletions,
         isPremium: state.isPremium,
+        // Recovery Mode fields
+        recoveryMode: state.recoveryMode,
+        consecutiveMisses: state.consecutiveMisses,
+        lastMissedDate: state.lastMissedDate,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
@@ -492,7 +634,7 @@ export const useStore = create<ExtendedUserState>()(
               useStore.setState({ totalCompletions: calculatedTotal, lastUpdated: Date.now() });
             }
           }
-          
+
           state.setHasHydrated(true);
           // After rehydration, initialize auth listener
           state.initializeAuth();
@@ -501,11 +643,20 @@ export const useStore = create<ExtendedUserState>()(
             console.log("[REHYDRATE] User logged in, checking cloud sync...");
             state.loadFromFirebase();
           }
+
+          // Check for missed days after hydration (triggers recovery mode if needed)
+          setTimeout(() => {
+            useStore.getState().checkMissedDay();
+          }, 1000);
         }
       },
     }
   )
 );
+
+if (typeof window !== 'undefined') {
+  (window as any).useStore = useStore;
+}
 
 // Auto-sync listener
 useStore.subscribe(

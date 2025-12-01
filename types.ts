@@ -1,5 +1,6 @@
 export type AppView = 'onboarding' | 'contract' | 'dashboard' | 'stats' | 'growth' | 'history';
-export type ResilienceStatus = 'ACTIVE' | 'CRACKED' | 'BOUNCED' | 'FROZEN';
+export type ResilienceStatus = 'ACTIVE' | 'CRACKED' | 'BOUNCED' | 'FROZEN' | 'RECOVERING';
+export type RecoveryOption = 'one-minute-reset' | 'use-shield' | 'gentle-restart';
 export type Theme = 'dark' | 'light' | 'system';
 export type EnergyLevel = 'low' | 'medium' | 'high';
 export type SoundType = 'rain' | 'forest' | 'stream' | 'volcano' | 'wind';
@@ -111,6 +112,11 @@ export interface UserState {
   isFrozen: boolean;
   freezeExpiry: number | null;
 
+  // Recovery Mode (Resilience Engine 2.0)
+  recoveryMode: boolean;
+  consecutiveMisses: number;
+  lastMissedDate: string | null;
+
   // Actions
   setIdentity: (identity: string) => void;
   setMicroHabits: (habits: string[]) => void;
@@ -124,6 +130,12 @@ export interface UserState {
   setDailyIntention: (date: string, intention: string) => void;
   toggleFreeze: (active: boolean) => void;
   setView: (view: AppView) => void;
+  
+  // Recovery Mode Actions
+  activateRecoveryMode: () => void;
+  dismissRecoveryMode: () => void;
+  applyRecoveryOption: (option: 'one-minute-reset' | 'use-shield' | 'gentle-restart') => void;
+  checkMissedDay: () => void;
   resetProgress: () => void;
   importData: (data: string) => boolean;
   generateWeeklyReview: () => void;

@@ -2,7 +2,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { usePlatform } from '../hooks/usePlatform';
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, BarChart3, List, Zap, ThermometerSnowflake, AlertCircle, Dices, Check, Wind, Volume2, VolumeX, Eye, EyeOff, Hammer, Shield, Timer, Undo2, CloudRain, Trees, Waves, Flame, X, Calendar, PenLine, Target, Sprout, Anchor, Battery, Mic } from 'lucide-react';
+import { Settings, BarChart3, List, Zap, ThermometerSnowflake, Dices, Check, Wind, Volume2, VolumeX, Eye, EyeOff, Hammer, Shield, Timer, Undo2, CloudRain, Trees, Waves, Flame, X, Calendar, PenLine, Sprout, Anchor, Battery, Mic } from 'lucide-react';
 import { useStore } from '../store';
 import { useResilienceEngine } from '../hooks/useResilienceEngine';
 import { Orb } from '../components/Orb';
@@ -17,6 +17,8 @@ import { VoiceMode } from '../components/VoiceMode';
 import { WeeklyStory } from '../components/WeeklyStory';
 import { SoundType, DailyLog } from '../types';
 import { EnergyValve } from '../components/EnergyValve';
+import { RecoveryCard } from '../components/RecoveryCard';
+import { NeverMissTwiceSheet } from '../components/NeverMissTwiceSheet';
 import { Preferences } from '@capacitor/preferences';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
@@ -40,6 +42,7 @@ export const Dashboard: React.FC = () => {
 
     const [showPostCompletionActions, setShowPostCompletionActions] = useState(false);
     const [showSoundControls, setShowSoundControls] = useState(false);
+    const [showNeverMissTwice, setShowNeverMissTwice] = useState(false);
 
     const todayKey = new Date().toISOString().split('T')[0];
     const [intentionInput, setIntentionInput] = useState(history[todayKey]?.intention || '');
@@ -76,9 +79,6 @@ export const Dashboard: React.FC = () => {
 
     // 🛡️ SELF-HEALING: Force Visual Engine to match Store Data on mount
     useEffect(() => {
-        // If Store says we are done, but Engine disagrees (or just to be safe)
-        // We do NOT call completeTask here to avoid loops, but we trust the Store for rendering.
-        // This effect is mainly to ensure the widget syncs.
         const syncWidget = async () => {
             await Preferences.set({ key: 'resilience_score', value: resilienceScore.toString() });
             await Preferences.set({ key: 'streak', value: streak.toString() });
@@ -123,6 +123,16 @@ export const Dashboard: React.FC = () => {
             audioRef.current.volume = soundVolume;
         }
     }, [soundVolume]);
+
+    // Never Miss Twice - Show warning after 7 PM if streak > 0 and no completions today
+    useEffect(() => {
+        if (engineState.shouldShowNeverMissTwice && !showNeverMissTwice) {
+            const timer = setTimeout(() => {
+                setShowNeverMissTwice(true);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [engineState.shouldShowNeverMissTwice]);
 
     const currentHabit = microHabits && microHabits.length > 0
         ? microHabits[currentHabitIndex]
@@ -483,6 +493,37 @@ export const Dashboard: React.FC = () => {
                 )}
             </AnimatePresence>
 
+            {/* Recovery Mode Card - Shows when user missed a day */}
+            <AnimatePresence>
+                {engineState.recoveryMode && !zenMode && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="px-6 z-20"
+                    >
+                        <RecoveryCard />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Difficulty Adjustment Message - UPDATED: Subtle Purple Glow instead of Amber */}
+            <AnimatePresence>
+                {engineState.difficultyMessage && !zenMode && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="px-6 mb-2"
+                    >
+                        <div className="text-center text-xs font-medium text-primary-purple/80 bg-primary-purple/10 rounded-full py-1.5 px-4 border border-primary-purple/20 flex items-center justify-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary-purple animate-pulse" />
+                            {engineState.difficultyMessage}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <div className="flex-1 flex flex-col items-center justify-start pt-16 relative z-0 overflow-y-auto w-full no-scrollbar pb-32">
                 <button
                     onClick={() => setZenMode(!zenMode)}
@@ -709,6 +750,18 @@ export const Dashboard: React.FC = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Never Miss Twice Sheet - Shows after 7 PM if streak at risk */}
+            <NeverMissTwiceSheet
+                isOpen={showNeverMissTwice}
+                onClose={() => setShowNeverMissTwice(false)}
+                onQuickAction={() => {
+                    setShowNeverMissTwice(false);
+                    // setIsEnergyOpen(true);
+                    // Scroll to orb or trigger focus on habit
+                }}
+                currentHabit={currentHabit}
+            />
         </div>
     );
 };
