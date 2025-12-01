@@ -121,8 +121,8 @@ export const useResilienceEngine = () => {
   }, [_hasHydrated, lastCompletedDate, isFrozen, resilienceStatus, resilienceScore, updateResilience, dailyCompletedIndices, shields, isPremium]);
 
   const completeTask = (habitIndex: number) => {
-    // SNAPSHOT for Undo
-    saveUndoState();
+    // Note: undoState is now saved inside completeHabit in store.ts
+    // No need to call saveUndoState() here
 
     const now = new Date();
     const last = lastCompletedDate ? new Date(lastCompletedDate) : null;

@@ -77,7 +77,24 @@ export const useStore = create<ExtendedUserState>()(
 
       logout: async () => {
         await auth.signOut();
-        set({ user: null, identity: '', microHabits: [], habitRepository: { high: [], medium: [], low: [] }, history: {}, streak: 0, resilienceScore: 50, currentView: 'onboarding', lastUpdated: 0, lastSync: 0 });
+        set({
+          user: null,
+          identity: '',
+          microHabits: [],
+          habitRepository: { high: [], medium: [], low: [] },
+          history: {},
+          streak: 0,
+          resilienceScore: 50,
+          currentView: 'onboarding',
+          lastUpdated: 0,
+          lastSync: 0,
+          dailyCompletedIndices: [],
+          lastCompletedDate: null,
+          totalCompletions: 0,
+          weeklyInsights: [],
+          undoState: null,
+          goal: { type: 'weekly', target: 3 },
+        });
         await Preferences.remove({ key: 'bounce_state' });
       },
       getExportData: () => JSON.stringify({ ...get(), timestamp: new Date().toISOString() }, null, 2),
@@ -114,13 +131,39 @@ export const useStore = create<ExtendedUserState>()(
       completeHabit: (habitIndex) => {
         const state = get();
         if (state.dailyCompletedIndices.includes(habitIndex)) return;
+        
+        // Capture current state for undo BEFORE making changes
+        const undoSnapshot = {
+          resilienceScore: state.resilienceScore,
+          resilienceStatus: state.resilienceStatus,
+          streak: state.streak,
+          shields: state.shields,
+          totalCompletions: state.totalCompletions,
+          lastCompletedDate: state.lastCompletedDate,
+          missedYesterday: state.missedYesterday,
+          dailyCompletedIndices: [...state.dailyCompletedIndices],
+          history: JSON.parse(JSON.stringify(state.history)) // Deep copy
+        };
+        
         const newIndices = [...state.dailyCompletedIndices, habitIndex];
         const now = new Date().toISOString();
         const dateKey = now.split('T')[0];
         const newHistory = { ...state.history };
         newHistory[dateKey] = { date: dateKey, completedIndices: newIndices };
         const isNewDay = !state.lastCompletedDate || state.lastCompletedDate.split('T')[0] !== dateKey;
-        set({ dailyCompletedIndices: newIndices, lastCompletedDate: now, streak: isNewDay ? state.streak + 1 : state.streak, resilienceScore: Math.min(100, state.resilienceScore + 5), history: newHistory, lastUpdated: Date.now() });
+        
+        // Single set call with both undoState and new values
+        set({
+          undoState: undoSnapshot,
+          dailyCompletedIndices: newIndices,
+          lastCompletedDate: now,
+          streak: isNewDay ? state.streak + 1 : state.streak,
+          resilienceScore: Math.min(100, state.resilienceScore + 5),
+          history: newHistory,
+          lastUpdated: Date.now()
+        });
+        
+        console.log("[HABIT] Completed habit", habitIndex, "- undoState saved with streak:", undoSnapshot.streak);
       },
       updateResilience: (updates) => {
         if (!get()._hasHydrated) return;
@@ -161,26 +204,30 @@ export const useStore = create<ExtendedUserState>()(
       restoreUndoState: () => {
         const state = get();
         const { undoState } = state;
-        if (!undoState) return;
+        if (!undoState) {
+          console.log("[UNDO] No undo state available");
+          return;
+        }
         
-        // Check if we're undoing the only habit of the day (streak should decrease)
+        console.log("[UNDO] Restoring state:", undoState);
+        
+        // Simply restore the previous state - the undo state already has the correct values
+        // including the streak from before the habit was completed
         const today = new Date().toISOString().split('T')[0];
-        const wasFirstHabitOfDay = state.lastCompletedDate?.split('T')[0] === today && 
-                                   undoState.dailyCompletedIndices?.length === 0;
+        const newHistory = { ...(undoState.history || state.history) };
         
-        // If undoing the only habit of today, decrease streak
-        const newStreak = wasFirstHabitOfDay ? Math.max(0, (undoState.streak ?? state.streak) - 1) : (undoState.streak ?? state.streak);
-        
-        // Update history to remove today's completions if undoing all
-        const newHistory = { ...undoState.history };
-        if (wasFirstHabitOfDay && newHistory[today]) {
-          newHistory[today] = { ...newHistory[today], completedIndices: [] };
+        // Update today's history entry with the restored completed indices
+        if (newHistory[today]) {
+          newHistory[today] = { 
+            ...newHistory[today], 
+            completedIndices: undoState.dailyCompletedIndices ?? [] 
+          };
         }
         
         set({
           resilienceScore: undoState.resilienceScore ?? state.resilienceScore,
           resilienceStatus: undoState.resilienceStatus ?? state.resilienceStatus,
-          streak: newStreak,
+          streak: undoState.streak ?? state.streak,
           shields: undoState.shields ?? state.shields,
           totalCompletions: undoState.totalCompletions ?? state.totalCompletions,
           lastCompletedDate: undoState.lastCompletedDate ?? null,
@@ -190,6 +237,8 @@ export const useStore = create<ExtendedUserState>()(
           undoState: null,
           lastUpdated: Date.now()
         });
+        
+        console.log("[UNDO] State restored, new streak:", undoState.streak);
         
         // Sync to Firebase
         get().syncToFirebase();
@@ -293,6 +342,7 @@ export const useStore = create<ExtendedUserState>()(
             streak: profile.streak ?? 0,
             shields: profile.shields ?? 0,
             totalCompletions: profile.totalCompletions ?? 0,
+            isPremium: profile.isPremium ?? false,
             dailyCompletedIndices: todayCompletedIndices,
             lastCompletedDate: profile.lastCompletedDate || null,
             theme: settings?.theme || state.theme,
@@ -307,7 +357,7 @@ export const useStore = create<ExtendedUserState>()(
             lastUpdated: cloudLastUpdated, // Preserve cloud timestamp
           });
           
-          console.log("[SYNC] Cloud data downloaded successfully, lastUpdated:", cloudLastUpdated);
+          console.log("[SYNC] Cloud data downloaded successfully, history entries:", Object.keys(history).length);
         } catch (error) {
           console.error("[SYNC] Download error:", error);
         }
@@ -336,6 +386,7 @@ export const useStore = create<ExtendedUserState>()(
             shields: state.shields,
             lastCompletedDate: state.lastCompletedDate,
             totalCompletions: state.totalCompletions,
+            isPremium: state.isPremium,
             settings: {
               theme: state.theme,
               soundEnabled: state.soundEnabled,
@@ -348,10 +399,13 @@ export const useStore = create<ExtendedUserState>()(
           };
           batch.set(userRef, userProfile, { merge: true });
 
+          // Sync daily logs (anchors, notes, completions)
           for (const dateKey in state.history) {
             const logRef = doc(db, 'users', state.user.uid, 'logs', dateKey);
             batch.set(logRef, state.history[dateKey], { merge: true });
           }
+          
+          console.log("[SYNC] Syncing", Object.keys(state.history).length, "daily logs");
 
           await batch.commit();
           set({ lastSync: Date.now() });
@@ -362,16 +416,12 @@ export const useStore = create<ExtendedUserState>()(
       },
 
       // Used for app restart - compares timestamps and syncs appropriately
-      // ONLY runs for logged-in users on page reload, NOT for guest→cloud transitions
       loadFromFirebase: async () => {
         const state = get();
-        if (!state.user) {
-          console.log("[LOAD] No user, skipping cloud check");
-          return;
-        }
+        if (!state.user) return;
 
         try {
-          console.log("[LOAD] Checking cloud vs local timestamps for user:", state.user.uid);
+          console.log("[LOAD] Checking cloud vs local timestamps...");
           const userRef = doc(db, 'users', state.user.uid);
           const userSnap = await getDoc(userRef);
 
@@ -380,24 +430,22 @@ export const useStore = create<ExtendedUserState>()(
             const cloudLastUpdated = cloudData.lastUpdated || 0;
             const localLastUpdated = state.lastUpdated || 0;
 
-            console.log("[LOAD] Cloud lastUpdated:", cloudLastUpdated);
-            console.log("[LOAD] Local lastUpdated:", localLastUpdated);
-            console.log("[LOAD] Difference (cloud - local):", cloudLastUpdated - localLastUpdated);
+            console.log("[LOAD] Cloud lastUpdated:", cloudLastUpdated, "Local lastUpdated:", localLastUpdated);
 
             if (cloudLastUpdated > localLastUpdated) {
               // Cloud is newer - download from cloud
-              console.log("[LOAD] Cloud is NEWER by", cloudLastUpdated - localLastUpdated, "ms - downloading...");
+              console.log("[LOAD] Cloud is newer - downloading...");
               await get().downloadFromFirebase(cloudData);
             } else if (localLastUpdated > cloudLastUpdated) {
               // Local is newer - upload to cloud
-              console.log("[LOAD] Local is NEWER by", localLastUpdated - cloudLastUpdated, "ms - uploading...");
+              console.log("[LOAD] Local is newer - uploading...");
               await get().syncToFirebase(true);
             } else {
-              console.log("[LOAD] Timestamps are EQUAL - already in sync");
+              console.log("[LOAD] Already in sync");
             }
           } else {
             // No cloud data - upload local
-            console.log("[LOAD] No cloud document exists - uploading local...");
+            console.log("[LOAD] No cloud data - uploading local...");
             await get().syncToFirebase(true);
           }
         } catch (error) {
@@ -425,23 +473,33 @@ export const useStore = create<ExtendedUserState>()(
         currentView: state.currentView,
         weeklyInsights: state.weeklyInsights,
         goal: state.goal,
+        totalCompletions: state.totalCompletions,
+        isPremium: state.isPremium,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
+          // Migration: Calculate totalCompletions from history if it's 0 but history exists
+          if (state.totalCompletions === 0 && state.history && Object.keys(state.history).length > 0) {
+            let calculatedTotal = 0;
+            for (const dateKey in state.history) {
+              const log = state.history[dateKey];
+              if (log.completedIndices && log.completedIndices.length > 0) {
+                calculatedTotal += log.completedIndices.length;
+              }
+            }
+            if (calculatedTotal > 0) {
+              console.log("[MIGRATION] Calculated totalCompletions from history:", calculatedTotal);
+              useStore.setState({ totalCompletions: calculatedTotal, lastUpdated: Date.now() });
+            }
+          }
+          
           state.setHasHydrated(true);
           // After rehydration, initialize auth listener
           state.initializeAuth();
           // If user is already logged in (from persisted state), check for cloud updates
-          // Use setTimeout to ensure this runs after auth state is confirmed
           if (state.user) {
-            setTimeout(() => {
-              const currentState = useStore.getState();
-              if (currentState.user) {
-                console.log("[REHYDRATE] User logged in, checking cloud sync...");
-                console.log("[REHYDRATE] Local lastUpdated before check:", currentState.lastUpdated);
-                currentState.loadFromFirebase();
-              }
-            }, 500);
+            console.log("[REHYDRATE] User logged in, checking cloud sync...");
+            state.loadFromFirebase();
           }
         }
       },

@@ -120,3 +120,23 @@ Goal: Optimization & Advanced Features.
 [ ] Voice Mode Optimization.
 
 [ ] "Sunday Reset" Story Logic.
+
+
+------------------------
+Bounce is the only habit app where missing a day actually improves your long-term consistency.
+
+The world’s first resilience-based habit system
+built for people who break streaks — not for people who maintain them.
+
+A habit system that adapts every time you fail — and makes you stronger because of it.
+
+Bounce is the only habit app that gets better when you get worse.
+
+Most habit apps collapse the moment you miss a day.
+Bounce uses your failure to increase your future consistency.
+
+Replacing internal criticism with kindness.
+
+You are not building a habit tracker. You are building a Momentum Keeper.
+
+The chain is made of rubber. It stretches.
