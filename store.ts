@@ -1,9 +1,9 @@
 ﻿
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { UserState, DailyLog, WeeklyInsight } from './types';
+import { UserState, DailyLog, AppUser, WeeklyInsight } from './types';
 import { Preferences } from '@capacitor/preferences';
-import { auth, db, doc, setDoc, getDoc, serverTimestamp, writeBatch, onAuthStateChanged, User, collection, getDocs } from './services/firebase';
+import { auth, db, doc, getDoc, serverTimestamp, writeBatch, onAuthStateChanged, User, collection, getDocs } from './services/firebase';
 
 const capacitorStorage = {
   getItem: async (name: string): Promise<string | null> => {
@@ -18,11 +18,16 @@ const capacitorStorage = {
   },
 };
 
+// Helper to convert Firebase User to AppUser
+const toAppUser = (firebaseUser: User | null): AppUser | null => {
+  if (!firebaseUser) return null;
+  return { uid: firebaseUser.uid, email: firebaseUser.email };
+};
+
 interface ExtendedUserState extends UserState {
   lastUpdated: number;
   lastSync: number;
   _hasHydrated: boolean;
-  user: User | null;
   setHasHydrated: (state: boolean) => void;
   completeHabit: (habitIndex: number) => void;
   syncToFirebase: (forceSync?: boolean) => Promise<void>;
@@ -81,7 +86,11 @@ export const useStore = create<ExtendedUserState>()(
       setSoundType: (soundType) => set({ soundType }),
       setSoundVolume: (soundVolume) => set({ soundVolume }),
       setIdentity: (identity) => set({ identity, lastUpdated: Date.now() }),
-      setGoal: (target) => set({ goal: { type: 'weekly', target }, lastUpdated: Date.now() }),
+      setGoal: (target) => {
+        set({ goal: { type: 'weekly', target }, lastUpdated: Date.now() });
+        // Sync to Firebase immediately
+        get().syncToFirebase();
+      },
       dismissTooltip: (id) => set((state) => state.dismissedTooltips.includes(id) ? state : { dismissedTooltips: [...state.dismissedTooltips, id] }),
       setMicroHabits: (microHabits) => set({ microHabits, currentHabitIndex: 0, lastUpdated: Date.now() }),
       setHabitsWithLevels: (habitRepository) => set({ habitRepository, microHabits: habitRepository.high, currentEnergyLevel: 'high', currentHabitIndex: 0, lastUpdated: Date.now() }),
@@ -149,7 +158,42 @@ export const useStore = create<ExtendedUserState>()(
         const { resilienceScore, resilienceStatus, streak, shields, totalCompletions, lastCompletedDate, missedYesterday, dailyCompletedIndices, history } = get();
         set({ undoState: { resilienceScore, resilienceStatus, streak, shields, totalCompletions, lastCompletedDate, missedYesterday, dailyCompletedIndices, history } });
       },
-      restoreUndoState: () => { const { undoState } = get(); if (undoState) set({ ...undoState, undoState: null, lastUpdated: Date.now() }); },
+      restoreUndoState: () => {
+        const state = get();
+        const { undoState } = state;
+        if (!undoState) return;
+        
+        // Check if we're undoing the only habit of the day (streak should decrease)
+        const today = new Date().toISOString().split('T')[0];
+        const wasFirstHabitOfDay = state.lastCompletedDate?.split('T')[0] === today && 
+                                   undoState.dailyCompletedIndices?.length === 0;
+        
+        // If undoing the only habit of today, decrease streak
+        const newStreak = wasFirstHabitOfDay ? Math.max(0, (undoState.streak ?? state.streak) - 1) : (undoState.streak ?? state.streak);
+        
+        // Update history to remove today's completions if undoing all
+        const newHistory = { ...undoState.history };
+        if (wasFirstHabitOfDay && newHistory[today]) {
+          newHistory[today] = { ...newHistory[today], completedIndices: [] };
+        }
+        
+        set({
+          resilienceScore: undoState.resilienceScore ?? state.resilienceScore,
+          resilienceStatus: undoState.resilienceStatus ?? state.resilienceStatus,
+          streak: newStreak,
+          shields: undoState.shields ?? state.shields,
+          totalCompletions: undoState.totalCompletions ?? state.totalCompletions,
+          lastCompletedDate: undoState.lastCompletedDate ?? null,
+          missedYesterday: undoState.missedYesterday ?? false,
+          dailyCompletedIndices: undoState.dailyCompletedIndices ?? [],
+          history: newHistory,
+          undoState: null,
+          lastUpdated: Date.now()
+        });
+        
+        // Sync to Firebase
+        get().syncToFirebase();
+      },
       setView: (view) => set({ currentView: view }),
       resetProgress: () => set({ identity: '', microHabits: [], habitRepository: { high: [], medium: [], low: [] }, currentHabitIndex: 0, energyTime: '', resilienceScore: 50, resilienceStatus: 'ACTIVE', streak: 0, shields: 0, totalCompletions: 0, lastCompletedDate: null, missedYesterday: false, dailyCompletedIndices: [], history: {}, weeklyInsights: [], currentView: 'onboarding', undoState: null, goal: { type: 'weekly', target: 3 }, dismissedTooltips: [], currentEnergyLevel: null, lastUpdated: Date.now() }),
       importData: (jsonString) => { try { const data = JSON.parse(jsonString); if (data?.resilienceScore !== undefined) { set((state) => ({ ...state, ...data, lastUpdated: Date.now() })); return true; } return false; } catch { return false; } },
@@ -167,7 +211,7 @@ export const useStore = create<ExtendedUserState>()(
             const isNewLogin = state.user?.uid !== firebaseUser.uid;
             if (isNewLogin) {
               console.log("[AUTH] User signed in:", firebaseUser.email);
-              set({ user: firebaseUser });
+              set({ user: toAppUser(firebaseUser) });
               
               // Determine if this is Sign Up (new account) or Log In (existing account)
               await get().handleFirstSync();
@@ -239,6 +283,9 @@ export const useStore = create<ExtendedUserState>()(
           const todayLog = history[today];
           const todayCompletedIndices = todayLog?.completedIndices || [];
 
+          // Use cloud's lastUpdated timestamp to keep sync state consistent
+          const cloudLastUpdated = profile.lastUpdated || Date.now();
+
           // Apply cloud data to local state
           set({
             identity: profile.identity || '',
@@ -257,10 +304,10 @@ export const useStore = create<ExtendedUserState>()(
             history,
             currentView: profile.identity ? 'dashboard' : 'onboarding',
             lastSync: Date.now(),
-            lastUpdated: Date.now(),
+            lastUpdated: cloudLastUpdated, // Preserve cloud timestamp
           });
           
-          console.log("[SYNC] Cloud data downloaded successfully");
+          console.log("[SYNC] Cloud data downloaded successfully, lastUpdated:", cloudLastUpdated);
         } catch (error) {
           console.error("[SYNC] Download error:", error);
         }
@@ -287,6 +334,8 @@ export const useStore = create<ExtendedUserState>()(
             resilienceScore: state.resilienceScore,
             streak: state.streak,
             shields: state.shields,
+            lastCompletedDate: state.lastCompletedDate,
+            totalCompletions: state.totalCompletions,
             settings: {
               theme: state.theme,
               soundEnabled: state.soundEnabled,
@@ -294,6 +343,7 @@ export const useStore = create<ExtendedUserState>()(
               energyTime: state.energyTime,
               habitRepository: state.habitRepository,
             },
+            lastUpdated: state.lastUpdated, // Store numeric timestamp for cross-device sync
             updatedAt: serverTimestamp(),
           };
           batch.set(userRef, userProfile, { merge: true });
@@ -305,20 +355,54 @@ export const useStore = create<ExtendedUserState>()(
 
           await batch.commit();
           set({ lastSync: Date.now() });
+          console.log("[SYNC] Uploaded to Firebase, lastUpdated:", state.lastUpdated);
         } catch (error) {
           console.error("Firebase Sync Error:", error);
-          // Handle offline queuing implicitly via service worker or other PWA features
         }
       },
 
-      // Used for app restart - local is master, just sync changes to cloud
+      // Used for app restart - compares timestamps and syncs appropriately
+      // ONLY runs for logged-in users on page reload, NOT for guest→cloud transitions
       loadFromFirebase: async () => {
         const state = get();
-        if (!state.user) return;
+        if (!state.user) {
+          console.log("[LOAD] No user, skipping cloud check");
+          return;
+        }
 
-        // On app restart, local data is master - just push any changes to cloud
-        console.log("[LOAD] App restart - syncing local changes to cloud");
-        await get().syncToFirebase();
+        try {
+          console.log("[LOAD] Checking cloud vs local timestamps for user:", state.user.uid);
+          const userRef = doc(db, 'users', state.user.uid);
+          const userSnap = await getDoc(userRef);
+
+          if (userSnap.exists()) {
+            const cloudData = userSnap.data();
+            const cloudLastUpdated = cloudData.lastUpdated || 0;
+            const localLastUpdated = state.lastUpdated || 0;
+
+            console.log("[LOAD] Cloud lastUpdated:", cloudLastUpdated);
+            console.log("[LOAD] Local lastUpdated:", localLastUpdated);
+            console.log("[LOAD] Difference (cloud - local):", cloudLastUpdated - localLastUpdated);
+
+            if (cloudLastUpdated > localLastUpdated) {
+              // Cloud is newer - download from cloud
+              console.log("[LOAD] Cloud is NEWER by", cloudLastUpdated - localLastUpdated, "ms - downloading...");
+              await get().downloadFromFirebase(cloudData);
+            } else if (localLastUpdated > cloudLastUpdated) {
+              // Local is newer - upload to cloud
+              console.log("[LOAD] Local is NEWER by", localLastUpdated - cloudLastUpdated, "ms - uploading...");
+              await get().syncToFirebase(true);
+            } else {
+              console.log("[LOAD] Timestamps are EQUAL - already in sync");
+            }
+          } else {
+            // No cloud data - upload local
+            console.log("[LOAD] No cloud document exists - uploading local...");
+            await get().syncToFirebase(true);
+          }
+        } catch (error) {
+          console.error("[LOAD] Error checking sync:", error);
+        }
       },
     }),
     {
@@ -339,13 +423,26 @@ export const useStore = create<ExtendedUserState>()(
         dailyCompletedIndices: state.dailyCompletedIndices,
         lastCompletedDate: state.lastCompletedDate,
         currentView: state.currentView,
-        weeklyInsights: state.weeklyInsights
+        weeklyInsights: state.weeklyInsights,
+        goal: state.goal,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.setHasHydrated(true);
-          // After rehydration, initialize auth and perform initial sync
+          // After rehydration, initialize auth listener
           state.initializeAuth();
+          // If user is already logged in (from persisted state), check for cloud updates
+          // Use setTimeout to ensure this runs after auth state is confirmed
+          if (state.user) {
+            setTimeout(() => {
+              const currentState = useStore.getState();
+              if (currentState.user) {
+                console.log("[REHYDRATE] User logged in, checking cloud sync...");
+                console.log("[REHYDRATE] Local lastUpdated before check:", currentState.lastUpdated);
+                currentState.loadFromFirebase();
+              }
+            }, 500);
+          }
         }
       },
     }

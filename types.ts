@@ -44,10 +44,10 @@ export interface WeeklyInsight {
   viewed: boolean;
 }
 
-// Simple user type for future cloud sync
+// Firebase User type (simplified for state)
 export interface AppUser {
-  id: string;
-  email?: string;
+  uid: string;
+  email?: string | null;
 }
 
 export interface UserState {
@@ -133,8 +133,6 @@ export interface UserState {
 
   // Cloud Sync (Firebase)
   initializeAuth: () => (() => void) | void;
-  loadFromSupabase: () => Promise<void>;
-  syncToSupabase: () => Promise<void>;
   loadFromFirebase: () => Promise<void>;
-  syncToFirebase: () => Promise<void>;
+  syncToFirebase: (forceSync?: boolean) => Promise<void>;
 }

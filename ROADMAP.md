@@ -1,83 +1,109 @@
 🏀 BOUNCE: EXECUTION MASTER PLAN
-🎯 STRATEGY: "Universal Core"
-We build ONE robust React web application first.
+🎯 STRATEGY: "Universal Core" One React web app. PWA for iOS. Native Capacitor Wrapper for Android.
 
-Web Users: Use it directly.
+🛑 CURRENT STATUS & LOGS (2025-11-30)
+✅ AUTHENTICATION: Native Google Sign-In & Magic Links (Deep Links) are working perfectly on Android & Web.
 
-iOS Users: Use it as a PWA (Home Screen App).
+✅ ACCOUNT MERGING: Guest -> New User & Guest -> Old User flows are working.
 
-Android Users: Use it as a Native App (via Capacitor wrapper).
+⚠️ BUG 1 (Guest Logic): When user is a Guest, their streak logic is broken (doesn't increase).
+
+⚠️ BUG 2 (Cloud Sync): Completed habits are updating locally in the UI, but not being pushed to the Firestore cloud.
 
 📅 PHASE 1: THE WEB CORE (Days 1-7)
 Goal: A fully functional, persistent web app accessible on any mobile browser.
 
-✅ Day 1: The Brain Transplant (Supabase Sync)
-[x] Create Supabase Project & Get Keys.
+✅ Day 1: The Brain Transplant (Supabase/Firebase Sync)
 
-[x] Task: Install @supabase/supabase-js.
+[x] Project Setup & Keys.
 
-[x] Task: Create services/supabase.ts client.
+[x] Client services setup.
 
-[x] Task: Run SQL to create tables: users, habits, logs.
+[x] DB Tables created.
 
-[x] Task: Rewrite store.ts to fetch from Cloud on load, and push to Cloud on change.
-
-Outcome: You can refresh the page and data stays.
+[!] FIX NEEDED: store.ts logic is failing to push updates to Cloud on change (Bug #2).
 
 ✅ Day 2: Identity & Auth
-[x] Task: Create AuthModal.tsx (Sign In / Sign Up).
 
-[x] Task: Implement "Anonymous to Registered" conversion (merge local data with new account).
+[x] AuthModal.tsx created.
 
-[x] Task: Add usePlatform hook to detect Web vs. Native.
+[x] "Anonymous to Registered" conversion logic.
+
+[x] Platform detection hooks.
+
+[x] Android Auth Polish: Fixed localhost issues, Deep Linking, and assetlinks.json handshake.
 
 ✅ Day 3: The "Pro" Logic (Feature Gates)
-[x] Task: Add is_premium boolean to Database.
 
-[x] Task: Implement EnergyValve.tsx (The Compassionate/Low Battery Check).
+[x] is_premium DB flag.
 
-[x] Logic: If is_premium === false AND energy is LOW, show "Compassionate Tease" Modal.
+[x] EnergyValve.tsx (Compassionate Check).
 
-[x] Logic: If is_premium === true, activate "Crisis Mode" (Habit Shrinking).
-
-Note: Voice Mode deferred to v1.1 for platform optimization.
+[x] Crisis Mode logic.
 
 🟡 Day 4: iOS "PWA" Polish
 
-[ ] Task: Create manifest.json (Name, Icons, Theme Color).
+[ ] Create manifest.json (Name, Icons, Theme Color).
 
-[ ] Task: Add "Add to Home Screen" tutorial modal for iOS Safari users.
+[ ] Add "Add to Home Screen" tutorial modal for iOS Safari users.
 
-[ ] Task: Implement webcal logic (Calendar Feed).
-
-Tech: Use a library like ics (npm) to generate the feed string dynamically based on the user's active habit.
+[ ] Implement webcal logic (Calendar Feed).
 
 Day 5: Payments (Web)
-[ ] Task: Integrate Polar.sh or Stripe Checkout.
 
-[ ] Task: Create a webhook (Edge Function) that updates is_premium = true when payment succeeds.
+[ ] Integrate Polar.sh or Stripe Checkout.
+
+[ ] Webhook for is_premium updates.
 
 📅 PHASE 2: THE ANDROID WRAPPER (Days 8-10)
 Goal: Put the Web Core inside a Native Container.
 
-Day 8: Capacitor Setup
-[ ] Task: Run npm install @capacitor/core @capacitor/cli @capacitor/android.
+✅ Day 8: Capacitor Setup
 
-[ ] Task: Run npx cap add android.
+[x] Core & Android CLI installed.
 
-[ ] Task: Point Capacitor to your dist build folder.
+[x] Capacitor initialized.
+
+[x] Deep Links: Android Manifest & Intent Filters configured.
 
 Day 9: Native Feel
-[ ] Task: Install @capacitor/haptics. Add vibration to the "Bounce" button.
 
-[ ] Task: Install @capacitor/status-bar. Make the top bar transparent.
+[ ] Install @capacitor/haptics (Vibration).
 
-[ ] Task: Hide "Upgrade" links on Android version (Policy Compliance).
+[ ] Install @capacitor/status-bar (Transparent top bar).
+
+[ ] Hide "Upgrade" links on Android version (Policy Compliance).
 
 Day 10: Build & Test
-[ ] Task: Generate .apk file.
 
-[ ] Task: Test on physical Android device.
+[ ] Generate .apk file.
+
+[ ] Test on physical Android device (Current Stage).
+
+🚨 CRITICAL DEPLOYMENT CHECKLIST (Pre-Flight)
+Do NOT skip these steps before publishing, or the app will break.
+
+1. The Android Release Key Trap
+
+The Issue: Google Play signs your app with a different key than your laptop's "Debug" key.
+
+The Fix: When you create the release in Google Play Console, copy the SHA-256 (App Signing Key). Add this key to:
+
+public/.well-known/assetlinks.json (Firebase Hosting).
+
+Firebase Console > Project Settings > Android Apps.
+
+If you forget this, Magic Links will break for all real users.
+
+2. The Web Domain Trap
+
+The Issue: Authentication will fail if the URL isn't whitelisted.
+
+The Fix: Go to Firebase Console > Authentication > Settings > Authorized Domains.
+
+Add your live domain (e.g., bounceapp.com).
+
+Add your Firebase subdomains (project-id.web.app).
 
 📅 PHASE 3: MARKETING & LAUNCH (Jan 10-15)
 Goal: Catch the "Quitters Day" wave.
@@ -91,6 +117,6 @@ Goal: Catch the "Quitters Day" wave.
 🚀 PHASE 4: POST-LAUNCH (v1.1 Updates)
 Goal: Optimization & Advanced Features.
 
-[ ] Feature: Voice Mode Optimization (Cross-platform Microphone support, determine what microphone does).
+[ ] Voice Mode Optimization.
 
-[ ] Feature: "Sunday Reset" Story Logic (Weekly AI Review).
+[ ] "Sunday Reset" Story Logic.
