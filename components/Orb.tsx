@@ -15,7 +15,8 @@ export const Orb: React.FC<OrbProps> = ({ state, size = 280, isFractured = false
       case 'frozen':
         return ['#4B5563', '#1F2937', '#111827']; // Grey/Cold
       case 'healing':
-        return ['#FFD700', '#FFA500', '#FF4500']; // Gold/Healing
+        // return ['#FFD700', '#FFA500', '#FF4500']; // Gold/Healing
+        return ['#6366f1', '#8b5cf6'];
       case 'active':
         return ['#00FFFF', '#00BFFF', '#7F00FF']; // Bright Cyan/Blue
       case 'success':

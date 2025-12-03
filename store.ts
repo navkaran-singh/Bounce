@@ -222,32 +222,41 @@ export const useStore = create<ExtendedUserState>()(
       toggleFreeze: (active) => set({ isFrozen: active, freezeExpiry: active ? Date.now() + 86400000 : null, resilienceStatus: active ? 'FROZEN' : 'ACTIVE', lastUpdated: Date.now() }),
 
       // Recovery Mode Actions (Resilience Engine 2.0)
+      // Recovery Mode Actions (Resilience Engine 2.0)
       checkMissedDay: () => {
         const state = get();
-        if (!state._hasHydrated || state.isFrozen || state.recoveryMode) return;
+        // If frozen, already recovering, or not hydrated, skip
+        if (!state._hasHydrated || state.isFrozen) return;
 
         const now = new Date();
         const today = now.toISOString().split('T')[0];
+
+        // 🛑 FIX: If we already flagged today as a missed day, don't do it again.
+        // This stops the modal from reopening after reload if dismissed.
+        if (state.lastMissedDate === today) return;
+
         const last = state.lastCompletedDate ? new Date(state.lastCompletedDate) : null;
+        if (!last) return; // New user, no history
 
-        if (!last) return;
-
-        const lastDateKey = last.toISOString().split('T')[0];
         const oneDay = 24 * 60 * 60 * 1000;
         const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const lastDay = new Date(last.getFullYear(), last.getMonth(), last.getDate());
         const diffDays = Math.floor((todayDate.getTime() - lastDay.getTime()) / oneDay);
 
-        // If missed yesterday (diffDays > 1 means at least one full day gap)
-        if (diffDays > 1 && lastDateKey !== state.lastMissedDate) {
-          console.log("[RECOVERY] Missed day detected, activating recovery mode");
+        // If gap is greater than 1 day (meaning they missed yesterday)
+        if (diffDays > 1) {
+          const actualMisses = diffDays - 1;
+
+          console.log(`[RECOVERY] Missed days detected: ${actualMisses}`);
+
           set({
             recoveryMode: true,
             consecutiveMisses: state.consecutiveMisses + 1,
-            lastMissedDate: today,
+            lastMissedDate: today, // Mark today as "handled"
             missedYesterday: true,
             resilienceStatus: 'RECOVERING',
-            resilienceScore: Math.max(0, state.resilienceScore - 10),
+            // Don't punish score too hard, just nudge it
+            resilienceScore: Math.max(0, state.resilienceScore - (actualMisses > state.consecutiveMisses ? 5 : 0)),
             lastUpdated: Date.now()
           });
         }
@@ -264,7 +273,7 @@ export const useStore = create<ExtendedUserState>()(
       dismissRecoveryMode: () => {
         set({
           recoveryMode: false,
-          resilienceStatus: 'ACTIVE',
+          // resilienceStatus: 'ACTIVE',
           lastUpdated: Date.now()
         });
       },

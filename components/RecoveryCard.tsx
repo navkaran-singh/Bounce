@@ -9,7 +9,7 @@ interface RecoveryCardProps {
 }
 
 export const RecoveryCard: React.FC<RecoveryCardProps> = ({ onDismiss }) => {
-  const { shields, applyRecoveryOption, dismissRecoveryMode } = useStore();
+  const { shields, applyRecoveryOption, dismissRecoveryMode, consecutiveMisses } = useStore();
 
   const handleOption = (option: 'one-minute-reset' | 'use-shield' | 'gentle-restart') => {
     applyRecoveryOption(option);
@@ -36,9 +36,12 @@ export const RecoveryCard: React.FC<RecoveryCardProps> = ({ onDismiss }) => {
             </div>
             <div>
               <h3 className="text-white font-bold text-lg tracking-tight">Recovery Mode</h3>
-              {/* Keyword #2: Uneven progress is normal */}
+              {/* 🛑 FIX: Restore the dynamic counter logic */}
               <p className="text-blue-200/60 text-xs font-medium uppercase tracking-wider">
-                Uneven progress is normal
+                {consecutiveMisses > 1
+                  ? `${consecutiveMisses} Days Missed`
+                  : "Uneven progress is normal"
+                }
               </p>
             </div>
           </div>

@@ -242,10 +242,17 @@ export const Dashboard: React.FC = () => {
     const goalPercentage = Math.min(100, (weeklyProgress / goal.target) * 100);
 
     let orbState: 'frozen' | 'active' | 'success' | 'breathing' | 'healing' = 'breathing';
-    if (showCelebration || milestoneReached) orbState = 'success';
-    else if (engineState.isFrozen) orbState = 'frozen';
-    else if (engineState.status === 'BOUNCED') orbState = 'healing';
-    else if (isHolding) orbState = 'active';
+
+    if (showCelebration || milestoneReached) {
+        orbState = 'success';
+    } else if (engineState.isFrozen) {
+        orbState = 'frozen';
+    } else if (engineState.status === 'BOUNCED' || engineState.status === 'RECOVERING' || engineState.status === 'CRACKED') {
+        // 🛑 FIX: Map RECOVERING and CRACKED to 'healing' (Yellow state)
+        orbState = 'healing';
+    } else if (isHolding) {
+        orbState = 'active';
+    }
 
     return (
         <div className="h-full w-full flex flex-col relative transition-colors duration-300 overflow-hidden">
@@ -508,6 +515,7 @@ export const Dashboard: React.FC = () => {
             </AnimatePresence>
 
             {/* Difficulty Adjustment Message - UPDATED: Subtle Purple Glow instead of Amber */}
+            {/* Difficulty Adjustment Message - UPDATED: Sleek Glassmorphic Look */}
             <AnimatePresence>
                 {engineState.difficultyMessage && !zenMode && (
                     <motion.div
@@ -516,9 +524,16 @@ export const Dashboard: React.FC = () => {
                         exit={{ opacity: 0, y: -10 }}
                         className="px-6 mb-2"
                     >
-                        <div className="text-center text-xs font-medium text-primary-purple/80 bg-primary-purple/10 rounded-full py-1.5 px-4 border border-primary-purple/20 flex items-center justify-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-primary-purple animate-pulse" />
-                            {engineState.difficultyMessage}
+                        <div className="relative overflow-hidden rounded-xl p-[1px]">
+                            {/* Subtle Gradient Border */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-cyan-400/30 to-blue-500/30 blur-sm" />
+
+                            <div className="relative bg-[#0F0F10]/90 backdrop-blur-md rounded-[11px] py-2 px-4 flex items-center justify-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                                <span className="text-xs font-medium text-cyan-100/90 tracking-wide">
+                                    {engineState.difficultyMessage}
+                                </span>
+                            </div>
                         </div>
                     </motion.div>
                 )}
@@ -660,8 +675,9 @@ export const Dashboard: React.FC = () => {
                     relative w-64 h-16 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 overflow-hidden shadow-lg
                     ${isCurrentHabitDone
                                 ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/50 cursor-default'
-                                : engineState.status === 'CRACKED'
-                                    ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-orange-500/30'
+                                : (engineState.status === 'CRACKED' || engineState.status === 'RECOVERING')
+                                    // 🛑 FIX: Changed from Amber to Deep Indigo/Violet ("Moonlight Mode")
+                                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-[0_0_30px_rgba(124,58,237,0.3)] border border-white/10'
                                     : 'bg-gradient-to-r from-primary-cyan to-primary-blue text-white dark:text-dark-900 shadow-cyan-500/30 dark:shadow-[0_0_30px_rgba(13,204,242,0.4)]'
                             }
                     ${engineState.isFrozen ? 'opacity-50 grayscale' : ''}
