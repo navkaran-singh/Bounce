@@ -139,6 +139,13 @@ export const useStore = create<ExtendedUserState>()(
         const state = get();
         if (state.dailyCompletedIndices.includes(habitIndex)) return;
 
+        // 🔥 SNAPSHOT: Capture the actual habit text at completion time
+        const habitName = state.microHabits[habitIndex];
+        if (!habitName) {
+          console.warn("[HABIT] Invalid habit index:", habitIndex);
+          return;
+        }
+
         // Capture current state for undo BEFORE making changes
         const undoSnapshot = {
           resilienceScore: state.resilienceScore,
@@ -156,7 +163,26 @@ export const useStore = create<ExtendedUserState>()(
         const now = new Date().toISOString();
         const dateKey = now.split('T')[0];
         const newHistory = { ...state.history };
-        newHistory[dateKey] = { ...newHistory[dateKey], date: dateKey, completedIndices: newIndices };
+        
+        // Get existing completed habit names for today (or initialize)
+        const existingLog = newHistory[dateKey] || { date: dateKey, completedIndices: [], completedHabitNames: [] };
+        const existingNames = existingLog.completedHabitNames || [];
+        
+        // Add the new habit name (avoid duplicates)
+        const newHabitNames = existingNames.includes(habitName) 
+          ? existingNames 
+          : [...existingNames, habitName];
+        
+        // Update history with both indices and names
+        newHistory[dateKey] = { 
+          ...existingLog, 
+          date: dateKey, 
+          completedIndices: newIndices,
+          completedHabitNames: newHabitNames
+        };
+        
+        console.log("[HABIT] Snapshotted habit:", habitName, "for date:", dateKey);
+        
         const isNewDay = !state.lastCompletedDate || state.lastCompletedDate.split('T')[0] !== dateKey;
 
         // Calculate new streak and check for shield earning
@@ -313,36 +339,43 @@ export const useStore = create<ExtendedUserState>()(
           
           // Retrieve yesterday's completed habits
           const yesterdayLog = state.history[yesterdayKey];
-          const completedIndices = yesterdayLog?.completedIndices || [];
-          console.log("📊 [ENERGY AUDIT] Yesterday's indices:", completedIndices);
           
-          // Get yesterday's habit list (fallback to current if not stored)
-          const yesterdayHabits = state.microHabits;
+          // 🔥 SOURCE OF TRUTH: Use completedHabitNames (snapshot) instead of indices
+          let completedHabits: string[] = [];
           
-          // Map indices to actual habit strings for logging
-          const completedHabits = completedIndices.map(idx => yesterdayHabits[idx]).filter(Boolean);
-          console.log("📊 [ENERGY AUDIT] Mapped to strings:", completedHabits);
+          if (yesterdayLog?.completedHabitNames && yesterdayLog.completedHabitNames.length > 0) {
+            // NEW DATA: Use the snapshotted habit names
+            completedHabits = yesterdayLog.completedHabitNames;
+            console.log("📊 [ENERGY AUDIT] Using snapshotted habit names:", completedHabits);
+          } else if (yesterdayLog?.completedIndices && yesterdayLog.completedIndices.length > 0) {
+            // LEGACY FALLBACK: Map indices using current microHabits (best guess)
+            const completedIndices = yesterdayLog.completedIndices;
+            completedHabits = completedIndices.map(idx => state.microHabits[idx]).filter(Boolean);
+            console.log("📊 [ENERGY AUDIT] ⚠️ Legacy data - mapping indices:", completedIndices, "→", completedHabits);
+          } else {
+            console.log("📊 [ENERGY AUDIT] No completions found for yesterday");
+          }
           
-          // ENERGY AUDIT: Classify performance
+          // ENERGY AUDIT: Classify performance using habit names
           let performanceScore = 0;
           let hasHighEnergy = false;
           const energyBreakdown: { habit: string; level: string; points: number }[] = [];
           
-          for (const index of completedIndices) {
-            const completedHabit = yesterdayHabits[index];
-            if (!completedHabit) continue;
-            
+          for (const habitName of completedHabits) {
             // Check which energy level this habit belongs to
-            if (state.habitRepository.high.includes(completedHabit)) {
+            if (state.habitRepository.high.includes(habitName)) {
               performanceScore += 3;
               hasHighEnergy = true;
-              energyBreakdown.push({ habit: completedHabit, level: 'HIGH', points: 3 });
-            } else if (state.habitRepository.medium.includes(completedHabit)) {
+              energyBreakdown.push({ habit: habitName, level: 'HIGH', points: 3 });
+            } else if (state.habitRepository.medium.includes(habitName)) {
               performanceScore += 2;
-              energyBreakdown.push({ habit: completedHabit, level: 'MEDIUM', points: 2 });
-            } else if (state.habitRepository.low.includes(completedHabit)) {
+              energyBreakdown.push({ habit: habitName, level: 'MEDIUM', points: 2 });
+            } else if (state.habitRepository.low.includes(habitName)) {
               performanceScore += 1;
-              energyBreakdown.push({ habit: completedHabit, level: 'LOW', points: 1 });
+              energyBreakdown.push({ habit: habitName, level: 'LOW', points: 1 });
+            } else {
+              // Habit not found in any repository (possibly from old data)
+              console.warn("📊 [ENERGY AUDIT] ⚠️ Habit not found in repository:", habitName);
             }
           }
           
@@ -351,7 +384,7 @@ export const useStore = create<ExtendedUserState>()(
           
           // DETERMINE MODE
           let mode: 'GROWTH' | 'STEADY' | 'RECOVERY';
-          if (completedIndices.length === 0) {
+          if (completedHabits.length === 0) {
             mode = 'RECOVERY';
             console.log("📊 [ENERGY AUDIT] Calculated Mode: 🔴 RECOVERY (Zero completions)");
           } else if (hasHighEnergy) {

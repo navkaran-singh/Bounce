@@ -17,6 +17,7 @@ export interface Message {
 export interface DailyLog {
   date: string; // ISO Date string (YYYY-MM-DD)
   completedIndices: number[];
+  completedHabitNames?: string[]; // Snapshot of actual habit text at completion time
   energy?: EnergyLevel;
   note?: string;
   intention?: string;
