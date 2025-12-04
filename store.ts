@@ -59,6 +59,7 @@ export const useStore = create<ExtendedUserState>()(
       currentHabitIndex: 0,
       energyTime: '',
       currentEnergyLevel: null,
+      dailyPlanMessage: null,
       goal: { type: 'weekly', target: 3 },
       dismissedTooltips: [],
       resilienceScore: 50,
@@ -114,6 +115,7 @@ export const useStore = create<ExtendedUserState>()(
         get().syncToFirebase();
       },
       dismissTooltip: (id) => set((state) => state.dismissedTooltips.includes(id) ? state : { dismissedTooltips: [...state.dismissedTooltips, id] }),
+      dismissDailyPlanMessage: () => set({ dailyPlanMessage: null }),
       setMicroHabits: (microHabits) => set({ microHabits, currentHabitIndex: 0, lastUpdated: Date.now() }),
       setHabitsWithLevels: (habitRepository) => set({ habitRepository, microHabits: habitRepository.high, currentEnergyLevel: 'high', currentHabitIndex: 0, lastUpdated: Date.now() }),
       addMicroHabit: (habit) => {
@@ -263,22 +265,25 @@ export const useStore = create<ExtendedUserState>()(
       },
 
       // 🧹 NEW ACTION: Run this on app startup to clean up yesterday's state
-      checkNewDay: () => {
+      checkNewDay: async () => {
         const state = get();
         if (!state._hasHydrated) return;
 
         const now = new Date();
         const today = now.toISOString().split('T')[0];
 
+        console.log("🌅 [CHECK NEW DAY] Starting new day check for:", today);
+
         // 1. Check if 'dailyCompletedIndices' belongs to a previous day
         // We look at 'lastCompletedDate'. If it's not today, the daily indices are stale.
         const lastCompleted = state.lastCompletedDate ? state.lastCompletedDate.split('T')[0] : null;
+        console.log("🌅 [CHECK NEW DAY] Last completed date:", lastCompleted);
 
         const hasStaleHabits = state.dailyCompletedIndices.length > 0 && lastCompleted !== today;
         const isStuckBounced = state.resilienceStatus === 'BOUNCED' && lastCompleted !== today;
 
         if (hasStaleHabits || isStuckBounced) {
-          console.log("[NEW DAY] Cleaning up stale state...");
+          console.log("🌅 [CHECK NEW DAY] Cleaning up stale state...");
 
           set({
             // Clear habits if they are from yesterday
@@ -290,6 +295,144 @@ export const useStore = create<ExtendedUserState>()(
 
             lastUpdated: Date.now()
           });
+        }
+
+        // 2. SMART DAILY PLANNER (Premium Only)
+        // Generate new habits based on yesterday's performance
+        console.log("🌅 [CHECK NEW DAY] Premium status:", state.isPremium);
+        console.log("🌅 [CHECK NEW DAY] Last completed:", lastCompleted, "Today:", today);
+        
+        if (state.isPremium && lastCompleted && lastCompleted !== today) {
+          console.log("📊 [SMART PLANNER] ✅ Analyzing yesterday's performance...");
+          
+          // Get yesterday's date
+          const yesterday = new Date(now);
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayKey = yesterday.toISOString().split('T')[0];
+          console.log("📊 [SMART PLANNER] Yesterday's date key:", yesterdayKey);
+          
+          // Retrieve yesterday's completed habits
+          const yesterdayLog = state.history[yesterdayKey];
+          const completedIndices = yesterdayLog?.completedIndices || [];
+          console.log("📊 [ENERGY AUDIT] Yesterday's indices:", completedIndices);
+          
+          // Get yesterday's habit list (fallback to current if not stored)
+          const yesterdayHabits = state.microHabits;
+          
+          // Map indices to actual habit strings for logging
+          const completedHabits = completedIndices.map(idx => yesterdayHabits[idx]).filter(Boolean);
+          console.log("📊 [ENERGY AUDIT] Mapped to strings:", completedHabits);
+          
+          // ENERGY AUDIT: Classify performance
+          let performanceScore = 0;
+          let hasHighEnergy = false;
+          const energyBreakdown: { habit: string; level: string; points: number }[] = [];
+          
+          for (const index of completedIndices) {
+            const completedHabit = yesterdayHabits[index];
+            if (!completedHabit) continue;
+            
+            // Check which energy level this habit belongs to
+            if (state.habitRepository.high.includes(completedHabit)) {
+              performanceScore += 3;
+              hasHighEnergy = true;
+              energyBreakdown.push({ habit: completedHabit, level: 'HIGH', points: 3 });
+            } else if (state.habitRepository.medium.includes(completedHabit)) {
+              performanceScore += 2;
+              energyBreakdown.push({ habit: completedHabit, level: 'MEDIUM', points: 2 });
+            } else if (state.habitRepository.low.includes(completedHabit)) {
+              performanceScore += 1;
+              energyBreakdown.push({ habit: completedHabit, level: 'LOW', points: 1 });
+            }
+          }
+          
+          console.log("📊 [ENERGY AUDIT] Energy breakdown:", energyBreakdown);
+          console.log("📊 [ENERGY AUDIT] Total performance score:", performanceScore);
+          
+          // DETERMINE MODE
+          let mode: 'GROWTH' | 'STEADY' | 'RECOVERY';
+          if (completedIndices.length === 0) {
+            mode = 'RECOVERY';
+            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🔴 RECOVERY (Zero completions)");
+          } else if (hasHighEnergy) {
+            mode = 'GROWTH';
+            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🟢 GROWTH (High energy detected)");
+          } else {
+            mode = 'STEADY';
+            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🟡 STEADY (Medium/Low energy)");
+          }
+          
+          // CALL AI TO GENERATE NEW HABITS (FULL SPECTRUM)
+          try {
+            console.log("📊 [SMART PLANNER] Calling AI service for full spectrum...");
+            const { generateDailyAdaptation } = await import('./services/ai');
+            const newRepository = await generateDailyAdaptation(
+              state.identity,
+              mode,
+              state.habitRepository
+            );
+            
+            // Validate the returned repository
+            if (
+              newRepository &&
+              newRepository.high?.length === 3 &&
+              newRepository.medium?.length === 3 &&
+              newRepository.low?.length === 3
+            ) {
+              console.log("📊 [SMART PLANNER] ✅ New repository generated:", newRepository);
+              console.log("📊 [SMART PLANNER] Old repository:", state.habitRepository);
+              
+              // AUTO-SWITCH ENERGY LEVEL based on mode
+              let defaultEnergyLevel: 'high' | 'medium' | 'low';
+              let defaultHabits: string[];
+              let planMessage: string;
+              
+              if (mode === 'GROWTH') {
+                defaultEnergyLevel = 'high';
+                defaultHabits = newRepository.high;
+                planMessage = "🚀 Growth Mode: Switched to High Energy. Time to push limits!";
+                console.log("📊 [SMART PLANNER] Setting HIGH energy as default (Growth mode)");
+              } else if (mode === 'RECOVERY') {
+                defaultEnergyLevel = 'low';
+                defaultHabits = newRepository.low;
+                planMessage = "🌱 Recovery Mode: Switched to Low Energy to help you build momentum.";
+                console.log("📊 [SMART PLANNER] Setting LOW energy as default (Recovery mode)");
+              } else {
+                defaultEnergyLevel = 'medium';
+                defaultHabits = newRepository.medium;
+                planMessage = "⚖️ Steady Mode: Switched to Medium Energy. Keep the consistency going.";
+                console.log("📊 [SMART PLANNER] Setting MEDIUM energy as default (Steady mode)");
+              }
+              
+              console.log("📊 [SMART PLANNER] Daily Plan Message:", planMessage);
+              
+              set({
+                habitRepository: newRepository,
+                microHabits: defaultHabits,
+                currentEnergyLevel: defaultEnergyLevel,
+                currentHabitIndex: 0,
+                dailyPlanMessage: planMessage,
+                lastUpdated: Date.now()
+              });
+              
+              // CRITICAL: Force sync to Firebase
+              console.log("☁️ [CHECK NEW DAY] Forcing Firebase sync...");
+              await get().syncToFirebase(true);
+              console.log("☁️ [CHECK NEW DAY] ✅ Forced sync complete.");
+            } else {
+              console.warn("📊 [SMART PLANNER] ⚠️ Invalid repository returned, keeping current");
+            }
+          } catch (error) {
+            console.error("📊 [SMART PLANNER] ❌ Error generating habits:", error);
+          }
+        } else {
+          if (!state.isPremium) {
+            console.log("📊 [SMART PLANNER] ⏭️ Skipped (Not Premium)");
+          } else if (!lastCompleted) {
+            console.log("📊 [SMART PLANNER] ⏭️ Skipped (No previous completion date)");
+          } else if (lastCompleted === today) {
+            console.log("📊 [SMART PLANNER] ⏭️ Skipped (Already ran today)");
+          }
         }
       },
 
@@ -639,6 +782,8 @@ export const useStore = create<ExtendedUserState>()(
         soundEnabled: state.soundEnabled,
         microHabits: state.microHabits,
         habitRepository: state.habitRepository,
+        currentEnergyLevel: state.currentEnergyLevel,
+        dailyPlanMessage: state.dailyPlanMessage,
         history: state.history,
         resilienceScore: state.resilienceScore,
         resilienceStatus: state.resilienceStatus,

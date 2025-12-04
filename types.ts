@@ -80,6 +80,7 @@ export interface UserState {
   currentHabitIndex: number;
   energyTime: string;
   currentEnergyLevel: EnergyLevel | null;
+  dailyPlanMessage: string | null;
 
   // Goals
   goal: Goal;
@@ -88,6 +89,7 @@ export interface UserState {
   // Onboarding State
   dismissedTooltips: string[];
   dismissTooltip: (id: string) => void;
+  dismissDailyPlanMessage: () => void;
 
   // Progress
   resilienceScore: number;
@@ -136,7 +138,7 @@ export interface UserState {
   dismissRecoveryMode: () => void;
   applyRecoveryOption: (option: 'one-minute-reset' | 'use-shield' | 'gentle-restart') => void;
   checkMissedDay: () => void;
-  checkNewDay: () => void;
+  checkNewDay: () => Promise<void>;
   resetProgress: () => void;
   importData: (data: string) => boolean;
   generateWeeklyReview: () => void;

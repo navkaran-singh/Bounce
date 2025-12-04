@@ -22,11 +22,86 @@ import { NeverMissTwiceSheet } from '../components/NeverMissTwiceSheet';
 import { Preferences } from '@capacitor/preferences';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
+// Daily Plan Toast Component
+const DailyPlanToast: React.FC<{ message: string; onDismiss: () => void }> = ({ message, onDismiss }) => {
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            onDismiss();
+        }, 6000);
+        return () => clearTimeout(timer);
+    }, [onDismiss]);
+
+    // Determine icon based on message content
+    const getIcon = () => {
+        if (message.includes('🚀') || message.includes('Growth')) return '🚀';
+        if (message.includes('🌱') || message.includes('Recovery')) return '🌱';
+        if (message.includes('⚖️') || message.includes('Steady')) return '⚖️';
+        return '✨';
+    };
+
+    return (
+        <motion.div
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            transition={{ type: "spring", damping: 20, stiffness: 300 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(_, info) => {
+                if (info.offset.y < -50) {
+                    onDismiss();
+                }
+            }}
+            className="fixed top-0 left-0 right-0 z-50 px-4 pt-12 pb-4 pointer-events-none"
+        >
+            <div className="max-w-md mx-auto pointer-events-auto">
+                <div className="relative overflow-hidden rounded-2xl">
+                    {/* Glassmorphic Background */}
+                    <div className="absolute inset-0 bg-[#0F0F10]/90 backdrop-blur-md" />
+                    
+                    {/* Subtle Border Glow */}
+                    <div className="absolute inset-0 rounded-2xl border border-white/10" />
+                    
+                    {/* Content */}
+                    <div className="relative px-4 py-3 flex items-center gap-3">
+                        {/* Icon */}
+                        <div className="text-2xl flex-shrink-0">
+                            {getIcon()}
+                        </div>
+                        
+                        {/* Message */}
+                        <p className="flex-1 text-sm font-medium text-white/90 leading-snug">
+                            {message}
+                        </p>
+                        
+                        {/* Dismiss Button */}
+                        <button
+                            onClick={onDismiss}
+                            className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white/90 transition-colors"
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <motion.div
+                        initial={{ width: '100%' }}
+                        animate={{ width: '0%' }}
+                        transition={{ duration: 6, ease: "linear" }}
+                        className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-primary-cyan to-primary-blue"
+                    />
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
 export const Dashboard: React.FC = () => {
     const { state: engineState, actions: engineActions } = useResilienceEngine();
 
     // 👇 GET 'dailyCompletedIndices' DIRECTLY
-    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak } = useStore();
+    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak, dailyPlanMessage, dismissDailyPlanMessage } = useStore();
 
     const [showCelebration, setShowCelebration] = useState(false);
     const [milestoneReached, setMilestoneReached] = useState<number | null>(null);
@@ -256,6 +331,16 @@ export const Dashboard: React.FC = () => {
 
     return (
         <div className="h-full w-full flex flex-col relative transition-colors duration-300 overflow-hidden">
+            {/* Daily Plan Toast */}
+            <AnimatePresence>
+                {dailyPlanMessage && (
+                    <DailyPlanToast
+                        message={dailyPlanMessage}
+                        onDismiss={dismissDailyPlanMessage}
+                    />
+                )}
+            </AnimatePresence>
+            
             <WeeklyStory />
             <VoiceMode
                 isOpen={isVoiceOpen}

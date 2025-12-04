@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { EnergyLevel } from "../types";
 
 const API_KEY = process.env.GEMINI_API_KEY;
 
@@ -57,5 +58,127 @@ export const generateHabits = async (identity: string): Promise<{ high: string[]
   } catch (error) {
     console.error("Error generating habits:", error);
     return { high: [], medium: [], low: [] };
+  }
+};
+/**
+ * SMART DAILY PLANNER (Premium Feature)
+ * Generates adaptive habit repository based on yesterday's actual performance
+ * Returns a FULL SPECTRUM (High, Medium, Low) for flexible energy management
+ */
+export const generateDailyAdaptation = async (
+  identity: string,
+  performanceMode: 'GROWTH' | 'STEADY' | 'RECOVERY',
+  currentRepository: { high: string[], medium: string[], low: string[] }
+): Promise<{ high: string[], medium: string[], low: string[] }> => {
+  console.log("🤖 [AI SERVICE] Generating FULL SPECTRUM for mode:", performanceMode);
+  console.log("🤖 [AI SERVICE] Current Repository:", currentRepository);
+  
+  if (!API_KEY) {
+    console.warn("🤖 [AI SERVICE] Missing GEMINI_API_KEY - returning current repository");
+    return currentRepository;
+  }
+
+  const genAI = new GoogleGenerativeAI(API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+  // Context-aware prompt based on performance mode
+  const modeContext = {
+    GROWTH: `Yesterday you CRUSHED IT with high-energy habits! You're in FLOW STATE.
+    
+    ADAPTATION STRATEGY:
+    - HIGH (Default for today): Apply PROGRESSIVE OVERLOAD - increase duration/intensity by 10-20%
+    - MEDIUM: Maintain baseline standards
+    - LOW: Active recovery - keep initiation steps available`,
+    
+    STEADY: `Yesterday you maintained steady progress with medium-energy habits. Solid consistency.
+    
+    ADAPTATION STRATEGY:
+    - HIGH: Keep challenging but don't overload
+    - MEDIUM (Default for today): Refresh for novelty, maintain difficulty
+    - LOW: Keep atomic safety net available`,
+    
+    RECOVERY: `Yesterday you struggled or completed only low-energy habits (or none). You need COMPASSIONATE SUPPORT.
+    
+    ADAPTATION STRATEGY:
+    - HIGH: Do NOT overload - keep standard
+    - MEDIUM: Gentle baseline
+    - LOW (Default for today): ATOMIC RESET - friction-free initiation steps only`
+  };
+
+  const prompt = `
+    Role: You are a Behavioral Psychologist focused on Identity-Based Habits and Progressive Adaptation.
+    
+    User Identity: "${identity}"
+    Yesterday's Performance Context: ${performanceMode}
+    
+    ${modeContext[performanceMode]}
+    
+    Current Habit Repository:
+    ${JSON.stringify(currentRepository, null, 2)}
+
+    Task: Generate a FULL SPECTRUM habit repository (High, Medium, Low) tailored to the performance context.
+
+    SCIENCE-BACKED RULES:
+
+    1. RECOVERY MODE (Slump/Struggle):
+       - LOW (Default): Atomic, friction-free initiation steps (<2 mins, zero planning)
+       - MEDIUM: Standard baseline (5-10 mins)
+       - HIGH: Do NOT overload; keep it standard (15-30 mins)
+    
+    2. GROWTH MODE (Flow State):
+       - HIGH (Default): Apply PROGRESSIVE OVERLOAD (+10-20% duration/intensity)
+       - MEDIUM: Maintenance level (5-10 mins)
+       - LOW: Active recovery initiation steps (<2 mins)
+    
+    3. STEADY MODE (Consistency):
+       - HIGH: Keep challenging (15-30 mins)
+       - MEDIUM (Default): Refresh for novelty, maintain difficulty (5-10 mins)
+       - LOW: Keep atomic safety net (<2 mins)
+
+    CRITICAL CONSTRAINTS:
+    - Output EXACTLY 3 habits per energy level (9 total)
+    - Keep them aligned with the identity: "${identity}"
+    - LOW habits MUST be completable in under 2 minutes (initiation steps only)
+    - HIGH habits should be challenging but achievable (15-30 mins)
+    - MEDIUM habits are the daily baseline (5-10 mins)
+
+    Format: Return ONLY a JSON object with keys "high", "medium", "low". Each key has an array of 3 strings.
+    Example Output Structure:
+    {
+      "high": ["Run 12 mins", "Write 600 words", "Read 15 pages"],
+      "medium": ["Run 8 mins", "Write 300 words", "Read 5 pages"],
+      "low": ["Put on running shoes", "Open writing app", "Pick up book"]
+    }
+    
+    Return ONLY raw JSON. No markdown formatting.
+  `;
+
+  try {
+    console.log("🤖 [AI SERVICE] Calling Gemini API for full spectrum...");
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+    console.log("🤖 [AI SERVICE] Raw Response:", text);
+    
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleanedText);
+    
+    // Validate output structure
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      Array.isArray(parsed.high) && parsed.high.length === 3 &&
+      Array.isArray(parsed.medium) && parsed.medium.length === 3 &&
+      Array.isArray(parsed.low) && parsed.low.length === 3
+    ) {
+      console.log(`🤖 [AI SERVICE] ✅ Generated ${performanceMode} mode repository:`, parsed);
+      return parsed;
+    } else {
+      console.warn("🤖 [AI SERVICE] ⚠️ Invalid response format, returning current repository");
+      return currentRepository;
+    }
+  } catch (error) {
+    console.error("🤖 [AI SERVICE] ❌ Error generating adaptation:", error);
+    return currentRepository;
   }
 };
