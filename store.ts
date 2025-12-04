@@ -262,6 +262,37 @@ export const useStore = create<ExtendedUserState>()(
         }
       },
 
+      // 🧹 NEW ACTION: Run this on app startup to clean up yesterday's state
+      checkNewDay: () => {
+        const state = get();
+        if (!state._hasHydrated) return;
+
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+
+        // 1. Check if 'dailyCompletedIndices' belongs to a previous day
+        // We look at 'lastCompletedDate'. If it's not today, the daily indices are stale.
+        const lastCompleted = state.lastCompletedDate ? state.lastCompletedDate.split('T')[0] : null;
+
+        const hasStaleHabits = state.dailyCompletedIndices.length > 0 && lastCompleted !== today;
+        const isStuckBounced = state.resilienceStatus === 'BOUNCED' && lastCompleted !== today;
+
+        if (hasStaleHabits || isStuckBounced) {
+          console.log("[NEW DAY] Cleaning up stale state...");
+
+          set({
+            // Clear habits if they are from yesterday
+            dailyCompletedIndices: hasStaleHabits ? [] : state.dailyCompletedIndices,
+
+            // Reset 'BOUNCED' status back to 'ACTIVE' (Blue) for the new day
+            // But KEEP 'RECOVERING' or 'CRACKED' because those need action!
+            resilienceStatus: isStuckBounced ? 'ACTIVE' : state.resilienceStatus,
+
+            lastUpdated: Date.now()
+          });
+        }
+      },
+
       activateRecoveryMode: () => {
         set({
           recoveryMode: true,
@@ -654,8 +685,16 @@ export const useStore = create<ExtendedUserState>()(
           }
 
           // Check for missed days after hydration (triggers recovery mode if needed)
+          // 🛑 UPDATE THIS TIMEOUT BLOCK
           setTimeout(() => {
-            useStore.getState().checkMissedDay();
+            const store = useStore.getState();
+
+            // 1. First, clean up yesterday's mess (Fixes Orb Color & Ghost Habits)
+            store.checkNewDay();
+
+            // 2. Then, check if we missed yesterday entirely (Fixes Recovery Mode)
+            store.checkMissedDay();
+
           }, 1000);
         }
       },

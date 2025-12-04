@@ -130,12 +130,13 @@ export interface UserState {
   setDailyIntention: (date: string, intention: string) => void;
   toggleFreeze: (active: boolean) => void;
   setView: (view: AppView) => void;
-  
+
   // Recovery Mode Actions
   activateRecoveryMode: () => void;
   dismissRecoveryMode: () => void;
   applyRecoveryOption: (option: 'one-minute-reset' | 'use-shield' | 'gentle-restart') => void;
   checkMissedDay: () => void;
+  checkNewDay: () => void;
   resetProgress: () => void;
   importData: (data: string) => boolean;
   generateWeeklyReview: () => void;
