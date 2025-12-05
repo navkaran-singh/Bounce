@@ -68,6 +68,7 @@ export const useStore = create<ExtendedUserState>()(
       shields: 0,
       totalCompletions: 0,
       lastCompletedDate: null,
+      lastDailyPlanDate: null,
       missedYesterday: false,
       dailyCompletedIndices: [],
       history: {},
@@ -96,6 +97,7 @@ export const useStore = create<ExtendedUserState>()(
           lastSync: 0,
           dailyCompletedIndices: [],
           lastCompletedDate: null,
+          lastDailyPlanDate: null,
           totalCompletions: 0,
           weeklyInsights: [],
           undoState: null,
@@ -327,8 +329,15 @@ export const useStore = create<ExtendedUserState>()(
         // Generate new habits based on yesterday's performance
         console.log("🌅 [CHECK NEW DAY] Premium status:", state.isPremium);
         console.log("🌅 [CHECK NEW DAY] Last completed:", lastCompleted, "Today:", today);
+        console.log("🌅 [CHECK NEW DAY] Last daily plan date:", state.lastDailyPlanDate);
         
         if (state.isPremium && lastCompleted && lastCompleted !== today) {
+          // 🛑 GUARD: Check if we already generated a plan today
+          if (state.lastDailyPlanDate === today) {
+            console.log("📊 [SMART PLANNER] ⏭️ Skipping - plan already generated today");
+            return;
+          }
+          
           console.log("📊 [SMART PLANNER] ✅ Analyzing yesterday's performance...");
           
           // Get yesterday's date
@@ -445,8 +454,11 @@ export const useStore = create<ExtendedUserState>()(
                 currentEnergyLevel: defaultEnergyLevel,
                 currentHabitIndex: 0,
                 dailyPlanMessage: planMessage,
+                lastDailyPlanDate: today, // 🔥 CRITICAL: Mark that we generated a plan today
                 lastUpdated: Date.now()
               });
+              
+              console.log("📊 [SMART PLANNER] ✅ Set lastDailyPlanDate to:", today);
               
               // CRITICAL: Force sync to Firebase
               console.log("☁️ [CHECK NEW DAY] Forcing Firebase sync...");
@@ -586,7 +598,7 @@ export const useStore = create<ExtendedUserState>()(
         get().syncToFirebase();
       },
       setView: (view) => set({ currentView: view }),
-      resetProgress: () => set({ identity: '', microHabits: [], habitRepository: { high: [], medium: [], low: [] }, currentHabitIndex: 0, energyTime: '', resilienceScore: 50, resilienceStatus: 'ACTIVE', streak: 0, shields: 0, totalCompletions: 0, lastCompletedDate: null, missedYesterday: false, dailyCompletedIndices: [], history: {}, weeklyInsights: [], currentView: 'onboarding', undoState: null, goal: { type: 'weekly', target: 3 }, dismissedTooltips: [], currentEnergyLevel: null, lastUpdated: Date.now() }),
+      resetProgress: () => set({ identity: '', microHabits: [], habitRepository: { high: [], medium: [], low: [] }, currentHabitIndex: 0, energyTime: '', resilienceScore: 50, resilienceStatus: 'ACTIVE', streak: 0, shields: 0, totalCompletions: 0, lastCompletedDate: null, lastDailyPlanDate: null, missedYesterday: false, dailyCompletedIndices: [], history: {}, weeklyInsights: [], currentView: 'onboarding', undoState: null, goal: { type: 'weekly', target: 3 }, dismissedTooltips: [], currentEnergyLevel: null, lastUpdated: Date.now() }),
       importData: (jsonString) => { try { const data = JSON.parse(jsonString); if (data?.resilienceScore !== undefined) { set((state) => ({ ...state, ...data, lastUpdated: Date.now() })); return true; } return false; } catch { return false; } },
       generateWeeklyReview: () => set(state => ({ weeklyInsights: [...state.weeklyInsights, { id: Date.now().toString(), startDate: new Date(Date.now() - 604800000).toISOString(), endDate: new Date().toISOString(), story: ['Week complete!'], pattern: 'Check', suggestion: 'Keep going.', viewed: false }] })),
       markReviewViewed: (id) => set(state => ({ weeklyInsights: state.weeklyInsights.map(i => i.id === id ? { ...i, viewed: true } : i) })),
@@ -692,6 +704,7 @@ export const useStore = create<ExtendedUserState>()(
             lastMissedDate: profile.lastMissedDate ?? null,
             dailyCompletedIndices: todayCompletedIndices,
             lastCompletedDate: profile.lastCompletedDate || null,
+            lastDailyPlanDate: profile.lastDailyPlanDate || null,
             theme: settings?.theme || state.theme,
             soundEnabled: settings?.soundEnabled ?? state.soundEnabled,
             goal: settings?.goal || state.goal,
@@ -733,6 +746,7 @@ export const useStore = create<ExtendedUserState>()(
             streak: state.streak,
             shields: state.shields,
             lastCompletedDate: state.lastCompletedDate,
+            lastDailyPlanDate: state.lastDailyPlanDate,
             totalCompletions: state.totalCompletions,
             isPremium: state.isPremium,
             // Recovery Mode
@@ -826,6 +840,7 @@ export const useStore = create<ExtendedUserState>()(
         lastSync: state.lastSync,
         dailyCompletedIndices: state.dailyCompletedIndices,
         lastCompletedDate: state.lastCompletedDate,
+        lastDailyPlanDate: state.lastDailyPlanDate,
         currentView: state.currentView,
         weeklyInsights: state.weeklyInsights,
         goal: state.goal,

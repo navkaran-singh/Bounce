@@ -99,6 +99,7 @@ export interface UserState {
   shields: number;
   totalCompletions: number;
   lastCompletedDate: string | null;
+  lastDailyPlanDate: string | null;
   missedYesterday: boolean;
   dailyCompletedIndices: number[];
 
