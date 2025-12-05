@@ -19,6 +19,7 @@ import { SoundType, DailyLog } from '../types';
 import { EnergyValve } from '../components/EnergyValve';
 import { RecoveryCard } from '../components/RecoveryCard';
 import { NeverMissTwiceSheet } from '../components/NeverMissTwiceSheet';
+import { WeeklyReviewModal } from '../components/WeeklyReviewModal';
 import { Preferences } from '@capacitor/preferences';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
@@ -421,6 +422,9 @@ export const Dashboard: React.FC = () => {
                     setShowPostCompletionActions(false);
                 }}
             />
+            
+            {/* Weekly Review Modal (Sunday Ritual) */}
+            <WeeklyReviewModal />
 
             <AnimatePresence>
                 {!zenMode && (

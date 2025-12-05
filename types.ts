@@ -5,6 +5,7 @@ export type Theme = 'dark' | 'light' | 'system';
 export type EnergyLevel = 'low' | 'medium' | 'high';
 export type SoundType = 'rain' | 'forest' | 'stream' | 'volcano' | 'wind';
 export type BreathPattern = 'coherence' | 'box' | '478' | 'sigh';
+export type WeeklyPersona = 'TITAN' | 'GRINDER' | 'SURVIVOR' | 'GHOST';
 
 export interface Message {
   id: string;
@@ -18,6 +19,7 @@ export interface DailyLog {
   date: string; // ISO Date string (YYYY-MM-DD)
   completedIndices: number[];
   completedHabitNames?: string[]; // Snapshot of actual habit text at completion time
+  dailyScore?: number; // Weighted average score (0.0 to 3.0) - calculated once and persisted
   energy?: EnergyLevel;
   note?: string;
   intention?: string;
@@ -44,6 +46,16 @@ export interface WeeklyInsight {
   pattern: string;
   suggestion: string;
   viewed: boolean;
+}
+
+export interface WeeklyReviewState {
+  available: boolean;
+  startDate: string;
+  endDate: string;
+  totalCompletions: number;
+  weeklyMomentumScore: number; // 0.0 to 21.0 (7 days * 3.0 max per day)
+  persona: WeeklyPersona;
+  missedHabits: Record<string, number>; // Habit Name -> Miss Count
 }
 
 // Firebase User type (simplified for state)
@@ -106,6 +118,10 @@ export interface UserState {
   // Historical Data
   history: Record<string, DailyLog>;
   weeklyInsights: WeeklyInsight[];
+  
+  // Weekly Review (Sunday Ritual)
+  weeklyReview: WeeklyReviewState | null;
+  lastWeeklyReviewDate: string | null;
 
   // Undo Capabilities
   undoState: Partial<UserState> | null;
@@ -141,6 +157,9 @@ export interface UserState {
   applyRecoveryOption: (option: 'one-minute-reset' | 'use-shield' | 'gentle-restart') => void;
   checkMissedDay: () => void;
   checkNewDay: () => Promise<void>;
+  checkWeeklyReview: () => void;
+  completeWeeklyReview: () => void;
+  optimizeWeeklyRoutine: (type: 'LEVEL_UP' | 'RESET') => Promise<void>;
   resetProgress: () => void;
   importData: (data: string) => boolean;
   generateWeeklyReview: () => void;

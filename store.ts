@@ -82,6 +82,10 @@ export const useStore = create<ExtendedUserState>()(
       consecutiveMisses: 0,
       lastMissedDate: null,
 
+      // Weekly Review (Sunday Ritual)
+      weeklyReview: null,
+      lastWeeklyReviewDate: null,
+
       logout: async () => {
         await auth.signOut();
         set({
@@ -100,6 +104,8 @@ export const useStore = create<ExtendedUserState>()(
           lastDailyPlanDate: null,
           totalCompletions: 0,
           weeklyInsights: [],
+          weeklyReview: null,
+          lastWeeklyReviewDate: null,
           undoState: null,
           goal: { type: 'weekly', target: 3 },
         });
@@ -165,26 +171,26 @@ export const useStore = create<ExtendedUserState>()(
         const now = new Date().toISOString();
         const dateKey = now.split('T')[0];
         const newHistory = { ...state.history };
-        
+
         // Get existing completed habit names for today (or initialize)
         const existingLog = newHistory[dateKey] || { date: dateKey, completedIndices: [], completedHabitNames: [] };
         const existingNames = existingLog.completedHabitNames || [];
-        
+
         // Add the new habit name (avoid duplicates)
-        const newHabitNames = existingNames.includes(habitName) 
-          ? existingNames 
+        const newHabitNames = existingNames.includes(habitName)
+          ? existingNames
           : [...existingNames, habitName];
-        
+
         // Update history with both indices and names
-        newHistory[dateKey] = { 
-          ...existingLog, 
-          date: dateKey, 
+        newHistory[dateKey] = {
+          ...existingLog,
+          date: dateKey,
           completedIndices: newIndices,
           completedHabitNames: newHabitNames
         };
-        
+
         console.log("[HABIT] Snapshotted habit:", habitName, "for date:", dateKey);
-        
+
         const isNewDay = !state.lastCompletedDate || state.lastCompletedDate.split('T')[0] !== dateKey;
 
         // Calculate new streak and check for shield earning
@@ -330,28 +336,28 @@ export const useStore = create<ExtendedUserState>()(
         console.log("🌅 [CHECK NEW DAY] Premium status:", state.isPremium);
         console.log("🌅 [CHECK NEW DAY] Last completed:", lastCompleted, "Today:", today);
         console.log("🌅 [CHECK NEW DAY] Last daily plan date:", state.lastDailyPlanDate);
-        
+
         if (state.isPremium && lastCompleted && lastCompleted !== today) {
           // 🛑 GUARD: Check if we already generated a plan today
           if (state.lastDailyPlanDate === today) {
             console.log("📊 [SMART PLANNER] ⏭️ Skipping - plan already generated today");
             return;
           }
-          
+
           console.log("📊 [SMART PLANNER] ✅ Analyzing yesterday's performance...");
-          
+
           // Get yesterday's date
           const yesterday = new Date(now);
           yesterday.setDate(yesterday.getDate() - 1);
           const yesterdayKey = yesterday.toISOString().split('T')[0];
           console.log("📊 [SMART PLANNER] Yesterday's date key:", yesterdayKey);
-          
+
           // Retrieve yesterday's completed habits
           const yesterdayLog = state.history[yesterdayKey];
-          
+
           // 🔥 SOURCE OF TRUTH: Use completedHabitNames (snapshot) instead of indices
           let completedHabits: string[] = [];
-          
+
           if (yesterdayLog?.completedHabitNames && yesterdayLog.completedHabitNames.length > 0) {
             // NEW DATA: Use the snapshotted habit names
             completedHabits = yesterdayLog.completedHabitNames;
@@ -364,12 +370,12 @@ export const useStore = create<ExtendedUserState>()(
           } else {
             console.log("📊 [ENERGY AUDIT] No completions found for yesterday");
           }
-          
+
           // ENERGY AUDIT: Weighted scoring system (out of 3 expected habits)
           const EXPECTED_HABITS = 3;
           let totalScore = 0;
           const energyBreakdown: { habit: string; level: string; points: number; completed: boolean }[] = [];
-          
+
           // Score each completed habit
           for (const habitName of completedHabits) {
             // Check which energy level this habit belongs to
@@ -387,18 +393,29 @@ export const useStore = create<ExtendedUserState>()(
               console.warn("📊 [ENERGY AUDIT] ⚠️ Habit not found in repository:", habitName);
             }
           }
-          
+
           // Calculate average score (out of 3 possible habits)
           const averageScore = totalScore / EXPECTED_HABITS;
-          
+
           console.log("📊 [ENERGY AUDIT] Energy breakdown:", energyBreakdown);
           console.log("📊 [ENERGY AUDIT] Total Score:", totalScore, "/ 9 possible");
           console.log("📊 [ENERGY AUDIT] Average Score:", averageScore.toFixed(2), "/ 3.0");
           console.log("📊 [ENERGY AUDIT] Completed:", completedHabits.length, "/", EXPECTED_HABITS, "habits");
-          
+
+          // 🔥 PERSIST DAILY SCORE: Write the calculated score to yesterday's history log
+          // This makes it immutable and efficient for weekly reviews
+          const historyUpdate = { ...state.history };
+          if (historyUpdate[yesterdayKey]) {
+            historyUpdate[yesterdayKey] = {
+              ...historyUpdate[yesterdayKey],
+              dailyScore: averageScore
+            };
+            console.log("📊 [ENERGY AUDIT] ✅ Persisted daily score:", averageScore.toFixed(2), "for", yesterdayKey);
+          }
+
           // DETERMINE MODE based on weighted average
           let mode: 'GROWTH' | 'STEADY' | 'RECOVERY';
-          
+
           if (averageScore >= 2.2) {
             // Mostly High/Medium energy (e.g., 2 High + 1 Med, or 3 Med, or 2 High + 1 Low)
             mode = 'GROWTH';
@@ -412,7 +429,7 @@ export const useStore = create<ExtendedUserState>()(
             mode = 'RECOVERY';
             console.log("📊 [ENERGY AUDIT] Calculated Mode: 🔴 RECOVERY (Average < 1.5 - Need support)");
           }
-          
+
           // CALL AI TO GENERATE NEW HABITS (FULL SPECTRUM)
           try {
             console.log("📊 [SMART PLANNER] Calling AI service for full spectrum...");
@@ -422,7 +439,7 @@ export const useStore = create<ExtendedUserState>()(
               mode,
               state.habitRepository
             );
-            
+
             // Validate the returned repository
             if (
               newRepository &&
@@ -432,12 +449,12 @@ export const useStore = create<ExtendedUserState>()(
             ) {
               console.log("📊 [SMART PLANNER] ✅ New repository generated:", newRepository);
               console.log("📊 [SMART PLANNER] Old repository:", state.habitRepository);
-              
+
               // AUTO-SWITCH ENERGY LEVEL based on mode
               let defaultEnergyLevel: 'high' | 'medium' | 'low';
               let defaultHabits: string[];
               let planMessage: string;
-              
+
               if (mode === 'GROWTH') {
                 defaultEnergyLevel = 'high';
                 defaultHabits = newRepository.high;
@@ -454,9 +471,9 @@ export const useStore = create<ExtendedUserState>()(
                 planMessage = "⚖️ Steady Mode: Switched to Medium Energy. Keep the consistency going.";
                 console.log("📊 [SMART PLANNER] Setting MEDIUM energy as default (Steady mode)");
               }
-              
+
               console.log("📊 [SMART PLANNER] Daily Plan Message:", planMessage);
-              
+
               set({
                 habitRepository: newRepository,
                 microHabits: defaultHabits,
@@ -464,11 +481,12 @@ export const useStore = create<ExtendedUserState>()(
                 currentHabitIndex: 0,
                 dailyPlanMessage: planMessage,
                 lastDailyPlanDate: today, // 🔥 CRITICAL: Mark that we generated a plan today
+                history: historyUpdate, // 🔥 PERSIST: Save the daily score to history
                 lastUpdated: Date.now()
               });
-              
+
               console.log("📊 [SMART PLANNER] ✅ Set lastDailyPlanDate to:", today);
-              
+
               // CRITICAL: Force sync to Firebase
               console.log("☁️ [CHECK NEW DAY] Forcing Firebase sync...");
               await get().syncToFirebase(true);
@@ -607,10 +625,231 @@ export const useStore = create<ExtendedUserState>()(
         get().syncToFirebase();
       },
       setView: (view) => set({ currentView: view }),
-      resetProgress: () => set({ identity: '', microHabits: [], habitRepository: { high: [], medium: [], low: [] }, currentHabitIndex: 0, energyTime: '', resilienceScore: 50, resilienceStatus: 'ACTIVE', streak: 0, shields: 0, totalCompletions: 0, lastCompletedDate: null, lastDailyPlanDate: null, missedYesterday: false, dailyCompletedIndices: [], history: {}, weeklyInsights: [], currentView: 'onboarding', undoState: null, goal: { type: 'weekly', target: 3 }, dismissedTooltips: [], currentEnergyLevel: null, lastUpdated: Date.now() }),
+      resetProgress: () => set({ identity: '', microHabits: [], habitRepository: { high: [], medium: [], low: [] }, currentHabitIndex: 0, energyTime: '', resilienceScore: 50, resilienceStatus: 'ACTIVE', streak: 0, shields: 0, totalCompletions: 0, lastCompletedDate: null, lastDailyPlanDate: null, missedYesterday: false, dailyCompletedIndices: [], history: {}, weeklyInsights: [], weeklyReview: null, lastWeeklyReviewDate: null, currentView: 'onboarding', undoState: null, goal: { type: 'weekly', target: 3 }, dismissedTooltips: [], currentEnergyLevel: null, lastUpdated: Date.now() }),
       importData: (jsonString) => { try { const data = JSON.parse(jsonString); if (data?.resilienceScore !== undefined) { set((state) => ({ ...state, ...data, lastUpdated: Date.now() })); return true; } return false; } catch { return false; } },
       generateWeeklyReview: () => set(state => ({ weeklyInsights: [...state.weeklyInsights, { id: Date.now().toString(), startDate: new Date(Date.now() - 604800000).toISOString(), endDate: new Date().toISOString(), story: ['Week complete!'], pattern: 'Check', suggestion: 'Keep going.', viewed: false }] })),
       markReviewViewed: (id) => set(state => ({ weeklyInsights: state.weeklyInsights.map(i => i.id === id ? { ...i, viewed: true } : i) })),
+
+      // SUNDAY RITUAL: Weekly Review with Momentum Score
+      checkWeeklyReview: () => {
+        const state = get();
+        if (!state._hasHydrated) return;
+
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday
+
+        console.log("📅 [WEEKLY REVIEW] Checking if review is needed...");
+        console.log("📅 [WEEKLY REVIEW] Day of week:", dayOfWeek, "(0=Sun, 1=Mon)");
+
+        // 1. TRIGGER GUARD: Only run on Sunday (0) or Monday (1)
+        if (dayOfWeek !== 0 && dayOfWeek !== 1) {
+          console.log("📅 [WEEKLY REVIEW] ⏭️ Not Sunday/Monday - skipping");
+          return;
+        }
+
+        // 2. PREVENT DOUBLE TRIGGER: Check if we already ran within last 4 days
+        if (state.lastWeeklyReviewDate) {
+          const today = now.toISOString().split('T')[0];
+          const lastReviewDate = new Date(state.lastWeeklyReviewDate + 'T00:00:00'); // Ensure consistent parsing
+          const todayDate = new Date(today + 'T00:00:00');
+          const daysSinceLastReview = Math.floor((todayDate.getTime() - lastReviewDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          console.log("📅 [WEEKLY REVIEW] Last review date:", state.lastWeeklyReviewDate);
+          console.log("📅 [WEEKLY REVIEW] Today:", today);
+          console.log("📅 [WEEKLY REVIEW] Days since last review:", daysSinceLastReview);
+
+          if (daysSinceLastReview < 4) {
+            console.log("📅 [WEEKLY REVIEW] ⏭️ Already ran within last 4 days - skipping");
+            return;
+          }
+        }
+
+        console.log("📅 [WEEKLY REVIEW] ✅ Generating weekly review...");
+
+        // 3. THE 7-DAY LOOP: Calculate Momentum Score (OPTIMIZED - uses persisted dailyScore)
+        const DAYS_TO_ANALYZE = 7;
+        let weeklyMomentumScore = 0;
+        let totalCompletions = 0;
+        const missedHabits: Record<string, number> = {};
+        const dailyScores: { date: string; score: number; completions: number }[] = [];
+
+        const endDate = new Date(now);
+        endDate.setHours(0, 0, 0, 0);
+        const startDate = new Date(endDate);
+        startDate.setDate(startDate.getDate() - (DAYS_TO_ANALYZE - 1));
+
+        console.log("📅 [WEEKLY REVIEW] Analyzing period:", startDate.toISOString().split('T')[0], "to", endDate.toISOString().split('T')[0]);
+
+        // 🔥 OPTIMIZED: Simply sum the persisted daily scores
+        for (let i = 0; i < DAYS_TO_ANALYZE; i++) {
+          const currentDate = new Date(startDate);
+          currentDate.setDate(currentDate.getDate() + i);
+          const dateKey = currentDate.toISOString().split('T')[0];
+
+          const dailyLog = state.history[dateKey];
+
+          // Use the persisted dailyScore (calculated once in checkNewDay)
+          let dailyScore = dailyLog?.dailyScore;
+
+          // 🛡️ SAFETY NET: If score is missing (Legacy Data), calculate it on the fly
+          if (dailyScore === undefined && dailyLog?.completedHabitNames) {
+            let tempScore = 0;
+            for (const name of dailyLog.completedHabitNames) {
+              if (state.habitRepository.high.includes(name)) tempScore += 3;
+              else if (state.habitRepository.medium.includes(name)) tempScore += 2;
+              else if (state.habitRepository.low.includes(name)) tempScore += 1;
+            }
+            dailyScore = tempScore / 3; // Calculate average
+          }
+
+          // Default to 0 if still nothing
+          weeklyMomentumScore += (dailyScore || 0);
+
+          // Count completions
+          const dailyCompletions = dailyLog?.completedHabitNames?.length || 0;
+          totalCompletions += dailyCompletions;
+
+          dailyScores.push({ date: dateKey, score: dailyScore, completions: dailyCompletions });
+
+          // Track missed habits (if we have data for this day)
+          if (dailyLog?.completedHabitNames) {
+            const completedNames = dailyLog.completedHabitNames;
+            const expectedHabits = state.habitRepository.high.concat(state.habitRepository.medium, state.habitRepository.low);
+
+            // Count misses for habits that existed but weren't completed
+            for (const habitName of expectedHabits) {
+              if (!completedNames.includes(habitName)) {
+                missedHabits[habitName] = (missedHabits[habitName] || 0) + 1;
+              }
+            }
+          }
+        }
+
+        console.log("📅 [WEEKLY REVIEW] Daily scores:", dailyScores);
+        console.log("📅 [WEEKLY REVIEW] Weekly Momentum Score:", weeklyMomentumScore.toFixed(2), "/ 21.0");
+        console.log("📅 [WEEKLY REVIEW] Total completions:", totalCompletions);
+
+        // 4. THE CLASSIFICATION: Determine Persona
+        let persona: 'TITAN' | 'GRINDER' | 'SURVIVOR' | 'GHOST';
+
+        if (weeklyMomentumScore > 18.0) {
+          persona = 'TITAN';
+          console.log("📅 [WEEKLY REVIEW] Persona: 🏆 TITAN (Score > 18.0 - Exceptional performance)");
+        } else if (weeklyMomentumScore > 12.0) {
+          persona = 'GRINDER';
+          console.log("📅 [WEEKLY REVIEW] Persona: 💪 GRINDER (Score > 12.0 - Strong consistency)");
+        } else if (weeklyMomentumScore > 6.0) {
+          persona = 'SURVIVOR';
+          console.log("📅 [WEEKLY REVIEW] Persona: 🌱 SURVIVOR (Score > 6.0 - Showing up)");
+        } else {
+          persona = 'GHOST';
+          console.log("📅 [WEEKLY REVIEW] Persona: 👻 GHOST (Score <= 6.0 - Need reconnection)");
+        }
+
+        // 5. STATE UPDATE: Make review available
+        set({
+          weeklyReview: {
+            available: true,
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0],
+            totalCompletions,
+            weeklyMomentumScore,
+            persona,
+            missedHabits
+          },
+          lastUpdated: Date.now()
+        });
+
+        console.log("📅 [WEEKLY REVIEW] ✅ Review is now available for user");
+      },
+
+      completeWeeklyReview: () => {
+        const state = get();
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+
+        console.log("📅 [WEEKLY REVIEW] User completed review - marking as viewed");
+        console.log("📅 [WEEKLY REVIEW] Setting lastWeeklyReviewDate to:", today);
+
+        set({
+          weeklyReview: null, // Clear the review completely
+          lastWeeklyReviewDate: today, // Lock with today's date
+          lastUpdated: Date.now()
+        });
+
+        // Force immediate sync to Firebase to persist the lock
+        console.log("☁️ [WEEKLY REVIEW] Forcing Firebase sync to lock review...");
+        get().syncToFirebase(true);
+        console.log("☁️ [WEEKLY REVIEW] ✅ Review locked and synced.");
+      },
+
+      // WEEKLY ROUTINE OPTIMIZATION: Level Up or Reset based on performance
+      optimizeWeeklyRoutine: async (type: 'LEVEL_UP' | 'RESET') => {
+        const state = get();
+        
+        console.log("🔧 [ROUTINE OPTIMIZER] Starting optimization:", type);
+
+        // Determine the mode for AI generation
+        const mode = type === 'LEVEL_UP' ? 'GROWTH' : 'RECOVERY';
+        
+        try {
+          // Reuse our powerful AI adaptation function
+          const { generateDailyAdaptation } = await import('./services/ai');
+          
+          console.log("🔧 [ROUTINE OPTIMIZER] Calling AI with mode:", mode);
+          
+          const newRepository = await generateDailyAdaptation(
+            state.identity,
+            mode,
+            state.habitRepository
+          );
+
+          // Validate the returned repository
+          if (
+            newRepository &&
+            newRepository.high?.length === 3 &&
+            newRepository.medium?.length === 3 &&
+            newRepository.low?.length === 3
+          ) {
+            console.log("🔧 [ROUTINE OPTIMIZER] ✅ New repository generated:", newRepository);
+
+            // Determine default energy level based on optimization type
+            let defaultEnergyLevel: 'high' | 'medium' | 'low';
+            let defaultHabits: string[];
+            let message: string;
+
+            if (type === 'LEVEL_UP') {
+              defaultEnergyLevel = 'high';
+              defaultHabits = newRepository.high;
+              message = "🚀 Routine leveled up! Your habits have been optimized for growth.";
+            } else {
+              defaultEnergyLevel = 'low';
+              defaultHabits = newRepository.low;
+              message = "🌱 Routine reset! Your habits have been simplified for a fresh start.";
+            }
+
+            console.log("🔧 [ROUTINE OPTIMIZER] Setting default energy:", defaultEnergyLevel);
+
+            set({
+              habitRepository: newRepository,
+              microHabits: defaultHabits,
+              currentEnergyLevel: defaultEnergyLevel,
+              currentHabitIndex: 0,
+              dailyPlanMessage: message,
+              lastUpdated: Date.now()
+            });
+
+            // Force sync to Firebase
+            console.log("☁️ [ROUTINE OPTIMIZER] Forcing Firebase sync...");
+            await get().syncToFirebase(true);
+            console.log("☁️ [ROUTINE OPTIMIZER] ✅ Sync complete.");
+          } else {
+            console.warn("🔧 [ROUTINE OPTIMIZER] ⚠️ Invalid repository returned");
+          }
+        } catch (error) {
+          console.error("🔧 [ROUTINE OPTIMIZER] ❌ Error optimizing routine:", error);
+        }
+      },
       handleVoiceLog: (text, type) => { const state = get(); if (type === 'intention') state.setDailyIntention(new Date().toISOString(), text); else if (type === 'habit') state.addMicroHabit(text); },
 
       // Auth listener - called on sign in/out
@@ -714,6 +953,8 @@ export const useStore = create<ExtendedUserState>()(
             dailyCompletedIndices: todayCompletedIndices,
             lastCompletedDate: profile.lastCompletedDate || null,
             lastDailyPlanDate: profile.lastDailyPlanDate || null,
+            weeklyReview: profile.weeklyReview || null,
+            lastWeeklyReviewDate: profile.lastWeeklyReviewDate || null,
             theme: settings?.theme || state.theme,
             soundEnabled: settings?.soundEnabled ?? state.soundEnabled,
             goal: settings?.goal || state.goal,
@@ -762,6 +1003,9 @@ export const useStore = create<ExtendedUserState>()(
             recoveryMode: state.recoveryMode,
             consecutiveMisses: state.consecutiveMisses,
             lastMissedDate: state.lastMissedDate,
+            // Weekly Review
+            weeklyReview: state.weeklyReview,
+            lastWeeklyReviewDate: state.lastWeeklyReviewDate,
             settings: {
               theme: state.theme,
               soundEnabled: state.soundEnabled,
@@ -859,6 +1103,9 @@ export const useStore = create<ExtendedUserState>()(
         recoveryMode: state.recoveryMode,
         consecutiveMisses: state.consecutiveMisses,
         lastMissedDate: state.lastMissedDate,
+        // Weekly Review fields
+        weeklyReview: state.weeklyReview,
+        lastWeeklyReviewDate: state.lastWeeklyReviewDate,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
@@ -896,6 +1143,9 @@ export const useStore = create<ExtendedUserState>()(
 
             // 2. Then, check if we missed yesterday entirely (Fixes Recovery Mode)
             store.checkMissedDay();
+
+            // 3. Check if it's Sunday/Monday and generate weekly review
+            store.checkWeeklyReview();
 
           }, 1000);
         }
