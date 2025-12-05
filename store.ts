@@ -365,43 +365,52 @@ export const useStore = create<ExtendedUserState>()(
             console.log("📊 [ENERGY AUDIT] No completions found for yesterday");
           }
           
-          // ENERGY AUDIT: Classify performance using habit names
-          let performanceScore = 0;
-          let hasHighEnergy = false;
-          const energyBreakdown: { habit: string; level: string; points: number }[] = [];
+          // ENERGY AUDIT: Weighted scoring system (out of 3 expected habits)
+          const EXPECTED_HABITS = 3;
+          let totalScore = 0;
+          const energyBreakdown: { habit: string; level: string; points: number; completed: boolean }[] = [];
           
+          // Score each completed habit
           for (const habitName of completedHabits) {
             // Check which energy level this habit belongs to
             if (state.habitRepository.high.includes(habitName)) {
-              performanceScore += 3;
-              hasHighEnergy = true;
-              energyBreakdown.push({ habit: habitName, level: 'HIGH', points: 3 });
+              totalScore += 3;
+              energyBreakdown.push({ habit: habitName, level: 'HIGH', points: 3, completed: true });
             } else if (state.habitRepository.medium.includes(habitName)) {
-              performanceScore += 2;
-              energyBreakdown.push({ habit: habitName, level: 'MEDIUM', points: 2 });
+              totalScore += 2;
+              energyBreakdown.push({ habit: habitName, level: 'MEDIUM', points: 2, completed: true });
             } else if (state.habitRepository.low.includes(habitName)) {
-              performanceScore += 1;
-              energyBreakdown.push({ habit: habitName, level: 'LOW', points: 1 });
+              totalScore += 1;
+              energyBreakdown.push({ habit: habitName, level: 'LOW', points: 1, completed: true });
             } else {
               // Habit not found in any repository (possibly from old data)
               console.warn("📊 [ENERGY AUDIT] ⚠️ Habit not found in repository:", habitName);
             }
           }
           
-          console.log("📊 [ENERGY AUDIT] Energy breakdown:", energyBreakdown);
-          console.log("📊 [ENERGY AUDIT] Total performance score:", performanceScore);
+          // Calculate average score (out of 3 possible habits)
+          const averageScore = totalScore / EXPECTED_HABITS;
           
-          // DETERMINE MODE
+          console.log("📊 [ENERGY AUDIT] Energy breakdown:", energyBreakdown);
+          console.log("📊 [ENERGY AUDIT] Total Score:", totalScore, "/ 9 possible");
+          console.log("📊 [ENERGY AUDIT] Average Score:", averageScore.toFixed(2), "/ 3.0");
+          console.log("📊 [ENERGY AUDIT] Completed:", completedHabits.length, "/", EXPECTED_HABITS, "habits");
+          
+          // DETERMINE MODE based on weighted average
           let mode: 'GROWTH' | 'STEADY' | 'RECOVERY';
-          if (completedHabits.length === 0) {
-            mode = 'RECOVERY';
-            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🔴 RECOVERY (Zero completions)");
-          } else if (hasHighEnergy) {
+          
+          if (averageScore >= 2.2) {
+            // Mostly High/Medium energy (e.g., 2 High + 1 Med, or 3 Med, or 2 High + 1 Low)
             mode = 'GROWTH';
-            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🟢 GROWTH (High energy detected)");
-          } else {
+            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🟢 GROWTH (Average >= 2.2 - Strong performance)");
+          } else if (averageScore >= 1.5) {
+            // Mixed performance or consistent Low (e.g., 1 High + 1 Med + 1 Low, or 3 Low + 1 Med)
             mode = 'STEADY';
-            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🟡 STEADY (Medium/Low energy)");
+            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🟡 STEADY (Average >= 1.5 - Consistent performance)");
+          } else {
+            // Mostly missed or only Low energy (e.g., 0-1 completions, or only Low habits)
+            mode = 'RECOVERY';
+            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🔴 RECOVERY (Average < 1.5 - Need support)");
           }
           
           // CALL AI TO GENERATE NEW HABITS (FULL SPECTRUM)
