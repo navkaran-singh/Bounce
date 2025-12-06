@@ -8,18 +8,31 @@ import * as admin from 'firebase-admin';
 import axios from 'axios';
 
 // Initialize Firebase Admin SDK (prevent double initialization)
+// Initialize Firebase Admin SDK (prevent double initialization)
 if (!admin.apps.length) {
     try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
+        const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT;
+
+        if (!serviceAccountRaw) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT env var is missing");
+        }
+
+        // Clean up the JSON string (handle Vercel line break quirks)
+        // Sometimes copy-paste adds \n literals that JSON.parse hates
+        const sanitizedJson = serviceAccountRaw.replace(/\\n/g, '\n');
+
+        const serviceAccount = JSON.parse(sanitizedJson);
+
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
         });
         console.log('✅ [VERIFY-PAYMENT] Firebase Admin initialized');
     } catch (error) {
         console.error('❌ [VERIFY-PAYMENT] Firebase Admin init error:', error);
+        // We throw here so the function fails gracefully with a 500 but logs WHY
+        throw new Error(`Firebase Init Failed: ${error instanceof Error ? error.message : 'Unknown'}`);
     }
 }
-
 const db = admin.firestore();
 
 // Dodo Payments API configuration
