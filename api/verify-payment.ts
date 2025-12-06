@@ -64,7 +64,7 @@ if (!admin.apps?.length) { // Use Optional Chaining (?.) just in case
 const db = admin.firestore ? admin.firestore() : admin.app().firestore();
 
 // Dodo Payments API configuration
-const DODO_API_BASE = 'https://test.dodopayments.com/v1';
+const DODO_API_BASE = 'https://test.dodopayments.com';
 
 interface VerifyRequest {
     paymentId: string; // Can be payment_id OR subscription_id
@@ -89,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 1. Determine if Payment or Subscription
         const isSubscription = paymentId.startsWith('sub_');
         const endpoint = isSubscription
-            ? `${DODO_API_BASE}/subscriptions/${paymentId}`
+            ? `${DODO_API_BASE}/subscriptions/${paymentId}` // Becomes https://test.dodopayments.com/subscriptions/sub_...
             : `${DODO_API_BASE}/payments/${paymentId}`;
 
         // 2. Call Dodo API
