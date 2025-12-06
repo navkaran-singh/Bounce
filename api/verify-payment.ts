@@ -64,7 +64,7 @@ if (!admin.apps?.length) { // Use Optional Chaining (?.) just in case
 const db = admin.firestore ? admin.firestore() : admin.app().firestore();
 
 // Dodo Payments API configuration
-const DODO_API_BASE = 'https://test-api.dodopayments.com/v1';
+const DODO_API_BASE = 'https://test.dodopayments.com/v1';
 
 interface VerifyRequest {
     paymentId: string; // Can be payment_id OR subscription_id
