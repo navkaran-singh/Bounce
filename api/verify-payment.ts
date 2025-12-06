@@ -4,7 +4,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import * as admin from 'firebase-admin';
+import admin from 'firebase-admin';
 import axios from 'axios';
 
 // Initialize Firebase Admin SDK (prevent double initialization)
@@ -34,20 +34,18 @@ import axios from 'axios';
 //     }
 // }
 
-if (!admin.apps.length) {
+// Initialize Firebase Admin SDK (prevent double initialization)
+if (!admin.apps?.length) { // Use Optional Chaining (?.) just in case
     try {
         const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT;
         if (!rawJson) {
             throw new Error("FIREBASE_SERVICE_ACCOUNT is missing.");
         }
 
-        // DECODE: Sometimes Vercel env vars with newlines get messy.
-        // We try to parse it directly first.
         let serviceAccount;
         try {
             serviceAccount = JSON.parse(rawJson);
         } catch (e) {
-            // RETRY: If direct parse fails, try decoding escaped newlines
             console.log("⚠️ Direct JSON parse failed, attempting unescape...");
             const sanitized = rawJson.replace(/\\n/g, '\n');
             serviceAccount = JSON.parse(sanitized);
@@ -58,13 +56,12 @@ if (!admin.apps.length) {
         });
         console.log('✅ [VERIFY-PAYMENT] Firebase Admin initialized');
     } catch (error) {
-        // LOG THE EXACT ERROR so we can see it in Vercel logs
         console.error('❌ [INIT ERROR]', error);
-        // We don't throw here to avoid 500ing immediately, but downstream calls will fail
     }
 }
 
-const db = admin.firestore();
+// Use getFirestore() if db is undefined
+const db = admin.firestore ? admin.firestore() : admin.app().firestore();
 
 // Dodo Payments API configuration
 const DODO_API_BASE = 'https://test-api.dodopayments.com/v1';
