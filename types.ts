@@ -119,7 +119,7 @@ export interface UserState {
   // Historical Data
   history: Record<string, DailyLog>;
   weeklyInsights: WeeklyInsight[];
-  
+
   // Weekly Review (Sunday Ritual)
   weeklyReview: WeeklyReviewState | null;
   lastWeeklyReviewDate: string | null;
@@ -174,6 +174,6 @@ export interface UserState {
   syncToFirebase: (forceSync?: boolean) => Promise<void>;
 
   // Premium Actions
-  upgradeToPremium: () => Promise<void>;
+  // NOTE: upgradeToPremium was REMOVED for security - handled by /api/verify-payment
   checkSubscriptionStatus: () => void;
 }

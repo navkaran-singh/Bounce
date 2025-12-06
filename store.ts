@@ -787,18 +787,18 @@ export const useStore = create<ExtendedUserState>()(
       // WEEKLY ROUTINE OPTIMIZATION: Level Up or Reset based on performance
       optimizeWeeklyRoutine: async (type: 'LEVEL_UP' | 'RESET') => {
         const state = get();
-        
+
         console.log("🔧 [ROUTINE OPTIMIZER] Starting optimization:", type);
 
         // Determine the mode for AI generation
         const mode = type === 'LEVEL_UP' ? 'GROWTH' : 'RECOVERY';
-        
+
         try {
           // Reuse our powerful AI adaptation function
           const { generateDailyAdaptation } = await import('./services/ai');
-          
+
           console.log("🔧 [ROUTINE OPTIMIZER] Calling AI with mode:", mode);
-          
+
           const newRepository = await generateDailyAdaptation(
             state.identity,
             mode,
@@ -853,61 +853,35 @@ export const useStore = create<ExtendedUserState>()(
       },
 
       // PREMIUM SUBSCRIPTION MANAGEMENT
-      upgradeToPremium: async () => {
-        console.log("💎 [PREMIUM] STARTING UPGRADE SEQUENCE...");
-        
-        // 1. Calculate Date (30 Days)
-        const expiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000);
-        
-        // 2. FORCE Local State Update First (Optimistic UI)
-        set({
-          isPremium: true,
-          premiumExpiryDate: expiryDate,
-          dailyPlanMessage: "🎉 Welcome to Premium!",
-          lastUpdated: Date.now() // Force a timestamp update
-        });
-        
-        console.log("💎 [PREMIUM] Local state set. Expiry:", new Date(expiryDate).toISOString());
-
-        // 3. WAIT for Sync (Don't let the user navigate away yet)
-        try {
-            await get().syncToFirebase(true);
-            console.log("💎 [PREMIUM] Firebase Sync Successful.");
-        } catch (e) {
-            console.error("❌ [PREMIUM] Firebase Sync Failed:", e);
-            // Even if sync fails, local state is premium, so they get features. 
-            // It will retry sync later automatically.
-        }
-
-        // 4. Trigger AI (Non-blocking)
-        // We catch errors here so they don't break the upgrade flow
-        get().checkNewDay().catch(e => console.warn("⚠️ [PREMIUM] AI generation skipped:", e));
-      },
+      // ⚠️ SECURITY NOTE: The `upgradeToPremium` action has been REMOVED.
+      // Premium status is now set ONLY by the secure serverless function 
+      // at /api/verify-payment.ts after verifying payment with Dodo Payments API.
+      // This prevents users from setting isPremium:true via browser console.
 
       checkSubscriptionStatus: () => {
         const state = get();
-        
+
         if (!state._hasHydrated) return;
-        
+
         // Only check if user is marked as premium
         if (state.isPremium && state.premiumExpiryDate) {
           const now = Date.now();
-          
+
           console.log("💎 [PREMIUM] Checking subscription status...");
           console.log("💎 [PREMIUM] Expiry date:", new Date(state.premiumExpiryDate).toISOString());
           console.log("💎 [PREMIUM] Current time:", new Date(now).toISOString());
-          
+
           // Check if subscription has expired
           if (now > state.premiumExpiryDate) {
             console.log("💎 [PREMIUM] ⚠️ Subscription expired!");
-            
+
             set({
               isPremium: false,
               premiumExpiryDate: null,
               dailyPlanMessage: "⏰ Subscription Expired. Renew to keep your AI Brain active.",
               lastUpdated: Date.now()
             });
-            
+
             // Force sync to Firebase
             get().syncToFirebase(true);
           } else {
