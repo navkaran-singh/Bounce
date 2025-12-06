@@ -36,6 +36,7 @@ interface ExtendedUserState extends UserState {
   downloadFromFirebase: (cloudData: any) => Promise<void>;
   ensureUserDocAndLoad: () => Promise<void>;
   initializeAuth: () => () => void;
+  activatePremium: (expiryDate: number) => void;
 }
 
 export const useStore = create<ExtendedUserState>()(
@@ -1109,21 +1110,42 @@ export const useStore = create<ExtendedUserState>()(
             const cloudLastUpdated = cloudData.lastUpdated || 0;
             const localLastUpdated = state.lastUpdated || 0;
 
-            console.log("[LOAD] Cloud lastUpdated:", cloudLastUpdated, "Local lastUpdated:", localLastUpdated);
+            console.log("[LOAD] Cloud TS:", cloudLastUpdated, "Local TS:", localLastUpdated);
+
+            // 🛡️ SECURITY CHECK: Always respect Cloud Premium status if it exists and is valid
+            // This prevents a local state glitch from overwriting a paid subscription
+            const cloudIsPremium = cloudData.isPremium === true;
+            const cloudExpiry = cloudData.premiumExpiryDate || 0;
+            const isCloudValid = cloudIsPremium && cloudExpiry > Date.now();
 
             if (cloudLastUpdated > localLastUpdated) {
-              // Cloud is newer - download from cloud
+              // Cloud is newer - download everything
               console.log("[LOAD] Cloud is newer - downloading...");
               await get().downloadFromFirebase(cloudData);
             } else if (localLastUpdated > cloudLastUpdated) {
-              // Local is newer - upload to cloud
-              console.log("[LOAD] Local is newer - uploading...");
-              await get().syncToFirebase(true);
+              // Local is newer - usually we upload local...
+              // BUT if Cloud has a valid subscription and Local doesn't, we must PRESERVE the Cloud subscription
+              if (isCloudValid && !state.isPremium) {
+                console.log("🛡️ [LOAD] Conflict detected: Local is newer but lost Premium. Restoring from Cloud.");
+
+                // Merge Cloud Premium into Local State BEFORE uploading
+                set({
+                  isPremium: true,
+                  premiumExpiryDate: cloudExpiry,
+                  dailyPlanMessage: "💎 Premium restored from cloud sync.",
+                  lastUpdated: Date.now() // Update local timestamp to be the winner
+                });
+
+                // Now upload the merged state (Local Habits + Cloud Premium)
+                await get().syncToFirebase(true);
+              } else {
+                console.log("[LOAD] Local is newer - uploading...");
+                await get().syncToFirebase(true);
+              }
             } else {
               console.log("[LOAD] Already in sync");
             }
           } else {
-            // No cloud data - upload local
             console.log("[LOAD] No cloud data - uploading local...");
             await get().syncToFirebase(true);
           }
