@@ -45,6 +45,7 @@ export const useStore = create<ExtendedUserState>()(
       setHasHydrated: (state) => set({ _hasHydrated: state }),
       currentView: 'onboarding',
       isPremium: false,
+      premiumExpiryDate: null,
       user: null,
       lastUpdated: 0,
       lastSync: 0,
@@ -850,6 +851,68 @@ export const useStore = create<ExtendedUserState>()(
           console.error("🔧 [ROUTINE OPTIMIZER] ❌ Error optimizing routine:", error);
         }
       },
+
+      // PREMIUM SUBSCRIPTION MANAGEMENT
+      upgradeToPremium: async () => {
+        const state = get();
+        
+        console.log("💎 [PREMIUM] Upgrading user to Premium...");
+        
+        // Set premium status with 30-day expiry
+        const expiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days from now
+        
+        set({
+          isPremium: true,
+          premiumExpiryDate: expiryDate,
+          dailyPlanMessage: "🎉 Welcome to Premium! Your AI Brain is now active.",
+          lastUpdated: Date.now()
+        });
+        
+        console.log("💎 [PREMIUM] Premium activated until:", new Date(expiryDate).toISOString());
+        
+        // Immediately generate AI-powered daily plan
+        console.log("💎 [PREMIUM] Generating initial AI plan...");
+        await get().checkNewDay();
+        
+        // Force sync to Firebase
+        console.log("☁️ [PREMIUM] Forcing Firebase sync...");
+        await get().syncToFirebase(true);
+        console.log("💎 [PREMIUM] ✅ Premium upgrade complete!");
+      },
+
+      checkSubscriptionStatus: () => {
+        const state = get();
+        
+        if (!state._hasHydrated) return;
+        
+        // Only check if user is marked as premium
+        if (state.isPremium && state.premiumExpiryDate) {
+          const now = Date.now();
+          
+          console.log("💎 [PREMIUM] Checking subscription status...");
+          console.log("💎 [PREMIUM] Expiry date:", new Date(state.premiumExpiryDate).toISOString());
+          console.log("💎 [PREMIUM] Current time:", new Date(now).toISOString());
+          
+          // Check if subscription has expired
+          if (now > state.premiumExpiryDate) {
+            console.log("💎 [PREMIUM] ⚠️ Subscription expired!");
+            
+            set({
+              isPremium: false,
+              premiumExpiryDate: null,
+              dailyPlanMessage: "⏰ Subscription Expired. Renew to keep your AI Brain active.",
+              lastUpdated: Date.now()
+            });
+            
+            // Force sync to Firebase
+            get().syncToFirebase(true);
+          } else {
+            const daysRemaining = Math.ceil((state.premiumExpiryDate - now) / (1000 * 60 * 60 * 24));
+            console.log("💎 [PREMIUM] ✅ Active -", daysRemaining, "days remaining");
+          }
+        }
+      },
+
       handleVoiceLog: (text, type) => { const state = get(); if (type === 'intention') state.setDailyIntention(new Date().toISOString(), text); else if (type === 'habit') state.addMicroHabit(text); },
 
       // Auth listener - called on sign in/out
@@ -946,6 +1009,7 @@ export const useStore = create<ExtendedUserState>()(
             shields: profile.shields ?? 0,
             totalCompletions: profile.totalCompletions ?? 0,
             isPremium: profile.isPremium ?? false,
+            premiumExpiryDate: profile.premiumExpiryDate || null,
             // Recovery Mode
             recoveryMode: profile.recoveryMode ?? false,
             consecutiveMisses: profile.consecutiveMisses ?? 0,
@@ -999,6 +1063,7 @@ export const useStore = create<ExtendedUserState>()(
             lastDailyPlanDate: state.lastDailyPlanDate,
             totalCompletions: state.totalCompletions,
             isPremium: state.isPremium,
+            premiumExpiryDate: state.premiumExpiryDate,
             // Recovery Mode
             recoveryMode: state.recoveryMode,
             consecutiveMisses: state.consecutiveMisses,
@@ -1099,6 +1164,7 @@ export const useStore = create<ExtendedUserState>()(
         goal: state.goal,
         totalCompletions: state.totalCompletions,
         isPremium: state.isPremium,
+        premiumExpiryDate: state.premiumExpiryDate,
         // Recovery Mode fields
         recoveryMode: state.recoveryMode,
         consecutiveMisses: state.consecutiveMisses,
@@ -1137,6 +1203,9 @@ export const useStore = create<ExtendedUserState>()(
           // 🛑 UPDATE THIS TIMEOUT BLOCK
           setTimeout(() => {
             const store = useStore.getState();
+
+            // 0. Check subscription status first
+            store.checkSubscriptionStatus();
 
             // 1. First, clean up yesterday's mess (Fixes Orb Color & Ghost Habits)
             store.checkNewDay();

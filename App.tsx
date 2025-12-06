@@ -17,7 +17,7 @@ import { auth, isSignInWithEmailLink, signInWithEmailLink } from './services/fir
 import { getRedirectResult } from 'firebase/auth';
 
 const App: React.FC = () => {
-  const { currentView, theme, setView, identity, _hasHydrated, setHasHydrated, initializeAuth, user } = useStore();
+  const { currentView, theme, setView, identity, _hasHydrated, setHasHydrated, initializeAuth, user, upgradeToPremium } = useStore();
   const { isNative } = usePlatform();
 
   useEffect(() => {
@@ -26,6 +26,28 @@ const App: React.FC = () => {
       if (unsubscribe) unsubscribe();
     };
   }, []);
+
+  // Handle payment success callback from Dodo Payments
+  useEffect(() => {
+    const handlePaymentSuccess = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentStatus = urlParams.get('payment');
+      
+      if (paymentStatus === 'success') {
+        console.log('💎 [PAYMENT] Payment success detected!');
+        
+        // Upgrade user to premium
+        await upgradeToPremium();
+        
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        console.log('💎 [PAYMENT] Premium activation complete!');
+      }
+    };
+    
+    handlePaymentSuccess();
+  }, [upgradeToPremium]);
 
   // Handle Google redirect result (for native platforms)
   useEffect(() => {

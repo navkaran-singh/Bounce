@@ -67,6 +67,7 @@ export interface AppUser {
 export interface UserState {
   // Premium Status
   isPremium: boolean;
+  premiumExpiryDate: number | null;
   user: AppUser | null;
 
   setUser: (user: AppUser | null) => void;
@@ -171,4 +172,8 @@ export interface UserState {
   initializeAuth: () => (() => void) | void;
   loadFromFirebase: () => Promise<void>;
   syncToFirebase: (forceSync?: boolean) => Promise<void>;
+
+  // Premium Actions
+  upgradeToPremium: () => Promise<void>;
+  checkSubscriptionStatus: () => void;
 }
