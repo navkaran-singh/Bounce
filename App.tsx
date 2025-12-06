@@ -71,9 +71,15 @@ const App: React.FC = () => {
             // Reload user data from Firebase to get updated premium status
             await useStore.getState().loadFromFirebase();
 
-            // 🔥 CRITICAL FIX: Update local state immediately using the date from the server
-            // usage: response.data.premiumExpiryDate
-            useStore.getState().activatePremium(response.data.premiumExpiryDate);
+            // 🔥 CRITICAL FIX: Use 'result', not 'response.data'
+            if (result.premiumExpiryDate) {
+              useStore.getState().activatePremium(result.premiumExpiryDate);
+            } else {
+              console.warn("⚠️ [APP] premiumExpiryDate missing in response, using default");
+              // Fallback: 30 days from now if server didn't send it (safety net)
+              const fallbackDate = Date.now() + (30 * 24 * 60 * 60 * 1000);
+              useStore.getState().activatePremium(fallbackDate);
+            }
 
             // Clean URL after successful verification
             window.history.replaceState({}, document.title, window.location.pathname);
