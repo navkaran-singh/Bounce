@@ -71,6 +71,10 @@ const App: React.FC = () => {
             // Reload user data from Firebase to get updated premium status
             await useStore.getState().loadFromFirebase();
 
+            // 🔥 CRITICAL FIX: Update local state immediately using the date from the server
+            // usage: response.data.premiumExpiryDate
+            useStore.getState().activatePremium(response.data.premiumExpiryDate);
+
             // Clean URL after successful verification
             window.history.replaceState({}, document.title, window.location.pathname);
 

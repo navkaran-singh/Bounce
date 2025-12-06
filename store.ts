@@ -509,6 +509,23 @@ export const useStore = create<ExtendedUserState>()(
         }
       },
 
+      activatePremium: (expiryDate: number) => {
+        console.log("💎 [STORE] Activating Premium via API Success...");
+        set({
+          isPremium: true,
+          premiumExpiryDate: expiryDate,
+          dailyPlanMessage: "🎉 Welcome to Premium! Your AI Brain is now active.",
+          // Update timestamp so WE are the "Newest" version
+          lastUpdated: Date.now()
+        });
+
+        // Trigger the AI Brain immediately
+        get().checkNewDay();
+
+        // Force a sync (Now we upload TRUE to cloud, which matches the server)
+        get().syncToFirebase(true);
+      },
+
       activateRecoveryMode: () => {
         set({
           recoveryMode: true,
