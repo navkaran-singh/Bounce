@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { EnergyLevel } from "../types";
 
-const API_KEY = process.env.GEMINI_API_KEY;
+const API_KEY = import.meta.env.GEMINI_API_KEY;
 
 export const generateHabits = async (identity: string): Promise<{ high: string[], medium: string[], low: string[] }> => {
   if (!API_KEY) {
@@ -72,7 +72,7 @@ export const generateDailyAdaptation = async (
 ): Promise<{ high: string[], medium: string[], low: string[] }> => {
   console.log("🤖 [AI SERVICE] Generating FULL SPECTRUM for mode:", performanceMode);
   console.log("🤖 [AI SERVICE] Current Repository:", currentRepository);
-  
+
   if (!API_KEY) {
     console.warn("🤖 [AI SERVICE] Missing GEMINI_API_KEY - returning current repository");
     return currentRepository;
@@ -89,14 +89,14 @@ export const generateDailyAdaptation = async (
     - HIGH (Default for today): Apply PROGRESSIVE OVERLOAD - increase duration/intensity by 10-20%
     - MEDIUM: Maintain baseline standards
     - LOW: Active recovery - keep initiation steps available`,
-    
+
     STEADY: `Yesterday you maintained steady progress with medium-energy habits. Solid consistency.
     
     ADAPTATION STRATEGY:
     - HIGH: Keep challenging but don't overload
     - MEDIUM (Default for today): Refresh for novelty, maintain difficulty
     - LOW: Keep atomic safety net available`,
-    
+
     RECOVERY: `Yesterday you struggled or completed only low-energy habits (or none). You need COMPASSIONATE SUPPORT.
     
     ADAPTATION STRATEGY:
@@ -159,10 +159,10 @@ export const generateDailyAdaptation = async (
     const response = result.response;
     const text = response.text();
     console.log("🤖 [AI SERVICE] Raw Response:", text);
-    
+
     const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleanedText);
-    
+
     // Validate output structure
     if (
       parsed &&

@@ -25,5 +25,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-services/firebase.ts
+# services/firebase.ts
 android/app/google-services.json
