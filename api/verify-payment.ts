@@ -1,12 +1,6 @@
 /**
  * Secure Payment Verification Serverless Function
- * 
- * This function verifies payments with Dodo Payments API
- * and securely updates the user's premium status in Firebase.
- * 
- * Environment Variables Required:
- * - DODO_PAYMENT_SECRET_KEY: Your Dodo Payments secret API key
- * - FIREBASE_SERVICE_ACCOUNT: JSON string of Firebase service account credentials
+ * * Handles both One-Time Payments (pay_...) and Subscriptions (sub_...)
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -29,25 +23,11 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // Dodo Payments API configuration
-const DODO_API_BASE = 'https://test-api.dodopayments.com/v1'; // Change to 'https://api.dodopayments.com/v1' for production
+const DODO_API_BASE = 'https://test-api.dodopayments.com/v1';
 
-interface VerifyPaymentRequest {
-    paymentId: string;
+interface VerifyRequest {
+    paymentId: string; // Can be payment_id OR subscription_id
     userId: string;
-}
-
-interface DodoPaymentResponse {
-    payment_id: string;
-    status: 'succeeded' | 'pending' | 'failed' | 'cancelled';
-    amount: number;
-    currency: string;
-    customer: {
-        email: string;
-        metadata?: {
-            userId?: string;
-        };
-    };
-    created_at: string;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -57,22 +37,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { paymentId, userId } = req.body as VerifyPaymentRequest;
+        const { paymentId, userId } = req.body as VerifyRequest;
 
-        // Validate input
         if (!paymentId || !userId) {
-            console.error('❌ [VERIFY-PAYMENT] Missing paymentId or userId');
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields: paymentId and userId'
-            });
+            return res.status(400).json({ success: false, error: 'Missing ID or User' });
         }
 
-        console.log(`🔍 [VERIFY-PAYMENT] Verifying payment: ${paymentId} for user: ${userId}`);
+        console.log(`🔍 [VERIFY] Checking ID: ${paymentId} for User: ${userId}`);
 
-        // 1. Verify payment with Dodo Payments API
-        const dodoResponse = await axios.get<DodoPaymentResponse>(
-            `${DODO_API_BASE}/payments/${paymentId}`,
+        // 1. Determine if Payment or Subscription
+        const isSubscription = paymentId.startsWith('sub_');
+        const endpoint = isSubscription
+            ? `${DODO_API_BASE}/subscriptions/${paymentId}`
+            : `${DODO_API_BASE}/payments/${paymentId}`;
+
+        // 2. Call Dodo API
+        const dodoResponse = await axios.get(
+            endpoint,
             {
                 headers: {
                     'Authorization': `Bearer ${process.env.DODO_PAYMENT_SECRET_KEY}`,
@@ -81,72 +62,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         );
 
-        const paymentData = dodoResponse.data;
-        console.log('📄 [VERIFY-PAYMENT] Dodo response:', JSON.stringify(paymentData, null, 2));
+        const data = dodoResponse.data;
+        console.log(`📄 [VERIFY] Status: ${data.status}`);
 
-        // 2. Validate payment status
-        if (paymentData.status !== 'succeeded') {
-            console.error(`❌ [VERIFY-PAYMENT] Payment not succeeded. Status: ${paymentData.status}`);
+        // 3. Validate Status
+        // Payments use 'succeeded', Subscriptions use 'active'
+        const isValid = isSubscription
+            ? data.status === 'active'
+            : data.status === 'succeeded';
+
+        if (!isValid) {
+            console.error(`❌ [VERIFY] Invalid Status: ${data.status}`);
             return res.status(400).json({
                 success: false,
-                error: `Payment status is ${paymentData.status}, not succeeded`
+                error: `Transaction status is ${data.status}`
             });
         }
 
-        // 3. Optional: Verify userId matches (security check)
-        // This prevents users from using someone else's payment ID
-        if (paymentData.customer?.metadata?.userId && paymentData.customer.metadata.userId !== userId) {
-            console.error('❌ [VERIFY-PAYMENT] User ID mismatch');
-            return res.status(403).json({
-                success: false,
-                error: 'Payment does not belong to this user'
-            });
-        }
-
-        // 4. Update user's premium status in Firestore
-        const premiumExpiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days from now
+        // 4. Update Firebase
+        const premiumExpiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days
 
         await db.collection('users').doc(userId).set(
             {
                 isPremium: true,
                 premiumExpiryDate: premiumExpiryDate,
                 lastPaymentId: paymentId,
-                lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
+                paymentType: isSubscription ? 'subscription' : 'one_time',
                 lastUpdated: Date.now(),
             },
             { merge: true }
         );
 
-        console.log(`✅ [VERIFY-PAYMENT] User ${userId} upgraded to premium until ${new Date(premiumExpiryDate).toISOString()}`);
+        console.log(`✅ [VERIFY] Success! User upgraded.`);
 
-        // 5. Return success
         return res.status(200).json({
             success: true,
             premiumExpiryDate,
-            message: 'Payment verified and premium status activated'
+            message: 'Premium Verified'
         });
 
     } catch (error: any) {
-        console.error('❌ [VERIFY-PAYMENT] Error:', error.response?.data || error.message);
-
-        // Handle Dodo API errors specifically
-        if (error.response?.status === 404) {
-            return res.status(404).json({
-                success: false,
-                error: 'Payment not found'
-            });
-        }
-
-        if (error.response?.status === 401) {
-            return res.status(500).json({
-                success: false,
-                error: 'Payment verification service error'
-            });
-        }
-
-        return res.status(500).json({
-            success: false,
-            error: 'Internal server error during payment verification'
-        });
+        console.error('❌ [VERIFY] Error:', error.response?.data || error.message);
+        return res.status(500).json({ success: false, error: 'Verification Failed' });
     }
 }

@@ -21,6 +21,7 @@
     "@capacitor/share": "^7.0.2",
     "@capacitor/status-bar": "^7.0.3",
     "@google/generative-ai": "^0.24.1",
+    "@vercel/node": "^5.5.15",
     "axios": "^1.13.2",
     "expo-speech-recognition": "^3.0.0",
     "firebase": "^11.10.0",

@@ -37,7 +37,8 @@ const App: React.FC = () => {
     const verifyPayment = async () => {
       // Check URL params for Dodo payment callback
       const urlParams = new URLSearchParams(window.location.search);
-      const paymentId = urlParams.get('payment_id'); // Dodo sends this
+      // Check for EITHER payment_id OR subscription_id
+      const paymentId = urlParams.get('payment_id') || urlParams.get('subscription_id');
       const legacyStatus = urlParams.get('payment'); // Legacy fallback
 
       // If we have a payment_id, verify it securely
