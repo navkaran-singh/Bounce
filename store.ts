@@ -854,30 +854,34 @@ export const useStore = create<ExtendedUserState>()(
 
       // PREMIUM SUBSCRIPTION MANAGEMENT
       upgradeToPremium: async () => {
-        const state = get();
+        console.log("💎 [PREMIUM] STARTING UPGRADE SEQUENCE...");
         
-        console.log("💎 [PREMIUM] Upgrading user to Premium...");
+        // 1. Calculate Date (30 Days)
+        const expiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000);
         
-        // Set premium status with 30-day expiry
-        const expiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days from now
-        
+        // 2. FORCE Local State Update First (Optimistic UI)
         set({
           isPremium: true,
           premiumExpiryDate: expiryDate,
-          dailyPlanMessage: "🎉 Welcome to Premium! Your AI Brain is now active.",
-          lastUpdated: Date.now()
+          dailyPlanMessage: "🎉 Welcome to Premium!",
+          lastUpdated: Date.now() // Force a timestamp update
         });
         
-        console.log("💎 [PREMIUM] Premium activated until:", new Date(expiryDate).toISOString());
-        
-        // Immediately generate AI-powered daily plan
-        console.log("💎 [PREMIUM] Generating initial AI plan...");
-        await get().checkNewDay();
-        
-        // Force sync to Firebase
-        console.log("☁️ [PREMIUM] Forcing Firebase sync...");
-        await get().syncToFirebase(true);
-        console.log("💎 [PREMIUM] ✅ Premium upgrade complete!");
+        console.log("💎 [PREMIUM] Local state set. Expiry:", new Date(expiryDate).toISOString());
+
+        // 3. WAIT for Sync (Don't let the user navigate away yet)
+        try {
+            await get().syncToFirebase(true);
+            console.log("💎 [PREMIUM] Firebase Sync Successful.");
+        } catch (e) {
+            console.error("❌ [PREMIUM] Firebase Sync Failed:", e);
+            // Even if sync fails, local state is premium, so they get features. 
+            // It will retry sync later automatically.
+        }
+
+        // 4. Trigger AI (Non-blocking)
+        // We catch errors here so they don't break the upgrade flow
+        get().checkNewDay().catch(e => console.warn("⚠️ [PREMIUM] AI generation skipped:", e));
       },
 
       checkSubscriptionStatus: () => {

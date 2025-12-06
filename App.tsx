@@ -29,25 +29,22 @@ const App: React.FC = () => {
 
   // Handle payment success callback from Dodo Payments
   useEffect(() => {
-    const handlePaymentSuccess = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const paymentStatus = urlParams.get('payment');
+    // Check URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+
+    if (paymentStatus === 'success') {
+      console.log("✅ [APP] Payment Success Detected. Initializing Upgrade...");
       
-      if (paymentStatus === 'success') {
-        console.log('💎 [PAYMENT] Payment success detected!');
-        
-        // Upgrade user to premium
-        await upgradeToPremium();
-        
-        // Clean URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        console.log('💎 [PAYMENT] Premium activation complete!');
-      }
-    };
-    
-    handlePaymentSuccess();
-  }, [upgradeToPremium]);
+      // Delay slightly to ensure Store Hydration is done
+      setTimeout(() => {
+          useStore.getState().upgradeToPremium();
+          
+          // Clean URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+      }, 1000);
+    }
+  }, []);
 
   // Handle Google redirect result (for native platforms)
   useEffect(() => {
