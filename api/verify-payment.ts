@@ -8,31 +8,62 @@ import * as admin from 'firebase-admin';
 import axios from 'axios';
 
 // Initialize Firebase Admin SDK (prevent double initialization)
-// Initialize Firebase Admin SDK (prevent double initialization)
+
+// if (!admin.apps.length) {
+//     try {
+//         const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT;
+
+//         if (!serviceAccountRaw) {
+//             throw new Error("FIREBASE_SERVICE_ACCOUNT env var is missing");
+//         }
+
+//         // Clean up the JSON string (handle Vercel line break quirks)
+//         // Sometimes copy-paste adds \n literals that JSON.parse hates
+//         const sanitizedJson = serviceAccountRaw.replace(/\\n/g, '\n');
+
+//         const serviceAccount = JSON.parse(sanitizedJson);
+
+//         admin.initializeApp({
+//             credential: admin.credential.cert(serviceAccount),
+//         });
+//         console.log('✅ [VERIFY-PAYMENT] Firebase Admin initialized');
+//     } catch (error) {
+//         console.error('❌ [VERIFY-PAYMENT] Firebase Admin init error:', error);
+//         // We throw here so the function fails gracefully with a 500 but logs WHY
+//         throw new Error(`Firebase Init Failed: ${error instanceof Error ? error.message : 'Unknown'}`);
+//     }
+// }
+
 if (!admin.apps.length) {
     try {
-        const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT;
-
-        if (!serviceAccountRaw) {
-            throw new Error("FIREBASE_SERVICE_ACCOUNT env var is missing");
+        const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+        if (!rawJson) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT is missing.");
         }
 
-        // Clean up the JSON string (handle Vercel line break quirks)
-        // Sometimes copy-paste adds \n literals that JSON.parse hates
-        const sanitizedJson = serviceAccountRaw.replace(/\\n/g, '\n');
-
-        const serviceAccount = JSON.parse(sanitizedJson);
+        // DECODE: Sometimes Vercel env vars with newlines get messy.
+        // We try to parse it directly first.
+        let serviceAccount;
+        try {
+            serviceAccount = JSON.parse(rawJson);
+        } catch (e) {
+            // RETRY: If direct parse fails, try decoding escaped newlines
+            console.log("⚠️ Direct JSON parse failed, attempting unescape...");
+            const sanitized = rawJson.replace(/\\n/g, '\n');
+            serviceAccount = JSON.parse(sanitized);
+        }
 
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
         });
         console.log('✅ [VERIFY-PAYMENT] Firebase Admin initialized');
     } catch (error) {
-        console.error('❌ [VERIFY-PAYMENT] Firebase Admin init error:', error);
-        // We throw here so the function fails gracefully with a 500 but logs WHY
-        throw new Error(`Firebase Init Failed: ${error instanceof Error ? error.message : 'Unknown'}`);
+        // LOG THE EXACT ERROR so we can see it in Vercel logs
+        console.error('❌ [INIT ERROR]', error);
+        // We don't throw here to avoid 500ing immediately, but downstream calls will fail
     }
 }
+
 const db = admin.firestore();
 
 // Dodo Payments API configuration
