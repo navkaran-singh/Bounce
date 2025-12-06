@@ -20,6 +20,7 @@ import { EnergyValve } from '../components/EnergyValve';
 import { RecoveryCard } from '../components/RecoveryCard';
 import { NeverMissTwiceSheet } from '../components/NeverMissTwiceSheet';
 import { WeeklyReviewModal } from '../components/WeeklyReviewModal';
+import { PremiumModal } from '../components/PremiumModal';
 import { Preferences } from '@capacitor/preferences';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
@@ -102,7 +103,7 @@ export const Dashboard: React.FC = () => {
     const { state: engineState, actions: engineActions } = useResilienceEngine();
 
     // 👇 GET 'dailyCompletedIndices' DIRECTLY
-    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak, dailyPlanMessage, dismissDailyPlanMessage } = useStore();
+    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak, dailyPlanMessage, dismissDailyPlanMessage, isPremium } = useStore();
 
     const [showCelebration, setShowCelebration] = useState(false);
     const [milestoneReached, setMilestoneReached] = useState<number | null>(null);
@@ -114,6 +115,7 @@ export const Dashboard: React.FC = () => {
     const [isGoalsOpen, setIsGoalsOpen] = useState(false);
     const [isEnergyOpen, setIsEnergyOpen] = useState(false);
     const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+    const [isPremiumOpen, setIsPremiumOpen] = useState(false);
     const [zenMode, setZenMode] = useState(false);
 
     const [showPostCompletionActions, setShowPostCompletionActions] = useState(false);
@@ -425,6 +427,9 @@ export const Dashboard: React.FC = () => {
             
             {/* Weekly Review Modal (Sunday Ritual) */}
             <WeeklyReviewModal />
+            
+            {/* Premium Modal */}
+            <PremiumModal isOpen={isPremiumOpen} onClose={() => setIsPremiumOpen(false)} />
 
             <AnimatePresence>
                 {!zenMode && (
@@ -532,6 +537,20 @@ export const Dashboard: React.FC = () => {
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
+
+                                    {/* Premium Button - Show if not premium */}
+                                    {!isPremium && (
+                                        <button
+                                            onClick={() => setIsPremiumOpen(true)}
+                                            data-premium-trigger
+                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-black hover:shadow-lg hover:shadow-amber-500/20 transition-all"
+                                            title="Upgrade to Premium"
+                                        >
+                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                            </svg>
+                                        </button>
+                                    )}
 
                                     <button
                                         onClick={() => setIsSettingsOpen(true)}
