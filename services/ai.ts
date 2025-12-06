@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { EnergyLevel } from "../types";
 
-const API_KEY = import.meta.env.GEMINI_API_KEY;
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export const generateHabits = async (identity: string): Promise<{ high: string[], medium: string[], low: string[] }> => {
   if (!API_KEY) {
