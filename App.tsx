@@ -64,6 +64,35 @@ const App: React.FC = () => {
     handleRedirectResult();
   }, []);
 
+  // Inside your App component
+useEffect(() => {
+  // 1. Log to confirm the Effect ran
+  console.log("🔍 [APP] Checking URL parameters...", window.location.search);
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const paymentStatus = urlParams.get('payment');
+
+  if (paymentStatus === 'success') {
+    console.log("✅ [APP] Payment success detected! Upgrading...");
+    
+    // 2. Execute Upgrade
+    const upgrade = async () => {
+      try {
+        const store = useStore.getState();
+        await store.upgradeToPremium();
+        console.log("🎉 [APP] Upgrade function called successfully");
+        
+        // 3. Clean URL ONLY after success
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (e) {
+        console.error("❌ [APP] Upgrade failed:", e);
+      }
+    };
+    
+    upgrade();
+  }
+}, []); // Empty dependency array ensures it runs on mount
+
   // Handle magic link sign-in (web and native)
   useEffect(() => {
     const handleMagicLink = async (url: string) => {
