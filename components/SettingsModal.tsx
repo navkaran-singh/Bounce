@@ -172,8 +172,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         </div>
 
                         {/* Premium Banner - Show if not premium */}
-                        {!useStore.getState().isPremium && (
-                            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 relative overflow-hidden group cursor-pointer" onClick={() => {
+                        {!useStore.getState().isPremium && user && (
+                            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 relative h-32 overflow-hidden group cursor-pointer" onClick={() => {
                                 onClose();
                                 // Open premium modal - we'll need to pass this as a prop or use a global state
                                 setTimeout(() => {

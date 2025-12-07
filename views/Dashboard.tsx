@@ -539,7 +539,7 @@ export const Dashboard: React.FC = () => {
                                     </AnimatePresence>
 
                                     {/* Premium Button - Show if not premium */}
-                                    {!isPremium && (
+                                    {!isPremium && user && (
                                         <button
                                             onClick={() => setIsPremiumOpen(true)}
                                             data-premium-trigger
