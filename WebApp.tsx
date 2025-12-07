@@ -51,7 +51,7 @@ const WebApp: React.FC = () => {
         setPaymentError(null);
 
         try {
-          const response = await fetch('/api/verify-payment', {
+          const response = await fetch('/.netlify/functions/verify-payment', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
