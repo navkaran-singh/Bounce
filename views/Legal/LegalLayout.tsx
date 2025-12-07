@@ -61,6 +61,9 @@ export const LegalLayout: React.FC<LegalLayoutProps> = ({ title, lastUpdated, ch
                 <div className="text-center text-sm text-gray-500 mt-4">
                     © {new Date().getFullYear()} Bounce. All rights reserved.
                 </div>
+                <div className="text-center text-sm text-gray-500 mt-4">
+                    Bounce is operated by Navkaran Singh as an individual business.
+                </div>
             </footer>
         </div>
     );

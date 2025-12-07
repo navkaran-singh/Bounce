@@ -253,6 +253,9 @@ export const LandingPage: React.FC = () => {
                     </div>
                 </div>
             </footer>
+            <div className="text-center text-sm text-gray-500 mb-4">
+                Bounce is operated by Navkaran Singh as an individual business.
+            </div>
         </div>
     );
 };

@@ -69,8 +69,8 @@ export const Contact: React.FC = () => {
                                     For official correspondence:
                                 </p>
                                 <address className="text-gray-300 not-italic">
-                                    Bounce<br />
-                                    2890, Sector 38C<br />
+                                    Bounce (Operated by Navkaran Singh)<br />
+                                    House No 2890, Sector 38C, 160014<br />
                                     Chandigarh, India<br />
                                     {/* India */}
                                 </address>
