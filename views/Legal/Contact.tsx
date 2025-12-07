@@ -70,7 +70,7 @@ export const Contact: React.FC = () => {
                                 </p>
                                 <address className="text-gray-300 not-italic">
                                     Bounce (Operated by Navkaran Singh)<br />
-                                    House No 2890, Sector 38C, 160014<br />
+                                    House No 2890, Sector 38C, 160036<br />
                                     Chandigarh, India<br />
                                     {/* India */}
                                 </address>
