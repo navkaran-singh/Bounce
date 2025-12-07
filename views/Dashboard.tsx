@@ -61,22 +61,22 @@ const DailyPlanToast: React.FC<{ message: string; onDismiss: () => void }> = ({ 
                 <div className="relative overflow-hidden rounded-2xl">
                     {/* Glassmorphic Background */}
                     <div className="absolute inset-0 bg-[#0F0F10]/90 backdrop-blur-md" />
-                    
+
                     {/* Subtle Border Glow */}
                     <div className="absolute inset-0 rounded-2xl border border-white/10" />
-                    
+
                     {/* Content */}
                     <div className="relative px-4 py-3 flex items-center gap-3">
                         {/* Icon */}
                         <div className="text-2xl flex-shrink-0">
                             {getIcon()}
                         </div>
-                        
+
                         {/* Message */}
                         <p className="flex-1 text-sm font-medium text-white/90 leading-snug">
                             {message}
                         </p>
-                        
+
                         {/* Dismiss Button */}
                         <button
                             onClick={onDismiss}
@@ -85,7 +85,7 @@ const DailyPlanToast: React.FC<{ message: string; onDismiss: () => void }> = ({ 
                             <X size={14} />
                         </button>
                     </div>
-                    
+
                     {/* Progress Bar */}
                     <motion.div
                         initial={{ width: '100%' }}
@@ -103,7 +103,7 @@ export const Dashboard: React.FC = () => {
     const { state: engineState, actions: engineActions } = useResilienceEngine();
 
     // 👇 GET 'dailyCompletedIndices' DIRECTLY
-    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak, dailyPlanMessage, dismissDailyPlanMessage, isPremium } = useStore();
+    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak, dailyPlanMessage, dismissDailyPlanMessage, isPremium, user } = useStore();
 
     const [showCelebration, setShowCelebration] = useState(false);
     const [milestoneReached, setMilestoneReached] = useState<number | null>(null);
@@ -343,7 +343,7 @@ export const Dashboard: React.FC = () => {
                     />
                 )}
             </AnimatePresence>
-            
+
             <WeeklyStory />
             <VoiceMode
                 isOpen={isVoiceOpen}
@@ -424,10 +424,10 @@ export const Dashboard: React.FC = () => {
                     setShowPostCompletionActions(false);
                 }}
             />
-            
+
             {/* Weekly Review Modal (Sunday Ritual) */}
-            <WeeklyReviewModal />
-            
+            {user && <WeeklyReviewModal />}
+
             {/* Premium Modal */}
             <PremiumModal isOpen={isPremiumOpen} onClose={() => setIsPremiumOpen(false)} />
 

@@ -110,8 +110,12 @@ export const useStore = create<ExtendedUserState>()(
           lastWeeklyReviewDate: null,
           undoState: null,
           goal: { type: 'weekly', target: 3 },
+          isPremium: false,
+          premiumExpiryDate: null,
         });
+        // Clear all storage
         await Preferences.remove({ key: 'bounce_state' });
+        localStorage.clear();
       },
       getExportData: () => JSON.stringify({ ...get(), timestamp: new Date().toISOString() }, null, 2),
       setTheme: (theme) => set({ theme }),
