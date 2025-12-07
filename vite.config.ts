@@ -3,8 +3,6 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  // We don't even strictly need to loadEnv here unless you use 'env' inside this config
-  // but keeping it doesn't hurt.
   const env = loadEnv(mode, '.', '');
 
   return {
@@ -13,11 +11,32 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
     },
     plugins: [react()],
-    // 👇 DELETED the 'define' block. Vite handles VITE_ variables automatically.
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       }
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-firebase': [
+              'firebase/app',
+              'firebase/auth',
+              'firebase/firestore'
+            ],
+            'vendor-ui': ['framer-motion', 'lucide-react'],
+            'vendor-capacitor': [
+              '@capacitor/app',
+              '@capacitor/preferences',
+              '@capacitor/status-bar'
+            ]
+          }
+        }
+      },
+      // Increase warning threshold since we're chunking vendors
+      chunkSizeWarningLimit: 600
     }
   };
 });

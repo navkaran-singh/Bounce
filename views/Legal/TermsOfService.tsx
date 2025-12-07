@@ -3,7 +3,7 @@ import { LegalLayout } from './LegalLayout';
 
 export const TermsOfService: React.FC = () => {
     return (
-        <LegalLayout title="Terms of Service" lastUpdated="December 6, 2024">
+        <LegalLayout title="Terms of Service" lastUpdated="December 6, 2025">
             <section className="mb-8">
                 <h2 className="text-xl font-semibold mb-4 text-white">1. Acceptance of Terms</h2>
                 <p className="text-gray-300 mb-4">
@@ -118,7 +118,7 @@ export const TermsOfService: React.FC = () => {
                     For questions about these Terms, please contact us at:
                 </p>
                 <p className="text-cyan-400">
-                    <a href="mailto:support@bouncelife.me">support@bouncelife.me</a>
+                    <a href="mailto:navkaransingh3110@gmail.com">navkaransingh3110@gmail.com</a>
                 </p>
             </section>
         </LegalLayout>

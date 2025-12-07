@@ -3,11 +3,11 @@ import { LegalLayout } from './LegalLayout';
 
 export const PrivacyPolicy: React.FC = () => {
     return (
-        <LegalLayout title="Privacy Policy" lastUpdated="December 6, 2024">
+        <LegalLayout title="Privacy Policy" lastUpdated="December 6, 2025">
             <section className="mb-8">
                 <h2 className="text-xl font-semibold mb-4 text-white">1. Introduction</h2>
                 <p className="text-gray-300 mb-4">
-                    Welcome to Bounce ("we," "our," or "us"). We are committed to protecting your privacy
+                    Welcome to Bounce. We are committed to protecting your privacy
                     and ensuring the security of your personal information. This Privacy Policy explains
                     how we collect, use, disclose, and safeguard your information when you use our
                     mobile application and website (collectively, the "Service").
@@ -27,7 +27,7 @@ export const PrivacyPolicy: React.FC = () => {
                 <h3 className="text-lg font-medium mb-2 text-gray-200">2.2 Automatically Collected Information</h3>
                 <ul className="list-disc list-inside text-gray-300 mb-4 space-y-2">
                     <li>Device information (device type, operating system)</li>
-                    <li>Usage data (features used, time spent in app)</li>
+                    <li>Usage data (features used, habits completed)</li>
                     <li>Log data and error reports</li>
                 </ul>
             </section>
@@ -50,7 +50,7 @@ export const PrivacyPolicy: React.FC = () => {
                 <p className="text-gray-300 mb-4">We use the following third-party services:</p>
                 <ul className="list-disc list-inside text-gray-300 mb-4 space-y-2">
                     <li><strong className="text-white">Firebase (Google):</strong> Authentication, database, and analytics</li>
-                    <li><strong className="text-white">OpenAI:</strong> AI-powered habit generation (your identity is processed but not stored by OpenAI)</li>
+                    <li><strong className="text-white">Google Gemini (AI Service):</strong> We use Google's Generative AI to process your habit data and identity to generate personalized recommendations. Data processed by the API is subject to Google's Cloud Data Processing Addendum.</li>
                     <li><strong className="text-white">Dodo Payments:</strong> Secure payment processing</li>
                 </ul>
             </section>
@@ -99,7 +99,7 @@ export const PrivacyPolicy: React.FC = () => {
                     If you have questions about this Privacy Policy, please contact us at:
                 </p>
                 <p className="text-cyan-400">
-                    <a href="mailto:support@bouncelife.me">support@bouncelife.me</a>
+                    <a href="mailto:navkaransingh3110@gmail.com">navkaransingh3110@gmail.com</a>
                 </p>
             </section>
         </LegalLayout>

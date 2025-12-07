@@ -17,7 +17,7 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-    const { theme, setTheme, soundType, setSoundType, identity, setIdentity, microHabits, setMicroHabits, habitRepository, user, logout, getExportData, importData } = useStore();
+    const { theme, setTheme, soundType, setSoundType, identity, setIdentity, microHabits, setMicroHabits, habitRepository, user, logout, getExportData, importData, isPremium, premiumExpiryDate } = useStore();
 
     console.log("Current Store User:", user);
 
@@ -342,6 +342,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                     {importStatus === 'success' && <p className="text-green-500 text-[10px] mt-2 text-center">Data imported successfully!</p>}
                                     {importStatus === 'error' && <p className="text-red-500 text-[10px] mt-2 text-center">Invalid file format.</p>}
                                 </div>
+                                {/* Subscription Management (Placeholder for Approval) */}
+                                {user && isPremium && (
+                                    <div className="w-full p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 mb-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h3 className="text-sm font-bold text-amber-400">Premium Active</h3>
+                                            <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">
+                                                PRO
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-gray-400 mb-3">
+                                            Your next billing date is {new Date(premiumExpiryDate || Date.now()).toLocaleDateString()}.
+                                        </p>
+                                        <a
+                                            href="mailto:navkaransingh3110@gmail.com?subject=Cancel Subscription"
+                                            className="text-xs text-white/50 hover:text-white underline decoration-dotted"
+                                        >
+                                            Manage / Cancel Subscription
+                                        </a>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Notification Section */}

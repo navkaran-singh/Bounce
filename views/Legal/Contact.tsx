@@ -4,7 +4,7 @@ import { Mail, MapPin, MessageCircle } from 'lucide-react';
 
 export const Contact: React.FC = () => {
     return (
-        <LegalLayout title="Contact Us" lastUpdated="December 6, 2024">
+        <LegalLayout title="Contact Us" lastUpdated="December 6, 2025">
             <section className="mb-8">
                 <p className="text-gray-300 mb-8 text-lg">
                     We're here to help! If you have any questions, concerns, or feedback about Bounce,
@@ -24,10 +24,10 @@ export const Contact: React.FC = () => {
                                     For general inquiries, technical support, or billing questions.
                                 </p>
                                 <a
-                                    href="mailto:support@bouncelife.me"
+                                    href="mailto:navkaransingh3110@gmail.com"
                                     className="text-cyan-400 hover:text-cyan-300 transition-colors text-lg font-medium"
                                 >
-                                    support@bouncelife.me
+                                    navkaransingh3110@gmail.com
                                 </a>
                                 <p className="text-gray-500 text-sm mt-2">
                                     We typically respond within 24-48 hours.
@@ -70,9 +70,9 @@ export const Contact: React.FC = () => {
                                 </p>
                                 <address className="text-gray-300 not-italic">
                                     Bounce<br />
-                                    [Your Street Address]<br />
-                                    [City, State/Province ZIP]<br />
-                                    [Country]
+                                    2890, Sector 38C<br />
+                                    Chandigarh, India<br />
+                                    {/* India */}
                                 </address>
                                 <p className="text-gray-500 text-sm mt-3">
                                     Please note: For faster support, we recommend contacting us via email.
@@ -83,7 +83,7 @@ export const Contact: React.FC = () => {
                 </div>
             </section>
 
-            <section className="mt-12 text-center">
+            {/* <section className="mt-12 text-center">
                 <div className="inline-block bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-white/10 rounded-2xl p-8">
                     <h3 className="text-xl font-semibold text-white mb-2">Premium Support</h3>
                     <p className="text-gray-400 mb-4">
@@ -96,7 +96,7 @@ export const Contact: React.FC = () => {
                         Upgrade to Premium
                     </a>
                 </div>
-            </section>
+            </section> */}
         </LegalLayout>
     );
 };
