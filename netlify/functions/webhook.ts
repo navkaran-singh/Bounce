@@ -99,17 +99,28 @@ export const handler: Handler = async (event: HandlerEvent) => {
 
         // Extract user ID from metadata (you need to pass this when creating payment)
         // Or look up by customer email in your database
-        const userId = data.metadata?.user_id;
         const paymentId = data.payment_id || data.subscription_id;
+        let userId = data.metadata?.user_id;
+        const customerEmail = data.customer?.email;
 
-        if (!userId && !data.customer?.email) {
-            console.warn('⚠️ [WEBHOOK] No user_id in metadata and no customer email');
-            // Still return 200 to acknowledge receipt (prevent retries)
-            return {
-                statusCode: 200,
-                headers,
-                body: JSON.stringify({ received: true, warning: 'No user identifier' }),
-            };
+        // 🔥 THE FIX: If metadata ID is missing, find user by Email
+        if (!userId && customerEmail) {
+            console.log(`🔍 [WEBHOOK] Metadata missing. Looking up email: ${customerEmail}`);
+            try {
+                // Ask Firebase: "Who owns this email?"
+                const userRecord = await admin.auth().getUserByEmail(customerEmail);
+                userId = userRecord.uid;
+                console.log(`✅ [WEBHOOK] Found User ID via Email: ${userId}`);
+            } catch (err) {
+                console.warn(`⚠️ [WEBHOOK] User not found for email: ${customerEmail}`);
+            }
+        }
+
+        // Now check if we failed to find a user
+        if (!userId) {
+            console.log('⚠️ [WEBHOOK] Skipped: No User ID resolved.');
+            // Return 200 so Dodo knows we got the message
+            return { statusCode: 200, body: JSON.stringify({ received: true }) };
         }
 
         switch (eventType) {
