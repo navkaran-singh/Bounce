@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Calendar, Shuffle, Crown } from 'lucide-react';
+import { useStore } from '../store';
 
 interface PremiumModalProps {
   isOpen: boolean;
@@ -8,18 +9,31 @@ interface PremiumModalProps {
 }
 
 export const PremiumModal: React.FC<PremiumModalProps> = ({ isOpen, onClose }) => {
+  const { user } = useStore();
+
   const handleUpgrade = () => {
     // Get payment link from environment variable
-    const paymentLink = import.meta.env.VITE_DODO_PAYMENT_LINK;
-    
-    if (!paymentLink) {
+    const baseLink = import.meta.env.VITE_DODO_PAYMENT_LINK;
+
+    if (!baseLink) {
       console.error('[PREMIUM] Payment link not configured');
       alert('Payment system not configured. Please contact support.');
       return;
     }
-    
+
+    if (!user?.uid) {
+      console.error('[PREMIUM] User not logged in');
+      alert('Please sign in before upgrading to Premium.');
+      return;
+    }
+
+    // Append user_id metadata to payment link for webhook identification
+    // Check if URL already has query params
+    const separator = baseLink.includes('?') ? '&' : '?';
+    const paymentLink = `${baseLink}${separator}metadata[user_id]=${encodeURIComponent(user.uid)}`;
+
     console.log('[PREMIUM] Redirecting to payment:', paymentLink);
-    
+
     // Redirect to Dodo Payments
     window.location.href = paymentLink;
   };

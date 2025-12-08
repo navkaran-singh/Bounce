@@ -1,0 +1,206 @@
+/**
+ * Dodo Payments Webhook Handler
+ * 
+ * This function receives webhook events from Dodo Payments for:
+ * - payment.succeeded - One-time payment completed
+ * - subscription.active - Subscription started/renewed
+ * - subscription.cancelled - Subscription cancelled
+ * 
+ * This is a safety net for when users complete payment but close
+ * the browser before the redirect completes.
+ */
+
+import { Handler, HandlerEvent } from '@netlify/functions';
+import admin from 'firebase-admin';
+
+// Initialize Firebase Admin SDK (reuse existing init logic)
+if (!admin.apps?.length) {
+    try {
+        const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+        if (!rawJson) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT is missing.");
+        }
+
+        let serviceAccount;
+        try {
+            serviceAccount = JSON.parse(rawJson);
+        } catch (e) {
+            console.log("⚠️ Direct JSON parse failed, attempting unescape...");
+            const sanitized = rawJson.replace(/\\n/g, '\n');
+            serviceAccount = JSON.parse(sanitized);
+        }
+
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+        });
+        console.log('✅ [WEBHOOK] Firebase Admin initialized');
+    } catch (error) {
+        console.error('❌ [WEBHOOK INIT ERROR]', error);
+    }
+}
+
+const db = admin.firestore ? admin.firestore() : admin.app().firestore();
+
+// Webhook event types from Dodo
+interface DodoWebhookEvent {
+    type: string;
+    data: {
+        payment_id?: string;
+        subscription_id?: string;
+        customer?: {
+            customer_id?: string;
+            email?: string;
+        };
+        metadata?: {
+            user_id?: string;
+        };
+        status?: string;
+    };
+}
+
+export const handler: Handler = async (event: HandlerEvent) => {
+    const headers = {
+        'Content-Type': 'application/json',
+    };
+
+    // Only allow POST
+    if (event.httpMethod !== 'POST') {
+        return {
+            statusCode: 405,
+            headers,
+            body: JSON.stringify({ error: 'Method not allowed' }),
+        };
+    }
+
+    // Verify webhook signature (optional but recommended)
+    // Dodo sends a signature header you can verify
+    const signature =
+        event.headers['x-dodo-signature'] ||
+        event.headers['x-webhook-signature'] ||
+        event.headers['x-dodo-webhook-signature'] ||
+        event.headers['X-Dodo-Signature'] ||
+        event.headers['X-Webhook-Signature'];
+    const webhookSecret = process.env.DODO_WEBHOOK_SECRET;
+
+    // TODO: Implement signature verification if Dodo provides it
+    // For now, we'll log a warning if no secret is configured
+    if (!webhookSecret) {
+        console.warn('⚠️ [WEBHOOK] No DODO_WEBHOOK_SECRET configured - skipping signature verification');
+    }
+
+    try {
+        const payload = JSON.parse(event.body || '{}') as DodoWebhookEvent;
+
+        console.log(`📥 [WEBHOOK] Received event: ${payload.type}`);
+        console.log(`📥 [WEBHOOK] Payload:`, JSON.stringify(payload, null, 2));
+
+        const eventType = payload.type;
+        const data = payload.data;
+
+        // Extract user ID from metadata (you need to pass this when creating payment)
+        // Or look up by customer email in your database
+        const userId = data.metadata?.user_id;
+        const paymentId = data.payment_id || data.subscription_id;
+
+        if (!userId && !data.customer?.email) {
+            console.warn('⚠️ [WEBHOOK] No user_id in metadata and no customer email');
+            // Still return 200 to acknowledge receipt (prevent retries)
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({ received: true, warning: 'No user identifier' }),
+            };
+        }
+
+        switch (eventType) {
+            case 'payment.succeeded':
+            case 'payment_intent.succeeded': {
+                console.log(`✅ [WEBHOOK] Payment succeeded: ${paymentId}`);
+
+                if (userId) {
+                    const premiumExpiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days
+
+                    await db.collection('users').doc(userId).set(
+                        {
+                            isPremium: true,
+                            premiumExpiryDate,
+                            lastPaymentId: paymentId,
+                            paymentType: 'one_time',
+                            paymentSource: 'webhook',
+                            lastUpdated: Date.now(),
+                        },
+                        { merge: true }
+                    );
+
+                    console.log(`✅ [WEBHOOK] User ${userId} upgraded via webhook`);
+                }
+                break;
+            }
+
+            case 'subscription.active':
+            case 'subscription.created': {
+                console.log(`✅ [WEBHOOK] Subscription active: ${paymentId}`);
+
+                if (userId) {
+                    const premiumExpiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days
+
+                    await db.collection('users').doc(userId).set(
+                        {
+                            isPremium: true,
+                            premiumExpiryDate,
+                            lastPaymentId: paymentId,
+                            paymentType: 'subscription',
+                            paymentSource: 'webhook',
+                            lastUpdated: Date.now(),
+                        },
+                        { merge: true }
+                    );
+
+                    console.log(`✅ [WEBHOOK] User ${userId} subscription activated via webhook`);
+                }
+                break;
+            }
+
+            case 'subscription.cancelled':
+            case 'subscription.canceled': {
+                console.log(`⚠️ [WEBHOOK] Subscription cancelled: ${paymentId}`);
+
+                if (userId) {
+                    // Don't immediately revoke - let them use until expiry
+                    await db.collection('users').doc(userId).set(
+                        {
+                            subscriptionCancelled: true,
+                            cancellationDate: Date.now(),
+                            lastUpdated: Date.now(),
+                        },
+                        { merge: true }
+                    );
+
+                    console.log(`⚠️ [WEBHOOK] User ${userId} subscription marked as cancelled`);
+                }
+                break;
+            }
+
+            default:
+                console.log(`ℹ️ [WEBHOOK] Unhandled event type: ${eventType}`);
+        }
+
+        // Always return 200 to acknowledge receipt
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ received: true }),
+        };
+
+    } catch (error: any) {
+        console.error('❌ [WEBHOOK] Error:', error.message);
+
+        // Return 200 anyway to prevent Dodo from retrying
+        // Log the error for debugging
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ received: true, error: 'Processing error logged' }),
+        };
+    }
+};
