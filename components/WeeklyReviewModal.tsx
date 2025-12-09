@@ -5,7 +5,7 @@ import { useStore } from '../store';
 import { WeeklyPersona } from '../types';
 
 export const WeeklyReviewModal: React.FC = () => {
-  const { weeklyReview, completeWeeklyReview, optimizeWeeklyRoutine } = useStore();
+  const { weeklyReview, completeWeeklyReview, optimizeWeeklyRoutine, isPremium, streak } = useStore();
   const [isHolding, setIsHolding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -71,8 +71,8 @@ export const WeeklyReviewModal: React.FC = () => {
   const startHold = (e: React.SyntheticEvent) => {
     // Prevent default touch actions (scrolling/context menu)
     // e.preventDefault(); 
-    if (optimizationApplied || isOptimizing) return; 
-    
+    if (optimizationApplied || isOptimizing) return;
+
     setIsHolding(true);
     intervalRef.current = setTimeout(() => {
       setIsHolding(false);
@@ -88,16 +88,16 @@ export const WeeklyReviewModal: React.FC = () => {
 
   const handleOptimize = async () => {
     if (persona !== 'TITAN' && persona !== 'GHOST') return;
-    
+
     // 1. Run optimization
     setIsOptimizing(true);
     await optimizeWeeklyRoutine(persona === 'TITAN' ? 'LEVEL_UP' : 'RESET');
     setIsOptimizing(false);
     setOptimizationApplied(true);
-    
+
     // 2. Show success animation (confetti)
     setShowSuccess(true);
-    
+
     // 3. Wait 2 seconds, then seal the week and close
     setTimeout(() => {
       completeWeeklyReview();
@@ -121,7 +121,7 @@ export const WeeklyReviewModal: React.FC = () => {
           <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 ${style.bgGlow} blur-[80px] opacity-50 pointer-events-none`} />
 
           <div className="relative p-6 flex flex-col h-full overflow-y-auto no-scrollbar">
-            
+
             {/* Header */}
             <div className="text-center mt-4 mb-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/5 text-[10px] uppercase tracking-widest text-white/40 font-bold">
@@ -132,7 +132,7 @@ export const WeeklyReviewModal: React.FC = () => {
 
             {/* Hero Persona */}
             <div className="text-center mb-8">
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: "spring", bounce: 0.5 }}
@@ -140,11 +140,11 @@ export const WeeklyReviewModal: React.FC = () => {
               >
                 {style.emoji}
               </motion.div>
-              
+
               <h1 className={`text-4xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-br ${style.gradient} mb-3`}>
                 {style.title}
               </h1>
-              
+
               <p className="text-white/60 text-sm leading-relaxed px-2 font-medium">
                 {style.message}
               </p>
@@ -164,7 +164,7 @@ export const WeeklyReviewModal: React.FC = () => {
 
             {/* ACTIONS FOOTER */}
             <div className="mt-auto space-y-3">
-              
+
               {/* 1. The Optimization Button (TITAN/GHOST Only) */}
               {(persona === 'TITAN' || persona === 'GHOST') && !showSuccess && (
                 <button
@@ -172,8 +172,8 @@ export const WeeklyReviewModal: React.FC = () => {
                   disabled={isOptimizing || optimizationApplied}
                   className={`
                     w-full py-4 px-4 rounded-2xl flex items-center justify-between group relative overflow-hidden
-                    ${optimizationApplied 
-                      ? 'bg-green-500/10 border-green-500/20' 
+                    ${optimizationApplied
+                      ? 'bg-green-500/10 border-green-500/20'
                       : `bg-gradient-to-r ${style.gradient} shadow-[0_0_20px_rgba(255,255,255,0.1)]`
                     }
                     transition-all duration-300
@@ -189,9 +189,9 @@ export const WeeklyReviewModal: React.FC = () => {
                       w-10 h-10 rounded-full flex items-center justify-center
                       ${optimizationApplied ? 'bg-green-500/20 text-green-400' : 'bg-black/20 text-black'}
                     `}>
-                      {optimizationApplied ? <CheckCircle2 size={20} /> : 
-                       isOptimizing ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full" /> :
-                       style.actionIcon
+                      {optimizationApplied ? <CheckCircle2 size={20} /> :
+                        isOptimizing ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full" /> :
+                          style.actionIcon
                       }
                     </div>
                     <div className="text-left">
@@ -210,13 +210,13 @@ export const WeeklyReviewModal: React.FC = () => {
               {!optimizationApplied && (
                 <div className="relative w-full h-16 bg-[#1A1A1A] rounded-2xl overflow-hidden border border-white/5">
                   {/* Hold Progress Fill */}
-                  <motion.div 
+                  <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: isHolding && !showSuccess ? '100%' : 0 }}
                     transition={{ duration: isHolding ? 1.5 : 0.2, ease: "linear" }}
                     className="absolute inset-0 bg-white/10"
                   />
-                  
+
                   <button
                     onMouseDown={startHold}
                     onMouseUp={stopHold}
@@ -239,7 +239,7 @@ export const WeeklyReviewModal: React.FC = () => {
                   </button>
                 </div>
               )}
-              
+
               {/* Success Message - Show when optimization is applied */}
               {optimizationApplied && showSuccess && (
                 <motion.div

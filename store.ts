@@ -67,7 +67,7 @@ export const useStore = create<ExtendedUserState>()(
       resilienceScore: 50,
       resilienceStatus: 'ACTIVE',
       streak: 0,
-      shields: 0,
+      shields: 1, // All users start with 1 free shield
       totalCompletions: 0,
       lastCompletedDate: null,
       lastDailyPlanDate: null,
@@ -505,7 +505,36 @@ export const useStore = create<ExtendedUserState>()(
           }
         } else {
           if (!state.isPremium) {
-            console.log("📊 [SMART PLANNER] ⏭️ Skipped (Not Premium)");
+            console.log("📊 [SMART PLANNER] ⏭️ Skipped (Not Premium) - using emotion messages");
+
+            // FREE USER: Show pre-written emotion message based on yesterday's performance
+            if (lastCompleted && lastCompleted !== today) {
+              try {
+                const { getEmotionMessage } = await import('./data/emotionMessages');
+
+                // Calculate yesterday's completion percentage
+                const yesterday = new Date(now);
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayKey = yesterday.toISOString().split('T')[0];
+                const yesterdayLog = state.history[yesterdayKey];
+
+                const completedCount = yesterdayLog?.completedHabitNames?.length || 0;
+                const expectedCount = 3; // We expect 3 habits per day
+                const completionPercent = (completedCount / expectedCount) * 100;
+
+                const emotionMessage = getEmotionMessage(completionPercent, state.streak, state.missedYesterday);
+
+                console.log("💬 [EMOTION] Free user message:", emotionMessage);
+
+                set({
+                  dailyPlanMessage: emotionMessage,
+                  lastDailyPlanDate: today,
+                  lastUpdated: Date.now()
+                });
+              } catch (error) {
+                console.error("💬 [EMOTION] Error loading emotion messages:", error);
+              }
+            }
           } else if (!lastCompleted) {
             console.log("📊 [SMART PLANNER] ⏭️ Skipped (No previous completion date)");
           } else if (lastCompleted === today) {
@@ -515,12 +544,24 @@ export const useStore = create<ExtendedUserState>()(
       },
 
       activatePremium: (expiryDate: number) => {
+        const state = get();
         console.log("💎 [STORE] Activating Premium via API Success...");
+
+        // FIRST TIME BONUS: Give +1 shield on first premium upgrade
+        const isFirstTimeUpgrade = !state.isPremium;
+        const bonusShield = isFirstTimeUpgrade ? 1 : 0;
+
+        if (isFirstTimeUpgrade) {
+          console.log("🛡️ [STORE] First time upgrade! Granting +1 bonus shield");
+        }
+
         set({
           isPremium: true,
           premiumExpiryDate: expiryDate,
-          dailyPlanMessage: "🎉 Welcome to Premium! Your AI Brain is now active.",
-          // Update timestamp so WE are the "Newest" version
+          shields: (state.shields || 0) + bonusShield,
+          dailyPlanMessage: isFirstTimeUpgrade
+            ? "🎉 Welcome to Premium! +1 Shield granted. Your AI Brain is now active."
+            : "🎉 Premium renewed! Your AI Brain continues.",
           lastUpdated: Date.now()
         });
 
@@ -769,7 +810,14 @@ export const useStore = create<ExtendedUserState>()(
           console.log("📅 [WEEKLY REVIEW] Persona: 👻 GHOST (Score <= 6.0 - Need reconnection)");
         }
 
-        // 5. STATE UPDATE: Make review available
+        // 5. PREMIUM WEEKLY SHIELD: Grant +1 shield to premium users every week
+        let weeklyShieldBonus = 0;
+        if (state.isPremium) {
+          weeklyShieldBonus = 1;
+          console.log("🛡️ [WEEKLY REVIEW] Premium user - granting +1 weekly shield");
+        }
+
+        // 6. STATE UPDATE: Make review available + add shields
         set({
           weeklyReview: {
             available: true,
@@ -780,6 +828,7 @@ export const useStore = create<ExtendedUserState>()(
             persona,
             missedHabits
           },
+          shields: (state.shields || 0) + weeklyShieldBonus,
           lastUpdated: Date.now()
         });
 

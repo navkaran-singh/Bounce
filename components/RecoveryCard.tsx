@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Shield, RefreshCw, X, Activity } from 'lucide-react';
+import { Zap, Shield, RefreshCw, X, Activity, Lock } from 'lucide-react';
 import { useStore } from '../store';
 import { useResilienceEngine } from '../hooks/useResilienceEngine';
 
@@ -9,7 +9,7 @@ interface RecoveryCardProps {
 }
 
 export const RecoveryCard: React.FC<RecoveryCardProps> = ({ onDismiss }) => {
-  const { shields, applyRecoveryOption, dismissRecoveryMode, consecutiveMisses } = useStore();
+  const { shields, applyRecoveryOption, dismissRecoveryMode, consecutiveMisses, isPremium } = useStore();
 
   const handleOption = (option: 'one-minute-reset' | 'use-shield' | 'gentle-restart') => {
     applyRecoveryOption(option);
@@ -84,10 +84,10 @@ export const RecoveryCard: React.FC<RecoveryCardProps> = ({ onDismiss }) => {
           <button
             onClick={() => handleOption('use-shield')}
             disabled={shields === 0}
-            className={`w-full flex items-center gap-4 p-3 rounded-xl border transition-all
+            className={`w-full flex items-center gap-4 p-3 rounded-xl border transition-all relative
               ${shields > 0
                 ? 'bg-white/5 border-white/5 hover:border-blue-400/40 cursor-pointer active:scale-[0.98]'
-                : 'bg-black/20 border-white/5 opacity-40 cursor-not-allowed grayscale'
+                : 'bg-black/20 border-white/5 opacity-50 cursor-not-allowed'
               }`}
           >
             <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${shields > 0 ? 'bg-blue-500/10' : 'bg-white/5'}`}>
@@ -106,25 +106,46 @@ export const RecoveryCard: React.FC<RecoveryCardProps> = ({ onDismiss }) => {
                   </span>
                 )}
               </div>
-              {/* Keyword #7: Momentum isn't lost */}
               <span className="text-xs block text-white/40">
-                Momentum isn't lost. It's restored.
+                {shields > 0
+                  ? (isPremium ? "Momentum isn't lost. It's restored." : "Use your free shield!")
+                  : (isPremium ? "Earn shields with 7-day streaks" : "Bounce protects your identity when life gets heavy. Upgrade for shields.")
+                }
               </span>
             </div>
           </button>
 
-          {/* 🔄 Option 3: Gentle Restart */}
+
+          {/* 🔄 Option 3: Gentle Restart (Premium Only) */}
           <button
             onClick={() => handleOption('gentle-restart')}
-            className="w-full flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-emerald-500/40 transition-all active:scale-[0.98]"
+            disabled={!isPremium}
+            className={`w-full flex items-center gap-4 p-3 rounded-xl border transition-all relative
+              ${isPremium
+                ? 'bg-white/5 border-white/5 hover:border-emerald-500/40 cursor-pointer active:scale-[0.98]'
+                : 'bg-black/20 border-white/5 opacity-50 cursor-not-allowed'
+              }`}
           >
-            <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-              <RefreshCw className="w-5 h-5 text-emerald-400" />
+            {!isPremium && (
+              <div className="absolute top-2 right-2">
+                <Lock className="w-3 h-3 text-white/30" />
+              </div>
+            )}
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isPremium ? 'bg-emerald-500/10' : 'bg-white/5'}`}>
+              <RefreshCw className={`w-5 h-5 ${isPremium ? 'text-emerald-400' : 'text-white/20'}`} />
             </div>
             <div className="text-left">
-              <span className="text-white font-semibold block text-sm">Gentle Restart</span>
-              {/* Keyword #8: Recovery is progress */}
-              <span className="text-white/40 text-xs">Recovery is progress. Reset streak, keep badges.</span>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-white font-semibold text-sm">Gentle Restart</span>
+                {!isPremium && (
+                  <span className="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/20 font-bold uppercase tracking-wide">
+                    Premium
+                  </span>
+                )}
+              </div>
+              <span className="text-white/40 text-xs">
+                {isPremium ? "Recovery is progress. Reset streak, keep badges." : "Fresh start without losing badges"}
+              </span>
             </div>
           </button>
 

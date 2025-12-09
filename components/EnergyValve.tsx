@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom'; // <--- MAGIC FIX
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store';
-import { Battery, Feather, Lock, ArrowRight, ShieldCheck, X } from 'lucide-react';
+import { Battery, Feather, ArrowRight, ShieldCheck, X, Sparkles } from 'lucide-react';
 
 export const EnergyValve = () => {
     const { isPremium, setEnergyLevel, currentEnergyLevel, microHabits, currentHabitIndex } = useStore();
-    const [showTeaseModal, setShowTeaseModal] = useState(false);
+    // Kept for future "AI Refresh" upsell modal
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [mounted, setMounted] = useState(false);
 
     // UseEffect to handle client-side mounting for the Portal
@@ -24,11 +25,8 @@ export const EnergyValve = () => {
         : "Tiny Version: " + currentHabitText.split(" ").slice(0, 3).join(" ") + "...";
 
     const handleValveClick = () => {
-        if (isPremium) {
-            setEnergyLevel(isCrisisActive ? 'medium' : 'low');
-        } else {
-            setShowTeaseModal(true);
-        }
+        // All users can toggle energy - free users get static habits, premium gets AI refresh
+        setEnergyLevel(isCrisisActive ? 'medium' : 'low');
     };
 
     return (
@@ -46,15 +44,13 @@ export const EnergyValve = () => {
             >
                 {isCrisisActive ? <Feather size={12} /> : <Battery size={12} />}
                 <span>{isCrisisActive ? "Mode: Healing" : "Energy Check"}</span>
-                {!isPremium && !isCrisisActive && (
-                    <Lock size={10} className="ml-1 opacity-50" />
-                )}
             </motion.button>
+
 
             {/* 🔒 THE MODAL (Teleported to document.body) */}
             {mounted && createPortal(
                 <AnimatePresence>
-                    {showTeaseModal && (
+                    {showUpgradeModal && (
                         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6">
 
                             {/* 1. The Backdrop (Blurred & Darkened) */}
@@ -62,7 +58,7 @@ export const EnergyValve = () => {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                onClick={() => setShowTeaseModal(false)}
+                                onClick={() => setShowUpgradeModal(false)}
                                 className="absolute inset-0 bg-black/60 backdrop-blur-md" // <--- SEXY BLUR HERE
                             />
 
@@ -75,7 +71,7 @@ export const EnergyValve = () => {
                             >
                                 {/* Close Button */}
                                 <button
-                                    onClick={() => setShowTeaseModal(false)}
+                                    onClick={() => setShowUpgradeModal(false)}
                                     className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors"
                                 >
                                     <X size={16} />
@@ -129,7 +125,7 @@ export const EnergyValve = () => {
                                         Activate Safety Net ($5/mo)
                                     </button>
                                     <button
-                                        onClick={() => setShowTeaseModal(false)}
+                                        onClick={() => setShowUpgradeModal(false)}
                                         className="w-full py-2 text-white/30 text-xs hover:text-white transition-colors"
                                     >
                                         No thanks, I'll push through.

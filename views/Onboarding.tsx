@@ -52,9 +52,9 @@ export const Onboarding: React.FC = () => {
     try {
       const suggestions = await generateHabits(identity);
 
-      // FIX: Check for 'low' (Tiny habits), not 'high'
-      if (suggestions.low && suggestions.low.length === 3) {
-        setHabitInputs(suggestions.low); // <--- LOAD THE TINY HABITS
+      // Populate inputs with one habit per energy level: [high, medium, low]
+      if (suggestions.high?.length > 0 && suggestions.medium?.length > 0 && suggestions.low?.length > 0) {
+        setHabitInputs([suggestions.high[0], suggestions.medium[0], suggestions.low[0]]);
         setGeneratedHabits(suggestions);
       } else {
         fallbackSuggestions();
@@ -66,6 +66,7 @@ export const Onboarding: React.FC = () => {
       setIsGenerating(false);
     }
   };
+
 
   const fallbackSuggestions = () => {
     const idLower = identity.toLowerCase();
@@ -87,9 +88,11 @@ export const Onboarding: React.FC = () => {
       low = ["Open VS Code", "Write one comment", "Review one function"];
     }
 
-    setHabitInputs(high);
+    // Populate with one habit per energy level: [high, medium, low]
+    setHabitInputs([high[0], medium[0], low[0]]);
     setGeneratedHabits({ high, medium, low });
   };
+
 
   const handleSend = (value: string | string[]) => {
     // Logic for Identity Step
@@ -104,7 +107,7 @@ export const Onboarding: React.FC = () => {
         const nextBotMsg: Message = {
           id: 'bot-2',
           sender: 'bot',
-          text: `Got it. Let's build your safe deck. Give me 3 tiny versions of being a ${value}. (e.g. < 2 mins)`,
+          text: `Nice! Now let's build your energy deck. Give me one habit for each energy state — when you're fully charged 🔥, on a normal day ⚡, and running low 🌱.`,
           type: 'text'
         };
         setMessages(prev => [...prev, nextBotMsg]);
@@ -116,22 +119,35 @@ export const Onboarding: React.FC = () => {
       const validHabits = value.filter(h => h.trim().length > 0);
       if (validHabits.length === 0) return;
 
-      const userMsgText = `1. ${validHabits[0]}\n2. ${validHabits[1] || '...'}\n3. ${validHabits[2] || '...'}`;
+      // Display with energy labels
+      const userMsgText = `🔥 ${validHabits[0] || '...'}\n⚡ ${validHabits[1] || '...'}\n🌱 ${validHabits[2] || '...'}`;
       const newMessages = [...messages, { id: Date.now().toString(), sender: 'user', text: userMsgText } as Message];
       setMessages(newMessages);
 
       setTimeout(() => {
-        // If we have AI generated habits, use them, but update 'low' with user inputs (since they are editing the tiny versions)
+        // Map inputs correctly: [0]=High, [1]=Medium, [2]=Low
+        // Preserve all 3 AI-generated habits per energy, user edit replaces the first one
         const finalHabits = generatedHabits ? {
-          ...generatedHabits,
-          low: validHabits // User edited the LOW energy ones
+          // If user edited (different from AI suggestion), use their input as primary + keep other 2 from AI
+          // If user didn't edit (matches AI), use full AI array
+          high: validHabits[0] && validHabits[0] !== generatedHabits.high[0]
+            ? [validHabits[0], ...generatedHabits.high.slice(1)]
+            : generatedHabits.high,
+          medium: validHabits[1] && validHabits[1] !== generatedHabits.medium[0]
+            ? [validHabits[1], ...generatedHabits.medium.slice(1)]
+            : generatedHabits.medium,
+          low: validHabits[2] && validHabits[2] !== generatedHabits.low[0]
+            ? [validHabits[2], ...generatedHabits.low.slice(1)]
+            : generatedHabits.low
         } : {
-          high: validHabits.map(h => `${h} (Full)`), // Fallback: Create fake high version
-          medium: validHabits.map(h => `${h} (Half)`), // Fallback: Create fake medium version
-          low: validHabits
+          // Manual entry without AI: each input is the only habit for that energy level
+          high: [validHabits[0] || 'Complete one task'],
+          medium: [validHabits[1] || validHabits[0] || 'Do something small'],
+          low: [validHabits[2] || validHabits[1] || validHabits[0] || 'Show up']
         };
 
         setHabitsWithLevels(finalHabits);
+
 
         const nextBotMsg: Message = {
           id: 'bot-3',
@@ -144,6 +160,7 @@ export const Onboarding: React.FC = () => {
         setStep(2);
       }, 600);
     }
+
     // Logic for Time Step
     else if (step === 2 && typeof value === 'string') {
       const newMessages = [...messages, { id: Date.now().toString(), sender: 'user', text: value } as Message];
@@ -294,7 +311,7 @@ export const Onboarding: React.FC = () => {
                   newInputs[idx] = e.target.value;
                   setHabitInputs(newInputs);
                 }}
-                placeholder={idx === 0 ? "Primary: e.g. Write 1 sentence" : `Variation ${idx + 1}: e.g. Read a page`}
+                placeholder={idx === 0 ? "🔥 High Energy: e.g. Write 500 words" : idx === 1 ? "⚡ Normal Day: e.g. Write 1 paragraph" : "🌱 Low Energy: e.g. Write 1 sentence"}
                 className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-dark-900 dark:text-white placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:border-primary-cyan/50 transition-colors"
               />
             ))}
