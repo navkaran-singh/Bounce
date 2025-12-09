@@ -37,10 +37,10 @@ export const RecoveryCard: React.FC<RecoveryCardProps> = ({ onDismiss }) => {
             <div>
               <h3 className="text-white font-bold text-lg tracking-tight">Recovery Mode</h3>
               {/* 🛑 FIX: Restore the dynamic counter logic */}
-              <p className="text-blue-200/60 text-xs font-medium uppercase tracking-wider">
+              <p className="text-blue-200/60 text-xs font-medium tracking-wider">
                 {consecutiveMisses > 1
-                  ? `${consecutiveMisses} Days Missed`
-                  : "Uneven progress is normal"
+                  ? `${consecutiveMisses - 1} Days Missed`
+                  : "A small break detected — let's re-enter gently."
                 }
               </p>
             </div>

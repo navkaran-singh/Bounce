@@ -30,7 +30,9 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({ isOpen, onClose }) =
     // Append user_id metadata to payment link for webhook identification
     // Check if URL already has query params
     const separator = baseLink.includes('?') ? '&' : '?';
-    const paymentLink = `${baseLink}${separator}metadata[user_id]=${encodeURIComponent(user.uid)}`;
+    // const paymentLink = `${baseLink}${separator}metadata[user_id]=${encodeURIComponent(user.uid)}`;
+    // NEW (Correct - uses underscore prefix)
+    const paymentLink = `${baseLink}${separator}metadata_user_id=${encodeURIComponent(user.uid)}`;
 
     console.log('[PREMIUM] Redirecting to payment:', paymentLink);
 

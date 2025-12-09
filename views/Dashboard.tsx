@@ -620,6 +620,14 @@ export const Dashboard: React.FC = () => {
                         <RecoveryCard />
                     </motion.div>
                 )}
+                {/* <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="px-6 z-20"
+                >
+                    <RecoveryCard />
+                </motion.div> */}
             </AnimatePresence>
 
             {/* Difficulty Adjustment Message - UPDATED: Subtle Purple Glow instead of Amber */}
