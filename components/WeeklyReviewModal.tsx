@@ -145,22 +145,62 @@ export const WeeklyReviewModal: React.FC = () => {
                 {style.title}
               </h1>
 
-              <p className="text-white/60 text-sm leading-relaxed px-2 font-medium">
-                {style.message}
-              </p>
+              {/* Persona Message - Premium sees full, Free sees first words + blur */}
+              {isPremium ? (
+                <p className="text-white/60 text-sm leading-relaxed px-2 font-medium">
+                  {style.message}
+                </p>
+              ) : (
+                <div className="relative px-2">
+                  <p className="text-white/60 text-sm leading-relaxed font-medium">
+                    {/* Show first 3 words clear, blur the rest */}
+                    {style.message.split(' ').slice(0, 3).join(' ')}{' '}
+                    <span className="blur-[4px] select-none">
+                      {style.message.split(' ').slice(3).join(' ')}
+                    </span>
+                  </p>
+                  <p className="text-purple-300/80 text-xs mt-2 italic">
+                    ✨ Unlock deeper self-insights with Premium
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 gap-3 mb-8">
-              <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex flex-col items-center">
+            <div className="grid grid-cols-3 gap-2 mb-8">
+              {/* Momentum - Visible to all */}
+              <div className="bg-white/5 rounded-2xl p-3 border border-white/5 flex flex-col items-center">
                 <span className="text-[10px] uppercase text-white/30 font-bold mb-1">Momentum</span>
-                <span className="text-2xl font-bold text-white">{weeklyMomentumScore.toFixed(1)}</span>
+                <span className="text-xl font-bold text-white">{weeklyMomentumScore.toFixed(1)}</span>
               </div>
-              <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex flex-col items-center">
+
+              {/* Completions - Visible to all */}
+              <div className="bg-white/5 rounded-2xl p-3 border border-white/5 flex flex-col items-center">
                 <span className="text-[10px] uppercase text-white/30 font-bold mb-1">Completions</span>
-                <span className="text-2xl font-bold text-white">{totalCompletions}</span>
+                <span className="text-xl font-bold text-white">{totalCompletions}</span>
+              </div>
+
+              {/* Streak - Visible to all */}
+              <div className="bg-white/5 rounded-2xl p-3 border border-white/5 flex flex-col items-center">
+                <span className="text-[10px] uppercase text-white/30 font-bold mb-1">Streak</span>
+                <span className="text-xl font-bold text-white">{streak}</span>
               </div>
             </div>
+
+            {/* Insight Teaser for Free Users */}
+            {!isPremium && (
+              <div className="mb-6 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-2xl p-4 border border-purple-500/20">
+                <div className="text-center">
+                  <p className="text-white/60 text-xs mb-2">
+                    "We noticed you struggle on <span className="text-white/80">Tuesday evenings</span>..."
+                  </p>
+                  <p className="text-purple-300 text-xs font-medium">
+                    🔮 Full pattern analysis with Premium
+                  </p>
+                </div>
+              </div>
+            )}
+
 
             {/* ACTIONS FOOTER */}
             <div className="mt-auto space-y-3">

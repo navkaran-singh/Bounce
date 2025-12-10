@@ -217,7 +217,7 @@ export const useStore = create<ExtendedUserState>()(
           dailyCompletedIndices: newIndices,
           lastCompletedDate: now,
           streak: newStreak,
-          shields: earnedShield ? (state.shields || 0) + 1 : state.shields,
+          shields: earnedShield ? Math.min(3, (state.shields || 0) + 1) : state.shields, // Cap at 3
           resilienceScore: Math.min(100, state.resilienceScore + bonusPoints),
           resilienceStatus: newStatus,
           totalCompletions: (state.totalCompletions || 0) + 1,
@@ -522,7 +522,10 @@ export const useStore = create<ExtendedUserState>()(
                 const expectedCount = 3; // We expect 3 habits per day
                 const completionPercent = (completedCount / expectedCount) * 100;
 
-                const emotionMessage = getEmotionMessage(completionPercent, state.streak, state.missedYesterday);
+                // Get yesterday's energy level if available
+                const yesterdayEnergy = yesterdayLog?.energy || null;
+
+                const emotionMessage = getEmotionMessage(completionPercent, state.streak, state.missedYesterday, yesterdayEnergy);
 
                 console.log("💬 [EMOTION] Free user message:", emotionMessage);
 
@@ -558,7 +561,7 @@ export const useStore = create<ExtendedUserState>()(
         set({
           isPremium: true,
           premiumExpiryDate: expiryDate,
-          shields: (state.shields || 0) + bonusShield,
+          shields: Math.min(3, (state.shields || 0) + bonusShield), // Cap at 3
           dailyPlanMessage: isFirstTimeUpgrade
             ? "🎉 Welcome to Premium! +1 Shield granted. Your AI Brain is now active."
             : "🎉 Premium renewed! Your AI Brain continues.",
@@ -828,7 +831,7 @@ export const useStore = create<ExtendedUserState>()(
             persona,
             missedHabits
           },
-          shields: (state.shields || 0) + weeklyShieldBonus,
+          shields: Math.min(3, (state.shields || 0) + weeklyShieldBonus), // Cap at 3
           lastUpdated: Date.now()
         });
 
