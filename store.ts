@@ -1,9 +1,13 @@
 ﻿
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { UserState, DailyLog, AppUser, WeeklyInsight } from './types';
+import { UserState, DailyLog, AppUser, WeeklyInsight, IdentityProfile } from './types';
 import { Preferences } from '@capacitor/preferences';
 import { auth, db, doc, getDoc, serverTimestamp, writeBatch, onAuthStateChanged, User, collection, getDocs } from './services/firebase';
+import { calculateWeeklyStats, detectStageTransition } from './services/stageDetector';
+import { generateEvolutionSuggestion } from './services/evolutionEngine';
+import { generateWeeklyEvolutionPlan } from './services/ai';
+
 
 const capacitorStorage = {
   getItem: async (name: string): Promise<string | null> => {
@@ -87,6 +91,15 @@ export const useStore = create<ExtendedUserState>()(
       // Weekly Review (Sunday Ritual)
       weeklyReview: null,
       lastWeeklyReviewDate: null,
+
+      // Identity Evolution Engine
+      identityProfile: {
+        type: null,
+        stage: 'INITIATION',
+        stageEnteredAt: null,
+        weeksInStage: 0,
+      },
+      lastEvolutionSuggestion: null,
 
       logout: async () => {
         await auth.signOut();
@@ -525,9 +538,13 @@ export const useStore = create<ExtendedUserState>()(
                 // Get yesterday's energy level if available
                 const yesterdayEnergy = yesterdayLog?.energy || null;
 
-                const emotionMessage = getEmotionMessage(completionPercent, state.streak, state.missedYesterday, yesterdayEnergy);
+                // Get identity stage for stage-aware messages
+                const identityStage = state.identityProfile?.stage || null;
+
+                const emotionMessage = getEmotionMessage(completionPercent, state.streak, state.missedYesterday, yesterdayEnergy, identityStage);
 
                 console.log("💬 [EMOTION] Free user message:", emotionMessage);
+
 
                 set({
                   dailyPlanMessage: emotionMessage,
@@ -575,7 +592,70 @@ export const useStore = create<ExtendedUserState>()(
         get().syncToFirebase(true);
       },
 
+      // Identity Evolution Engine Actions
+      setIdentityProfile: (profile) => {
+        const currentProfile = get().identityProfile;
+        set({
+          identityProfile: { ...currentProfile, ...profile },
+          lastUpdated: Date.now()
+        });
+        console.log("🧬 [IDENTITY] Profile updated:", { ...currentProfile, ...profile });
+      },
+
+      setLastEvolutionSuggestion: (suggestion) => {
+        set({
+          lastEvolutionSuggestion: suggestion,
+          lastUpdated: Date.now()
+        });
+        console.log("🌱 [EVOLUTION] Suggestion updated:", suggestion);
+      },
+
+      applyEvolutionPlan: async () => {
+        const state = get();
+        const { identity, identityProfile, lastEvolutionSuggestion, habitRepository, isPremium } = state;
+
+        // Safety checks
+        if (!isPremium) {
+          console.warn("🌱 [EVOLUTION] Premium required for auto-apply");
+          return { success: false, narrative: "Premium feature" };
+        }
+
+        if (!identity || !identityProfile.type || !lastEvolutionSuggestion) {
+          console.warn("🌱 [EVOLUTION] Missing required data for evolution");
+          return { success: false, narrative: "Not enough data to evolve habits." };
+        }
+
+        console.log("🌱 [EVOLUTION] Applying evolution plan...");
+
+        try {
+          const result = await generateWeeklyEvolutionPlan(
+            identity,
+            identityProfile.type,
+            identityProfile.stage,
+            lastEvolutionSuggestion.type,
+            habitRepository
+          );
+
+          // Update habit repository with evolved habits
+          set({
+            habitRepository: {
+              high: result.high,
+              medium: result.medium,
+              low: result.low
+            },
+            lastUpdated: Date.now()
+          });
+
+          console.log("🌱 [EVOLUTION] ✅ Habits evolved:", result);
+          return { success: true, narrative: result.narrative };
+        } catch (error) {
+          console.error("🌱 [EVOLUTION] ❌ Error applying evolution:", error);
+          return { success: false, narrative: "Something went wrong. Your habits remain unchanged." };
+        }
+      },
+
       activateRecoveryMode: () => {
+
         set({
           recoveryMode: true,
           resilienceStatus: 'RECOVERING',
@@ -820,20 +900,99 @@ export const useStore = create<ExtendedUserState>()(
           console.log("🛡️ [WEEKLY REVIEW] Premium user - granting +1 weekly shield");
         }
 
-        // 6. STATE UPDATE: Make review available + add shields
+        // 6. IDENTITY EVOLUTION ENGINE (if identityType is set)
+        let identityType = state.identityProfile?.type || null;
+        let identityStage = state.identityProfile?.stage || 'INITIATION';
+        let stageReason = '';
+        let evolutionSuggestion = null;
+
+        // Edge case: Skip evolution engine if no identity or habit repository is set
+        if (identityType && state.identity && state.habitRepository?.high?.length > 0) {
+          try {
+            console.log("🧬 [IDENTITY] Running evolution engine for:", identityType, "at stage:", identityStage);
+
+            // Calculate weekly stats for stage detection
+            const weeklyStats = calculateWeeklyStats(state.history, 3);
+            console.log("🧬 [IDENTITY] Weekly stats:", weeklyStats);
+
+            // Detect stage transition
+            const transition = detectStageTransition(
+              identityType,
+              identityStage,
+              state.identityProfile?.weeksInStage || 0,
+              weeklyStats,
+              state.streak
+            );
+
+            if (transition.changed) {
+              console.log("🧬 [IDENTITY] Stage transition:", identityStage, "->", transition.newStage);
+              identityStage = transition.newStage;
+              stageReason = transition.reason;
+            } else {
+              stageReason = transition.reason;
+            }
+
+            // Generate evolution suggestion
+            evolutionSuggestion = generateEvolutionSuggestion(
+              identityType,
+              identityStage,
+              {
+                weeklyCompletionRate: weeklyStats[0]?.weeklyCompletionRate || 0,
+                streak: state.streak,
+                momentum: weeklyMomentumScore
+              }
+            );
+            console.log("🌱 [EVOLUTION] Generated suggestion:", evolutionSuggestion);
+          } catch (error) {
+            console.error("🧬 [IDENTITY] ❌ Evolution engine error - using defaults:", error);
+            // Graceful fallback - don't block weekly review
+            stageReason = "Your identity journey continues.";
+            evolutionSuggestion = null;
+          }
+        } else if (identityType) {
+          console.log("🧬 [IDENTITY] ⚠️ Skipping evolution - missing identity or habits");
+          stageReason = "Set up your habits to unlock evolution insights.";
+        }
+
+
+        // 7. STATE UPDATE: Make review available + add shields + update identity
+        const newIdentityProfile: IdentityProfile = {
+          type: identityType,
+          stage: identityStage,
+          stageEnteredAt: state.identityProfile?.stageEnteredAt || null,
+          weeksInStage: (state.identityProfile?.weeksInStage || 0) + 1
+        };
+
+        // If stage changed, reset weeksInStage and set new stageEnteredAt
+        if (identityType && identityStage !== state.identityProfile?.stage) {
+          newIdentityProfile.stageEnteredAt = new Date().toISOString().split('T')[0];
+          newIdentityProfile.weeksInStage = 0;
+        }
+
         set({
           weeklyReview: {
+            // Preserve all existing core fields
             available: true,
             startDate: startDate.toISOString().split('T')[0],
             endDate: endDate.toISOString().split('T')[0],
             totalCompletions,
             weeklyMomentumScore,
             persona,
-            missedHabits
+            missedHabits,
+            // Identity Evolution fields (extend, not overwrite)
+            identityType: identityType || null,
+            identityStage: identityStage || null,
+            evolutionSuggestion: evolutionSuggestion || null,
+            stageReason: stageReason || null
           },
+          // Only update identityProfile if we have a valid type
+          ...(identityType ? { identityProfile: newIdentityProfile } : {}),
+          lastEvolutionSuggestion: evolutionSuggestion || null,
           shields: Math.min(3, (state.shields || 0) + weeklyShieldBonus), // Cap at 3
           lastUpdated: Date.now()
         });
+
+
 
         console.log("📅 [WEEKLY REVIEW] ✅ Review is now available for user");
       },

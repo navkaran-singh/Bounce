@@ -1,20 +1,27 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, TrendingUp, Calendar, Award, ArrowUpRight, RefreshCw, CheckCircle2, Lock } from 'lucide-react';
+import { X, TrendingUp, Calendar, Award, ArrowUpRight, RefreshCw, CheckCircle2, Lock, Sparkles, ArrowRight, ChevronRight, Zap } from 'lucide-react';
 import { useStore } from '../store';
-import { WeeklyPersona } from '../types';
+import { WeeklyPersona, IdentityType, IdentityStage } from '../types';
+import { getStageLabel, getStageEmoji } from '../services/stageDetector';
+import { getSuggestionTitle } from '../services/evolutionEngine';
+import { getIdentityTypeLabel, getIdentityTypeEmoji } from '../services/identityDetector';
 
 export const WeeklyReviewModal: React.FC = () => {
-  const { weeklyReview, completeWeeklyReview, optimizeWeeklyRoutine, isPremium, streak } = useStore();
+  const { weeklyReview, completeWeeklyReview, optimizeWeeklyRoutine, isPremium, streak, identityProfile, applyEvolutionPlan } = useStore();
   const [isHolding, setIsHolding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizationApplied, setOptimizationApplied] = useState(false);
+  const [isEvolutionApplying, setIsEvolutionApplying] = useState(false);
+  const [evolutionApplied, setEvolutionApplied] = useState(false);
+  const [evolutionNarrative, setEvolutionNarrative] = useState<string | null>(null);
   const intervalRef = useRef<any>(null);
+
 
   if (!weeklyReview?.available) return null;
 
-  const { persona, weeklyMomentumScore, totalCompletions, missedHabits, startDate, endDate } = weeklyReview;
+  const { persona, weeklyMomentumScore, totalCompletions, missedHabits, startDate, endDate, identityType, identityStage, evolutionSuggestion, stageReason } = weeklyReview;
 
   // Cinematic Persona Styling
   const getPersonaStyle = (persona: WeeklyPersona) => {
@@ -104,6 +111,26 @@ export const WeeklyReviewModal: React.FC = () => {
     }, 2000);
   };
 
+  const handleApplyEvolution = async () => {
+    if (!isPremium || evolutionApplied || isEvolutionApplying) return;
+
+    setIsEvolutionApplying(true);
+    const result = await applyEvolutionPlan();
+    setIsEvolutionApplying(false);
+
+    if (result.success) {
+      setEvolutionApplied(true);
+      setEvolutionNarrative(result.narrative);
+
+      // Auto-close after showing success for 2.5 seconds
+      setTimeout(() => {
+        setShowSuccess(true);
+        setTimeout(() => completeWeeklyReview(), 1500);
+      }, 2000);
+    }
+  };
+
+
   return (
     <AnimatePresence>
       <motion.div
@@ -187,8 +214,44 @@ export const WeeklyReviewModal: React.FC = () => {
               </div>
             </div>
 
-            {/* Insight Teaser for Free Users */}
-            {!isPremium && (
+            {/* PATTERN ANALYSIS SECTION */}
+            {isPremium ? (
+              <div className="mb-6 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 rounded-2xl p-4 border border-cyan-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="w-4 h-4 text-cyan-400" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">Pattern Analysis</span>
+                </div>
+
+                {/* Top Missed Habits */}
+                {Object.keys(missedHabits || {}).length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[10px] text-white/40 uppercase mb-1">Most Skipped</p>
+                    <div className="space-y-1">
+                      {Object.entries(missedHabits || {}).slice(0, 2).map(([habit, count]) => (
+                        <div key={habit} className="flex items-center justify-between text-xs">
+                          <span className="text-white/70 truncate max-w-[180px]">{habit}</span>
+                          <span className="text-orange-400 font-medium">{count}x missed</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Weekly Insight */}
+                <div className="pt-2 border-t border-white/5">
+                  <p className="text-xs text-white/60 leading-relaxed">
+                    {weeklyMomentumScore >= 18
+                      ? "🔥 Exceptional week! Your momentum is at peak performance."
+                      : weeklyMomentumScore >= 12
+                        ? "💪 Strong consistency this week. Keep the rhythm going."
+                        : weeklyMomentumScore >= 6
+                          ? "🌱 You showed up when it mattered. Build on these small wins."
+                          : "💙 Tough week. Focus on just one habit tomorrow to rebuild."
+                    }
+                  </p>
+                </div>
+              </div>
+            ) : (
               <div className="mb-6 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-2xl p-4 border border-purple-500/20">
                 <div className="text-center">
                   <p className="text-white/60 text-xs mb-2">
@@ -200,6 +263,90 @@ export const WeeklyReviewModal: React.FC = () => {
                 </div>
               </div>
             )}
+
+
+            {/* IDENTITY EVOLUTION SECTION (if identityType exists) */}
+            {identityType && identityStage && (
+              <div className="mb-6">
+                {/* Stage Badge */}
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-2">
+                    <span className="text-base">{getIdentityTypeEmoji(identityType)}</span>
+                    <span className="text-[10px] uppercase tracking-wider text-white/50 font-bold">{identityType}</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-white/20" />
+                  <div className="px-3 py-1.5 rounded-full bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 flex items-center gap-2">
+                    <span className="text-base">{getStageEmoji(identityStage)}</span>
+                    <span className="text-[10px] uppercase tracking-wider text-cyan-300 font-bold">{getStageLabel(identityStage)}</span>
+                  </div>
+                </div>
+
+                {/* Stage Reason */}
+                {stageReason && (
+                  <p className="text-center text-xs text-white/40 mb-4 px-4">
+                    {stageReason}
+                  </p>
+                )}
+
+                {/* Evolution Suggestion */}
+                {evolutionSuggestion && (
+                  <div className={`rounded-2xl p-4 border ${isPremium
+                    ? 'bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-cyan-500/20'
+                    : 'bg-white/5 border-white/10'
+                    }`}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center flex-shrink-0">
+                        {evolutionApplied ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-400" />
+                        ) : (
+                          <Sparkles className="w-5 h-5 text-cyan-400" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-bold text-white">{getSuggestionTitle(evolutionSuggestion.type)}</span>
+                          {!isPremium && <Lock className="w-3 h-3 text-white/30" />}
+                          {evolutionApplied && <span className="text-[10px] text-green-400 font-bold">APPLIED</span>}
+                        </div>
+                        <p className={`text-xs leading-relaxed ${isPremium ? 'text-white/70' : 'text-white/50'}`}>
+                          {evolutionApplied && evolutionNarrative ? evolutionNarrative : evolutionSuggestion.message}
+                        </p>
+
+                        {/* Premium Apply Button */}
+                        {isPremium && !evolutionApplied && (
+                          <button
+                            onClick={handleApplyEvolution}
+                            disabled={isEvolutionApplying}
+                            className="mt-3 w-full py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                          >
+                            {isEvolutionApplying ? (
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ repeat: Infinity, duration: 1 }}
+                                className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                              />
+                            ) : (
+                              <>
+                                <Zap className="w-4 h-4 text-white" />
+                                <span className="text-xs font-bold text-white">Apply Evolution</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                        {/* Free User Teaser */}
+                        {!isPremium && (
+                          <p className="text-[10px] text-purple-300 mt-2 italic">
+                            ✨ Premium applies this automatically
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
 
 
             {/* ACTIONS FOOTER */}

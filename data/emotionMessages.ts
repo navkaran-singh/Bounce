@@ -92,19 +92,47 @@ export const emotionMessages = {
         "You're practicing the identity you chose, even on uneven days.",
         "Tiny actions leave big traces over time.",
         "You're becoming the person you intended — one habit at a time."
+    ],
+
+    // Stage-specific messages (Identity Evolution Engine)
+    stageInitiation: [
+        "You're just beginning. Small wins matter most right now.",
+        "Week one energy: just show up.",
+        "Seeds don't sprout overnight. Keep watering.",
+        "Building the foundation — one habit at a time."
+    ],
+    stageIntegration: [
+        "You're making this part of who you are.",
+        "Consistency is becoming natural now.",
+        "The habit is starting to feel automatic.",
+        "Integration phase: you're building real momentum."
+    ],
+    stageExpansion: [
+        "Ready to grow? You've earned the right to push.",
+        "Expansion mode: time to level up.",
+        "Your foundation is solid. Now, build higher.",
+        "Challenge yourself — you can handle more."
+    ],
+    stageMaintenance: [
+        "You've arrived. Now, just maintain the flame.",
+        "Mastery is about consistency, not intensity.",
+        "Protect what you've built. Keep showing up.",
+        "This is your new normal. Enjoy the ease."
     ]
 };
 
 
+
 /**
  * Generate an emotionally intelligent message for free users.
- * Blends completion %, streak, recovery, energy context, and time-of-day flavor.
+ * Blends completion %, streak, recovery, energy context, stage awareness, and time-of-day flavor.
  */
 export function getEmotionMessage(
     completionPercent: number,
     streak: number,
     missedYesterday: boolean = false,
-    yesterdayEnergy: 'high' | 'medium' | 'low' | null = null
+    yesterdayEnergy: 'high' | 'medium' | 'low' | null = null,
+    identityStage: 'INITIATION' | 'INTEGRATION' | 'EXPANSION' | 'MAINTENANCE' | null = null
 ): string {
     const hour = new Date().getHours();
     const timeOfDay = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
@@ -145,6 +173,12 @@ export function getEmotionMessage(
         pool = [...pool, ...(emotionMessages[key] || [])];
     }
 
+    // 25% chance to add stage-specific encouragement
+    if (identityStage && Math.random() < 0.25) {
+        const stageKey = `stage${identityStage.charAt(0).toUpperCase() + identityStage.slice(1).toLowerCase()}` as keyof typeof emotionMessages;
+        pool = [...pool, ...(emotionMessages[stageKey] || [])];
+    }
+
     // 20% chance to add identity reinforcement
     if (Math.random() < 0.2) {
         pool = [...pool, ...emotionMessages.identity];
@@ -156,6 +190,7 @@ export function getEmotionMessage(
     // Replace streak placeholder
     return message.replace('{streak}', String(streak));
 }
+
 
 
 /**

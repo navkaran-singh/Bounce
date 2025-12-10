@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Sparkles, Plus, Info, X, Loader2 } from 'lucide-react';
 import { useStore } from '../store';
-import { Message } from '../types';
-import { generateHabits } from '../services/ai';
+import { Message, IdentityType } from '../types';
+import { generateHabits, GenerateHabitsResult } from '../services/ai';
 
 // Internal Tooltip Component
 const Tooltip: React.FC<{ text: string; onClose: () => void; delay?: number }> = ({ text, onClose, delay = 0 }) => (
@@ -26,10 +26,10 @@ const Tooltip: React.FC<{ text: string; onClose: () => void; delay?: number }> =
 );
 
 export const Onboarding: React.FC = () => {
-  const { identity, setIdentity, setHabitsWithLevels, setEnergyTime, setView, dismissedTooltips, dismissTooltip } = useStore();
+  const { identity, setIdentity, setHabitsWithLevels, setEnergyTime, setView, dismissedTooltips, dismissTooltip, setIdentityProfile } = useStore();
   const [inputValue, setInputValue] = useState('');
   const [habitInputs, setHabitInputs] = useState<string[]>(['', '', '']);
-  const [generatedHabits, setGeneratedHabits] = useState<{ high: string[], medium: string[], low: string[] } | null>(null);
+  const [generatedHabits, setGeneratedHabits] = useState<GenerateHabitsResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -52,11 +52,31 @@ export const Onboarding: React.FC = () => {
     try {
       const suggestions = await generateHabits(identity);
 
+      console.log("🪄 [ONBOARDING] AI returned suggestions:", suggestions);
+      console.log("🪄 [ONBOARDING] High array:", suggestions.high);
+      console.log("🪄 [ONBOARDING] Medium array:", suggestions.medium);
+      console.log("🪄 [ONBOARDING] Low array:", suggestions.low);
+
       // Populate inputs with one habit per energy level: [high, medium, low]
       if (suggestions.high?.length > 0 && suggestions.medium?.length > 0 && suggestions.low?.length > 0) {
-        setHabitInputs([suggestions.high[0], suggestions.medium[0], suggestions.low[0]]);
+        const newInputs = [suggestions.high[0], suggestions.medium[0], suggestions.low[0]];
+        console.log("🪄 [ONBOARDING] Setting habit inputs to:", newInputs);
+        setHabitInputs(newInputs);
         setGeneratedHabits(suggestions);
+
+        // Store identityType if AI detected it
+        if (suggestions.identityType) {
+          console.log("🧬 [ONBOARDING] AI detected identity type:", suggestions.identityType, "-", suggestions.identityReason);
+          const today = new Date().toISOString().split('T')[0];
+          setIdentityProfile({
+            type: suggestions.identityType,
+            stage: 'INITIATION',
+            stageEnteredAt: today,
+            weeksInStage: 0
+          });
+        }
       } else {
+        console.warn("🪄 [ONBOARDING] Missing habits in AI response, using fallback");
         fallbackSuggestions();
       }
     } catch (error) {
@@ -66,6 +86,7 @@ export const Onboarding: React.FC = () => {
       setIsGenerating(false);
     }
   };
+
 
 
   const fallbackSuggestions = () => {

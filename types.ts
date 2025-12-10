@@ -7,6 +7,51 @@ export type SoundType = 'rain' | 'forest' | 'stream' | 'volcano' | 'wind';
 export type BreathPattern = 'coherence' | 'box' | '478' | 'sigh';
 export type WeeklyPersona = 'TITAN' | 'GRINDER' | 'SURVIVOR' | 'GHOST';
 
+// ====== IDENTITY EVOLUTION ENGINE TYPES ======
+
+export type IdentityType = 'SKILL' | 'CHARACTER' | 'RECOVERY';
+
+export type IdentityStage =
+  | 'INITIATION'
+  | 'INTEGRATION'
+  | 'EXPANSION'
+  | 'MAINTENANCE';
+
+export interface IdentityProfile {
+  type: IdentityType | null;
+  stage: IdentityStage;
+  stageEnteredAt: string | null; // ISO (YYYY-MM-DD)
+  weeksInStage: number;
+}
+
+export type EvolutionSuggestionType =
+  // Skill
+  | 'INCREASE_DIFFICULTY'
+  | 'ADD_VARIATION'
+  | 'SHIFT_IDENTITY'
+  | 'TECHNIQUE_WEEK'
+  // Character
+  | 'ADD_REFLECTION'
+  | 'DEEPEN_CONTEXT'
+  | 'EMOTIONAL_WEEK'
+  // Recovery
+  | 'SOFTER_HABIT'
+  | 'FRICTION_REMOVAL'
+  | 'STABILIZATION_WEEK'
+  | 'RELAPSE_PATTERN'
+  // Universal
+  | 'REST_WEEK'
+  | 'MAINTAIN';
+
+export interface EvolutionSuggestion {
+  type: EvolutionSuggestionType;
+  message: string;   // human-readable, Bounce-tone text
+  createdAt: string; // ISO date
+  applied: boolean;
+}
+
+// ====== END IDENTITY EVOLUTION ENGINE TYPES ======
+
 export interface Message {
   id: string;
   text: string;
@@ -56,6 +101,11 @@ export interface WeeklyReviewState {
   weeklyMomentumScore: number; // 0.0 to 21.0 (7 days * 3.0 max per day)
   persona: WeeklyPersona;
   missedHabits: Record<string, number>; // Habit Name -> Miss Count
+  // Identity Evolution fields
+  identityType?: IdentityType | null;
+  identityStage?: IdentityStage;
+  evolutionSuggestion?: EvolutionSuggestion | null;
+  stageReason?: string;
 }
 
 // Firebase User type (simplified for state)
@@ -124,6 +174,10 @@ export interface UserState {
   weeklyReview: WeeklyReviewState | null;
   lastWeeklyReviewDate: string | null;
 
+  // Identity Evolution Engine
+  identityProfile: IdentityProfile;
+  lastEvolutionSuggestion: EvolutionSuggestion | null;
+
   // Undo Capabilities
   undoState: Partial<UserState> | null;
   saveUndoState: () => void;
@@ -167,6 +221,11 @@ export interface UserState {
   markReviewViewed: (id: string) => void;
   handleVoiceLog: (text: string, type: 'note' | 'habit' | 'intention') => void;
   addMicroHabit: (habit: string) => void;
+
+  // Identity Evolution Engine Actions
+  setIdentityProfile: (profile: Partial<IdentityProfile>) => void;
+  setLastEvolutionSuggestion: (suggestion: EvolutionSuggestion | null) => void;
+  applyEvolutionPlan: () => Promise<{ success: boolean; narrative: string }>;
 
   // Cloud Sync (Firebase)
   initializeAuth: () => (() => void) | void;
