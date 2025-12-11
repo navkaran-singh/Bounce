@@ -93,6 +93,24 @@ export interface WeeklyInsight {
   viewed: boolean;
 }
 
+// Identity Branching Logic
+export interface IdentityBranching {
+  showBranching: boolean;
+  options: string[];
+  reason?: string;
+}
+
+// Full Weekly Plan Structure
+export interface WeeklyEvolutionPlan {
+  high: string[];
+  medium: string[];
+  low: string[];
+  narrative: string;
+  habitAdjustments?: string[];
+  stageAdvice?: string;
+  summary?: string;
+}
+
 export interface WeeklyReviewState {
   available: boolean;
   startDate: string;
@@ -106,6 +124,12 @@ export interface WeeklyReviewState {
   identityStage?: IdentityStage;
   evolutionSuggestion?: EvolutionSuggestion | null;
   stageReason?: string;
+  // NEW: Identity Progress & Caching
+  progressionPercent?: number;
+  weeksInStage?: number;
+  identityBranching?: IdentityBranching;
+  cachedIdentityReflection?: string | null;
+  cachedWeeklyPlan?: WeeklyEvolutionPlan | null;
 }
 
 // Firebase User type (simplified for state)
@@ -123,6 +147,7 @@ export interface UserState {
   setUser: (user: AppUser | null) => void;
   logout: () => Promise<void>;
   getExportData: () => string;
+  setWeeklyReview: (update: Partial<WeeklyReviewState>) => void;
 
   // Navigation
   currentView: AppView;

@@ -160,6 +160,9 @@ export const useStore = create<ExtendedUserState>()(
         let newHabits = state.habitRepository?.[level]?.length > 0 ? state.habitRepository[level] : state.microHabits;
         set({ currentEnergyLevel: level, microHabits: newHabits, currentHabitIndex: 0, lastUpdated: Date.now() });
       },
+      setWeeklyReview: (update) => set((state) => ({
+        weeklyReview: state.weeklyReview ? { ...state.weeklyReview, ...update } : null
+      })),
       completeDailyBounce: () => { },
 
       completeHabit: (habitIndex) => {
@@ -455,6 +458,8 @@ export const useStore = create<ExtendedUserState>()(
             const { generateDailyAdaptation } = await import('./services/ai');
             const newRepository = await generateDailyAdaptation(
               state.identity,
+              state.identityProfile?.type || 'SKILL',      // Identity type for context
+              state.identityProfile?.stage || 'INITIATION', // Stage for difficulty scaling
               mode,
               state.habitRepository
             );
@@ -474,27 +479,27 @@ export const useStore = create<ExtendedUserState>()(
               let defaultHabits: string[];
               let planMessage: string;
 
+              // Use AI-generated toast message (personalized and encouraging)
+              planMessage = newRepository.toastMessage;
+
               if (mode === 'GROWTH') {
                 defaultEnergyLevel = 'high';
                 defaultHabits = newRepository.high;
-                planMessage = "🚀 Growth Mode: Switched to High Energy. Time to push limits!";
                 console.log("📊 [SMART PLANNER] Setting HIGH energy as default (Growth mode)");
               } else if (mode === 'RECOVERY') {
                 defaultEnergyLevel = 'low';
                 defaultHabits = newRepository.low;
-                planMessage = "🌱 Recovery Mode: Switched to Low Energy to help you build momentum.";
                 console.log("📊 [SMART PLANNER] Setting LOW energy as default (Recovery mode)");
               } else {
                 defaultEnergyLevel = 'medium';
                 defaultHabits = newRepository.medium;
-                planMessage = "⚖️ Steady Mode: Switched to Medium Energy. Keep the consistency going.";
                 console.log("📊 [SMART PLANNER] Setting MEDIUM energy as default (Steady mode)");
               }
 
-              console.log("📊 [SMART PLANNER] Daily Plan Message:", planMessage);
+              console.log("📊 [SMART PLANNER] AI Toast Message:", planMessage);
 
               set({
-                habitRepository: newRepository,
+                habitRepository: { high: newRepository.high, medium: newRepository.medium, low: newRepository.low },
                 microHabits: defaultHabits,
                 currentEnergyLevel: defaultEnergyLevel,
                 currentHabitIndex: 0,
@@ -778,7 +783,7 @@ export const useStore = create<ExtendedUserState>()(
       markReviewViewed: (id) => set(state => ({ weeklyInsights: state.weeklyInsights.map(i => i.id === id ? { ...i, viewed: true } : i) })),
 
       // SUNDAY RITUAL: Weekly Review with Momentum Score
-      checkWeeklyReview: () => {
+      checkWeeklyReview: async () => {
         const state = get();
         if (!state._hasHydrated) return;
 
@@ -969,6 +974,26 @@ export const useStore = create<ExtendedUserState>()(
           newIdentityProfile.weeksInStage = 0;
         }
 
+        // 8. CALCULATE IDENTITY PROGRESS & BRANCHING
+        let progressionPercent = 0;
+        let identityBranching: { showBranching: boolean; options: string[]; reason?: string } = { showBranching: false, options: [] };
+
+        if (identityType) {
+          const { computeIdentityProgress, detectIdentityBranching } = await import('./services/evolutionEngine');
+          const weeksInStage = newIdentityProfile.weeksInStage;
+          const hasGoodStats = weeklyMomentumScore >= 10;
+
+          progressionPercent = computeIdentityProgress(identityType, identityStage, weeksInStage, hasGoodStats);
+          identityBranching = detectIdentityBranching(
+            state.identity || '',
+            identityType,
+            identityStage,
+            weeksInStage
+          );
+
+          console.log("📊 [IDENTITY PROGRESS]", progressionPercent + "%", "| Branching:", identityBranching.showBranching);
+        }
+
         set({
           weeklyReview: {
             // Preserve all existing core fields
@@ -983,7 +1008,11 @@ export const useStore = create<ExtendedUserState>()(
             identityType: identityType || null,
             identityStage: identityStage || null,
             evolutionSuggestion: evolutionSuggestion || null,
-            stageReason: stageReason || null
+            stageReason: stageReason || null,
+            // NEW: Identity Progress fields
+            progressionPercent,
+            weeksInStage: newIdentityProfile.weeksInStage,
+            identityBranching
           },
           // Only update identityProfile if we have a valid type
           ...(identityType ? { identityProfile: newIdentityProfile } : {}),
