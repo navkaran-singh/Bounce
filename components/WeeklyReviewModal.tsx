@@ -3,11 +3,12 @@ import { useStore } from "../store";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, CheckCircle2, ChevronLeft, ChevronRight, Lock,
-  Sparkles, TrendingUp, Target, Clock, Zap, ArrowUpRight
+  Sparkles, TrendingUp, Target, Clock, Zap, ArrowUpRight, RefreshCw, Heart
 } from "lucide-react";
 import { getIdentityTypeLabel, getIdentityTypeEmoji } from "../services/identityDetector";
 import { getStageLabel, getStageEmoji } from "../services/stageDetector";
 import { getSuggestionTitle } from "../services/evolutionEngine";
+import { EvolutionOption, EvolutionOptionId } from "../types";
 
 /* -------------------------------------------------------------------------- */
 /*                                SUB COMPONENTS                              */
@@ -172,6 +173,111 @@ const AIReflection = ({ text }: { text: string }) => (
 );
 
 // Suggestion Card
+// Persona Header based on performance
+const PersonaHeader = ({ persona }: { persona: string }) => {
+  const personaConfig = {
+    TITAN: { emoji: '🏆', label: 'Crushing It', color: 'from-yellow-400 to-amber-500' },
+    GRINDER: { emoji: '💪', label: 'Steady Progress', color: 'from-blue-400 to-cyan-500' },
+    SURVIVOR: { emoji: '🌱', label: 'Hanging On', color: 'from-green-400 to-emerald-500' },
+    GHOST: { emoji: '👻', label: 'Recovery Mode', color: 'from-purple-400 to-pink-500' }
+  }[persona] || { emoji: '🎯', label: 'Your Week', color: 'from-gray-400 to-gray-500' };
+
+  return (
+    <div className={`bg-gradient-to-r ${personaConfig.color} rounded-2xl p-4 text-center`}>
+      <span className="text-3xl">{personaConfig.emoji}</span>
+      <p className="text-white font-bold mt-1">{personaConfig.label}</p>
+    </div>
+  );
+};
+
+// Evolution Options Card - Shows ALL persona-aware options
+const EvolutionOptionsCard = ({
+  options,
+  onSelect,
+  selectedId
+}: {
+  options: EvolutionOption[],
+  onSelect: (option: EvolutionOption) => void,
+  selectedId?: EvolutionOptionId | null
+}) => {
+  if (!options || options.length === 0) return null;
+
+  return (
+    <div className="bg-gradient-to-br from-cyan-500/10 to-purple-500/10 rounded-2xl p-4 border border-cyan-500/20 w-full">
+      <div className="flex items-center gap-2 mb-3">
+        <Target className="w-4 h-4 text-cyan-400" />
+        <span className="text-xs font-bold text-white uppercase tracking-wider">Choose Your Path</span>
+      </div>
+      <div className="space-y-2">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            onClick={() => onSelect(option)}
+            className={`w-full text-left py-3 px-4 rounded-xl border transition-all ${selectedId === option.id
+              ? 'bg-cyan-500/20 border-cyan-400/50 ring-1 ring-cyan-400/30'
+              : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+              }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-white">{option.label}</span>
+              {option.impact.difficultyAdjustment !== undefined && option.impact.difficultyAdjustment !== 0 && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${option.impact.difficultyAdjustment > 0
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-orange-500/20 text-orange-400'
+                  }`}>
+                  {option.impact.difficultyAdjustment > 0 ? '↑ Harder' : '↓ Easier'}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-white/50 mt-1">{option.description}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// GHOST Recovery Card - Special compassionate section
+const GhostRecoveryCard = ({
+  options,
+  onSelect,
+  selectedId
+}: {
+  options: EvolutionOption[],
+  onSelect: (option: EvolutionOption) => void,
+  selectedId?: EvolutionOptionId | null
+}) => {
+  if (!options || options.length === 0) return null;
+
+  return (
+    <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-4 border border-purple-500/20 w-full">
+      <div className="flex items-center gap-2 mb-2">
+        <Heart className="w-4 h-4 text-purple-400" />
+        <span className="text-xs font-bold text-purple-300 uppercase tracking-wider">Recovery Options</span>
+      </div>
+      <p className="text-xs text-white/50 mb-3">
+        It's okay. Sometimes we need to reset. Choose what feels right:
+      </p>
+      <div className="space-y-2">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            onClick={() => onSelect(option)}
+            className={`w-full text-left py-3 px-4 rounded-xl border transition-all ${selectedId === option.id
+              ? 'bg-purple-500/20 border-purple-400/50 ring-1 ring-purple-400/30'
+              : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+              }`}
+          >
+            <span className="text-sm font-bold text-white">{option.label}</span>
+            <p className="text-xs text-white/50 mt-1">{option.description}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Legacy Suggestion Card (keeping for backwards compatibility)
 const SuggestionCard = ({ suggestion }: { suggestion: any }) => {
   if (!suggestion) return null;
   return (
@@ -185,7 +291,7 @@ const SuggestionCard = ({ suggestion }: { suggestion: any }) => {
   );
 };
 
-// Branching Options
+// Legacy Branching Options (keeping for backwards compatibility)
 const BranchingOptions = ({ options }: { options: string[] }) => (
   <div className="bg-purple-500/10 rounded-2xl p-4 border border-purple-500/20 w-full">
     <div className="flex items-center gap-2 mb-3">
@@ -301,16 +407,42 @@ export const WeeklyReviewModal: React.FC = () => {
   const weeklyReview = useStore(state => state.weeklyReview);
   const isPremium = useStore(state => state.isPremium);
   const applyEvolutionPlan = useStore(state => state.applyEvolutionPlan);
+  const applySelectedEvolutionOption = useStore(state => state.applySelectedEvolutionOption);
   const completeWeeklyReview = useStore(state => state.completeWeeklyReview);
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [selectedOption, setSelectedOption] = useState<EvolutionOption | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
 
   // Read directly from cached data (AI calls happen in store.ts during checkWeeklyReview)
   const reflection = weeklyReview?.cachedIdentityReflection ?? null;
   const plan = weeklyReview?.cachedWeeklyPlan ?? null;
+  const evolutionOptions = weeklyReview?.evolutionOptions ?? [];
+  const isGhostRecovery = weeklyReview?.isGhostRecovery ?? false;
+
+  // Handler for selecting an evolution option
+  const handleOptionSelect = async (option: EvolutionOption) => {
+    setSelectedOption(option);
+    setIsApplying(true);
+
+    try {
+      // Call the store action to apply evolution effects
+      const result = await applySelectedEvolutionOption(option);
+
+      // If identity change was triggered, the store will redirect to onboarding
+      if (result?.identityChange) {
+        return; // Exit early, UI will navigate away
+      }
+    } catch (error) {
+      console.error("Failed to apply evolution option:", error);
+    } finally {
+      setIsApplying(false);
+    }
+  };
 
   // Guard: No review available
   if (!weeklyReview?.available) return null;
+
 
 
 
@@ -390,24 +522,48 @@ export const WeeklyReviewModal: React.FC = () => {
       <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-500">
         <div className="text-center mb-2">
           <h2 className="text-lg font-bold text-white">Next Week’s Direction</h2>
-          <p className="text-xs text-white/40">Evolution & Growth</p>
+          <p className="text-xs text-white/40">Choose your evolution path</p>
         </div>
 
-        <SuggestionCard suggestion={weeklyReview?.evolutionSuggestion} />
 
-        {/* Identity Branching */}
-        {weeklyReview?.identityBranching?.showBranching && (
-          <BranchingOptions options={weeklyReview.identityBranching.options} />
+        {/* GHOST users get special recovery UI */}
+        {isGhostRecovery ? (
+          <GhostRecoveryCard
+            options={evolutionOptions}
+            onSelect={handleOptionSelect}
+            selectedId={selectedOption?.id}
+          />
+        ) : (
+          /* Other personas get standard evolution options */
+          <EvolutionOptionsCard
+            options={evolutionOptions}
+            onSelect={handleOptionSelect}
+            selectedId={selectedOption?.id}
+          />
         )}
 
-        {isPremium ? (
-          plan ? (
-            <WeeklyPlanPreview plan={plan} onApply={applyEvolutionPlan} />
-          ) : (
-            <LoadingCard label="Crafting your evolution plan..." />
-          )
-        ) : (
+        {/* Premium: Show AI plan preview if an option is selected */}
+        {isPremium && selectedOption && plan && (
+          <WeeklyPlanPreview plan={plan} onApply={applyEvolutionPlan} />
+        )}
+
+        {/* Premium: Loading state */}
+        {isPremium && selectedOption && !plan && (
+          <LoadingCard label="Crafting your evolution plan..." />
+        )}
+
+        {/* Free users */}
+        {!isPremium && (
           <FreeUserNotice />
+        )}
+
+        {/* Show selected option confirmation */}
+        {selectedOption && (
+          <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+            <p className="text-xs text-green-400">
+              ✓ Selected: <span className="font-bold">{selectedOption.label}</span>
+            </p>
+          </div>
         )}
       </div>
     );

@@ -8,12 +8,448 @@
  * at the right pace for their journey.
  */
 
-import { IdentityType, IdentityStage, EvolutionSuggestion, EvolutionSuggestionType } from '../types';
+import { IdentityType, IdentityStage, EvolutionSuggestion, EvolutionSuggestionType, EvolutionOption, EvolutionOptionId, IdentityProfile } from '../types';
 
 interface EvolutionContext {
     weeklyCompletionRate: number;
     streak: number;
     momentum: number;  // weeklyMomentumScore
+}
+
+/**
+ * EVOLUTION EFFECT ENGINE
+ * Calculates what changes should be applied when user selects an evolution option
+ */
+export interface EvolutionEffectResult {
+    // Stage changes
+    newStage?: IdentityStage;
+    resetWeeksInStage?: boolean;
+
+    // Habit difficulty changes
+    difficultyLevel?: 'harder' | 'easier' | 'minimal' | 'same';
+
+    // Special flags
+    isFreshStart?: boolean;
+    triggerIdentityChange?: boolean;
+
+    // UI feedback
+    message: string;
+}
+
+export function calculateEvolutionEffects(
+    option: EvolutionOption,
+    currentProfile: IdentityProfile | null
+): EvolutionEffectResult {
+    const result: EvolutionEffectResult = {
+        message: `Applied: ${option.label}`
+    };
+
+    // Handle stage change
+    if (option.impact.stageChange) {
+        result.newStage = option.impact.stageChange;
+        result.resetWeeksInStage = true;
+        result.message = `Stage reset to ${option.impact.stageChange}. Starting fresh.`;
+    }
+
+    // Handle difficulty adjustment
+    if (option.impact.difficultyAdjustment !== undefined) {
+        if (option.impact.difficultyAdjustment >= 1) {
+            result.difficultyLevel = 'harder';
+            result.message = `Habits leveled up. You're ready for more.`;
+        } else if (option.impact.difficultyAdjustment === -1) {
+            result.difficultyLevel = 'easier';
+            result.message = `Habits eased. Focus on consistency.`;
+        } else if (option.impact.difficultyAdjustment <= -2) {
+            result.difficultyLevel = 'minimal';
+            result.message = `Minimal mode activated. Just show up.`;
+        } else {
+            result.difficultyLevel = 'same';
+        }
+    }
+
+    // Handle identity shift
+    if (option.impact.identityShift) {
+        result.triggerIdentityChange = true;
+        result.message = `Ready to explore a new identity.`;
+    }
+
+    // Handle Fresh Start - check impact.isFreshStart OR option ID contains FRESH_START
+    // 🛠️ FIX: Previously only checked 'FRESH_START_WEEK', now checks impact flag too
+    if (option.impact.isFreshStart || option.id.includes('FRESH_START')) {
+        result.isFreshStart = true;
+        result.newStage = 'INITIATION';
+        result.resetWeeksInStage = true;
+        result.difficultyLevel = 'minimal';
+        result.message = `Fresh start activated. No judgment, just begin again.`;
+    }
+
+    return result;
+}
+
+/**
+ * HABIT DIFFICULTY ADJUSTMENT ENGINE
+ * Adjusts habit repository based on difficulty level
+ */
+export function adjustHabitRepository(
+    repo: { high: string[], medium: string[], low: string[] },
+    adjustment: number,
+    identityType?: IdentityType
+): { high: string[], medium: string[], low: string[] } {
+    console.log(`🔧 [EVOLUTION] Adjusting habits by ${adjustment}`);
+
+    if (adjustment === 0) {
+        return { ...repo };
+    }
+
+    // +1 = INCREASE DIFFICULTY (promote habits up)
+    if (adjustment >= 1) {
+        return increaseHabitDifficulty(repo, identityType);
+    }
+
+    // -1 or less = REDUCE DIFFICULTY (demote habits down)
+    if (adjustment <= -1) {
+        return reduceHabitDifficulty(repo, adjustment);
+    }
+
+    return { ...repo };
+}
+
+/**
+ * Increase difficulty: Promote habits up levels
+ */
+function increaseHabitDifficulty(
+    repo: { high: string[], medium: string[], low: string[] },
+    identityType?: IdentityType
+): { high: string[], medium: string[], low: string[] } {
+    // Promote medium → high (take first medium habit)
+    const promotedToHigh = repo.medium.length > 0 ? [repo.medium[0]] : [];
+
+    // Promote low → medium (take first low habit, upgrade it)
+    const promotedToMedium = repo.low.length > 0 ? [upgradeHabitText(repo.low[0])] : [];
+
+    // Build new high array: keep existing + add promoted, cap at 3
+    const newHigh = [...repo.high, ...promotedToHigh]
+        .filter((h, i, a) => a.indexOf(h) === i) // Remove duplicates
+        .slice(0, 3);
+
+    // Build new medium: keep remaining medium + promoted from low
+    const newMedium = [...repo.medium.slice(1), ...promotedToMedium]
+        .filter((h, i, a) => a.indexOf(h) === i)
+        .slice(0, 3);
+
+    // Build new low: keep remaining low habits
+    const newLow = repo.low.slice(1).slice(0, 3);
+
+    // For SKILL type, add a mastery habit if we have room
+    if (identityType === 'SKILL' && newHigh.length < 3) {
+        newHigh.push('Deep focus session');
+    }
+
+    // Ensure each level has at least 1 habit
+    const result = {
+        high: newHigh.length > 0 ? newHigh : repo.high.slice(0, 3),
+        medium: newMedium.length > 0 ? newMedium : repo.medium.slice(0, 3),
+        low: newLow.length > 0 ? newLow : repo.low.slice(0, 3)
+    };
+
+    console.log('🔧 [EVOLUTION] Habits increased:', result);
+    return result;
+}
+
+/**
+ * Reduce difficulty: Demote habits down levels, simplify text
+ */
+function reduceHabitDifficulty(
+    repo: { high: string[], medium: string[], low: string[] },
+    adjustment: number
+): { high: string[], medium: string[], low: string[] } {
+    // Demote high → medium (simplify first high habit)
+    const demotedToMedium = repo.high.length > 0 ? [simplifyHabitText(repo.high[0])] : [];
+
+    // Demote medium → low (make tiny version)
+    const demotedToLow = repo.medium.length > 0 ? [makeTinyHabit(repo.medium[0])] : [];
+
+    // For minimal mode (adjustment <= -2), make everything tiny
+    if (adjustment <= -2) {
+        return {
+            high: repo.low.map(h => h), // Use low habits as high
+            medium: repo.low.map(h => makeTinyHabit(h)),
+            low: repo.low.map(h => makeMinimalHabit(h))
+        };
+    }
+
+    const result = {
+        high: [...repo.high.slice(1), ...demotedToMedium]
+            .filter((h, i, a) => a.indexOf(h) === i)
+            .slice(0, 3),
+        medium: [...repo.medium.slice(1), ...demotedToLow, ...demotedToMedium]
+            .filter((h, i, a) => a.indexOf(h) === i)
+            .slice(0, 3),
+        low: [...repo.low, ...demotedToLow]
+            .filter((h, i, a) => a.indexOf(h) === i)
+            .slice(0, 3)
+    };
+
+    // Ensure each level has habits
+    if (result.high.length === 0) result.high = repo.medium.slice(0, 3);
+    if (result.medium.length === 0) result.medium = repo.low.slice(0, 3);
+    if (result.low.length === 0) result.low = ['Just show up'];
+
+    console.log('🔧 [EVOLUTION] Habits reduced:', result);
+    return result;
+}
+
+// Helper: Upgrade habit text (make it more challenging)
+function upgradeHabitText(habit: string): string {
+    return habit
+        .replace(/(\d+)\s?min/gi, (_, n) => `${Math.min(60, parseInt(n) * 2)} min`)
+        .replace(/(\d+)\s?m\b/gi, (_, n) => `${Math.min(60, parseInt(n) * 2)}m`)
+        .replace(/1 /g, '3 ')
+        .replace(/open/gi, 'Complete');
+}
+
+// Helper: Simplify habit text (reduce intensity)
+function simplifyHabitText(habit: string): string {
+    return habit
+        .replace(/(\d+)\s?min/gi, (_, n) => `${Math.max(5, Math.floor(parseInt(n) / 2))} min`)
+        .replace(/(\d+)\s?m\b/gi, (_, n) => `${Math.max(5, Math.floor(parseInt(n) / 2))}m`)
+        .replace(/complete/gi, 'Work on')
+        .replace(/finish/gi, 'Start');
+}
+
+// Helper: Make tiny 2-minute version
+function makeTinyHabit(habit: string): string {
+    const words = habit.split(' ');
+    if (words.length <= 2) return habit;
+
+    // Keep verb + first noun, add "for 2 min" if not already time-based
+    const hasTime = /\d+\s?(min|m|sec|s)\b/i.test(habit);
+    if (hasTime) {
+        return habit.replace(/\d+\s?(min|m)\b/gi, '2 min');
+    }
+    return `${words.slice(0, 2).join(' ')} (2 min)`;
+}
+
+// Helper: Make minimal "just start" version
+function makeMinimalHabit(habit: string): string {
+    const verbs = ['Open', 'Look at', 'Touch', 'Set up'];
+    const randomVerb = verbs[Math.floor(Math.random() * verbs.length)];
+
+    // Extract the main noun/object
+    const words = habit.split(' ').filter(w => w.length > 3);
+    const noun = words[words.length - 1] || 'it';
+
+    return `${randomVerb} ${noun}`;
+}
+
+/**
+ * FRESH START - Generate INITIATION level habits
+ */
+export function generateInitiationHabits(
+    identityType: IdentityType,
+    identity: string
+): { high: string[], medium: string[], low: string[] } {
+    console.log('🌱 [FRESH START] Generating initiation habits for:', identityType);
+
+    // Extract key word from identity
+    const idLower = identity.toLowerCase();
+
+    // Default initiation habits by type
+    const templates: Record<IdentityType, { high: string[], medium: string[], low: string[] }> = {
+        'SKILL': {
+            high: ['Practice core skill for 15 min', 'Study technique for 10 min', 'Create one small output'],
+            medium: ['Practice for 5 min', 'Review notes', 'Watch 1 tutorial'],
+            low: ['Open your tools', 'Set a timer', 'Think about it for 1 min']
+        },
+        'CHARACTER': {
+            high: ['Practice trait in real situation', 'Journal about progress', 'Set 3 daily reminders'],
+            medium: ['Catch 1 moment to practice', 'Reflect for 5 min', 'Read 1 page on topic'],
+            low: ['Notice 1 opportunity', 'Take 3 breaths', 'Set intention']
+        },
+        'RECOVERY': {
+            high: ['Complete morning ritual', 'Avoid 1 trigger', 'Connect with support'],
+            medium: ['5-min grounding exercise', 'Check in with feelings', 'Drink water'],
+            low: ['Notice urges without acting', 'Breathe', 'Acknowledge progress']
+        }
+    };
+
+    // Customize based on identity text
+    const base = templates[identityType] || templates['SKILL'];
+
+    if (idLower.includes('write')) {
+        return {
+            high: ['Write for 15 min', 'Edit 1 paragraph', 'Outline next piece'],
+            medium: ['Write 1 sentence', 'Read for 5 min', 'Brainstorm ideas'],
+            low: ['Open document', 'Read last sentence', 'Think about writing']
+        };
+    }
+
+    if (idLower.includes('exercise') || idLower.includes('fit') || idLower.includes('run')) {
+        return {
+            high: ['Workout for 15 min', 'Go for a walk', 'Stretch routine'],
+            medium: ['5 min movement', '10 pushups', 'Walk around block'],
+            low: ['Put on workout shoes', 'Stand up', 'Stretch for 1 min']
+        };
+    }
+
+    if (idLower.includes('read')) {
+        return {
+            high: ['Read for 20 min', 'Finish 1 chapter', 'Take notes'],
+            medium: ['Read 5 pages', 'Highlight key ideas', 'Review bookmarks'],
+            low: ['Open book', 'Read 1 page', 'Pick up book']
+        };
+    }
+
+    return base;
+}
+
+type WeeklyPersona = 'TITAN' | 'GRINDER' | 'SURVIVOR' | 'GHOST';
+
+/**
+ * PERSONA-AWARE EVOLUTION OPTIONS GENERATOR
+ * Returns an array of options based on persona + stage
+ */
+export function generatePersonaEvolutionOptions(
+    persona: WeeklyPersona,
+    stage: IdentityStage,
+    identity: string
+): EvolutionOption[] {
+    switch (persona) {
+        case 'TITAN':
+            return getTitanOptions(stage, identity);
+        case 'GRINDER':
+            return getGrinderOptions(stage);
+        case 'SURVIVOR':
+            return getSurvivorOptions(stage);
+        case 'GHOST':
+            return getGhostOptions(identity);
+    }
+}
+
+// === TITAN: Crushing it - Push harder ===
+function getTitanOptions(stage: IdentityStage, identity: string): EvolutionOption[] {
+    const options: EvolutionOption[] = [
+        {
+            id: 'INCREASE_DIFFICULTY',
+            label: 'Level Up',
+            description: 'Increase habit intensity by 15-25%. You\'re ready.',
+            impact: { difficultyAdjustment: 1 }
+        },
+        {
+            id: 'ADD_VARIATION',
+            label: 'Add Variation',
+            description: 'Same difficulty, new angles. Keep it fresh.',
+            impact: { difficultyAdjustment: 0 }
+        },
+        {
+            id: 'START_MASTERY_WEEK',
+            label: 'Mastery Week',
+            description: 'Focus on perfecting technique, not just showing up.',
+            impact: { difficultyAdjustment: 0 }
+        }
+    ];
+
+    // At EXPANSION or MAINTENANCE, offer identity branching
+    if (stage === 'EXPANSION' || stage === 'MAINTENANCE') {
+        options.push({
+            id: 'BRANCH_IDENTITY',
+            label: 'Branch Out',
+            description: `Expand "${identity}" into new territory.`,
+            impact: { difficultyAdjustment: 0 }
+        });
+    }
+
+    return options;
+}
+
+// === GRINDER: Consistent but might burn out ===
+function getGrinderOptions(stage: IdentityStage): EvolutionOption[] {
+    return [
+        {
+            id: 'MAINTAIN',
+            label: 'Keep This Pace',
+            description: 'You\'re in a good rhythm. Don\'t fix what works.',
+            impact: { difficultyAdjustment: 0 }
+        },
+        {
+            id: 'TECHNIQUE_WEEK',
+            label: 'Technique Focus',
+            description: 'Same habits, but focus on doing them better.',
+            impact: { difficultyAdjustment: 0 }
+        },
+        {
+            id: 'SOFTER_HABIT',
+            label: 'Ease Up a Bit',
+            description: 'Reduce intensity to prevent burnout.',
+            impact: { difficultyAdjustment: -1 }
+        },
+        {
+            id: 'REDUCE_SCOPE',
+            label: 'Simplify',
+            description: 'Keep only 2 habits. Quality over quantity.',
+            impact: { difficultyAdjustment: -1 }
+        }
+    ];
+}
+
+// === SURVIVOR: Hanging on ===
+function getSurvivorOptions(stage: IdentityStage): EvolutionOption[] {
+    return [
+        {
+            id: 'MAINTAIN',
+            label: 'Keep Showing Up',
+            description: 'You\'re here. That\'s what matters right now.',
+            impact: { difficultyAdjustment: 0 }
+        },
+        {
+            id: 'SOFTER_HABIT',
+            label: 'Make It Easier',
+            description: 'Reduce friction. Even tiny counts.',
+            impact: { difficultyAdjustment: -1 }
+        },
+        {
+            id: 'REST_WEEK',
+            label: 'Rest Week',
+            description: 'Reduce by 30%. You need to recharge.',
+            impact: { difficultyAdjustment: -1 }
+        },
+        {
+            id: 'REDUCE_DIFFICULTY',
+            label: 'Minimal Mode',
+            description: 'Only low-energy habits this week.',
+            impact: { difficultyAdjustment: -2 }
+        }
+    ];
+}
+
+// === GHOST: Needs recovery - special compassionate options ===
+function getGhostOptions(identity: string): EvolutionOption[] {
+    return [
+        {
+            id: 'FRESH_START_WEEK',
+            label: '🌱 Fresh Start',
+            description: 'Wipe the slate. Begin again with no judgment.',
+            impact: { stageChange: 'INITIATION', difficultyAdjustment: -2 }
+        },
+        {
+            id: 'SOFTER_WEEK',
+            label: '🛋️ Softer Week',
+            description: 'Ultra-gentle habits. Just exist.',
+            impact: { difficultyAdjustment: -2 }
+        },
+        {
+            id: 'REDUCE_DIFFICULTY',
+            label: '📉 Reduce Everything',
+            description: 'Minimum viable habits only.',
+            impact: { difficultyAdjustment: -2 }
+        },
+        {
+            id: 'CHANGE_IDENTITY',
+            label: '🔄 Change Identity',
+            description: `Maybe "${identity}" isn't right for now.`,
+            impact: { identityShift: true }
+        }
+    ];
 }
 
 /**

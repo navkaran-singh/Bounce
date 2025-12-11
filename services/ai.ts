@@ -359,6 +359,7 @@ interface WeeklyReviewParams {
   streak: number;
   suggestionType: string;
   currentRepository: { high: string[], medium: string[], low: string[] };
+  difficultyLevel?: 'harder' | 'easier' | 'minimal' | 'same';  // Difficulty adjustment from selected option
 }
 
 interface WeeklyReviewContent {
@@ -411,6 +412,14 @@ export const generateWeeklyReviewContent = async (
     'MAINTAIN': 'Keep habits as-is with minor refreshes.'
   };
 
+  // Difficulty adjustment context for habit generation
+  const difficultyContext: Record<string, string> = {
+    'harder': 'INCREASE habit intensity by 15-25%. Add longer durations, more reps, or deeper focus.',
+    'easier': 'DECREASE habit intensity by 30-40%. Simplify actions, reduce durations, lower barriers.',
+    'minimal': 'Make habits ULTRA-SIMPLE. 2-minute versions only. Just-start actions. Zero friction.',
+    'same': 'Keep habit intensity roughly the same with minor refreshes.'
+  };
+
   const prompt = `
 You are Bounce, an identity-based behavior coach.
 
@@ -423,8 +432,12 @@ USER CONTEXT:
 - Persona this week: ${params.persona}
 - Streak: ${params.streak} days
 - Evolution needed: ${params.suggestionType}
+- Difficulty adjustment: ${params.difficultyLevel || 'same'}
 
 ${evolutionContext[params.suggestionType] || 'Maintain current habits.'}
+
+DIFFICULTY INSTRUCTION:
+${difficultyContext[params.difficultyLevel || 'same']}
 
 Current Habits:
 ${JSON.stringify(params.currentRepository, null, 2)}

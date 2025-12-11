@@ -111,6 +111,24 @@ export interface WeeklyEvolutionPlan {
   summary?: string;
 }
 
+// Persona-Aware Evolution Option
+export type EvolutionOptionId =
+  | 'INCREASE_DIFFICULTY' | 'ADD_VARIATION' | 'BRANCH_IDENTITY' | 'START_MASTERY_WEEK'
+  | 'MAINTAIN' | 'SOFTER_HABIT' | 'TECHNIQUE_WEEK' | 'REDUCE_SCOPE'
+  | 'REST_WEEK' | 'REDUCE_DIFFICULTY'
+  | 'FRESH_START_WEEK' | 'CHANGE_IDENTITY' | 'SOFTER_WEEK';
+
+export interface EvolutionOption {
+  id: EvolutionOptionId;
+  label: string;
+  description: string;
+  impact: {
+    stageChange?: IdentityStage;
+    difficultyAdjustment?: number; // +1 = harder, -1 = easier
+    identityShift?: boolean;
+  };
+}
+
 export interface WeeklyReviewState {
   available: boolean;
   startDate: string;
@@ -122,7 +140,9 @@ export interface WeeklyReviewState {
   // Identity Evolution fields
   identityType?: IdentityType | null;
   identityStage?: IdentityStage;
-  evolutionSuggestion?: EvolutionSuggestion | null;
+  evolutionSuggestion?: EvolutionSuggestion | null; // Legacy - keeping for compatibility
+  evolutionOptions?: EvolutionOption[]; // NEW: Persona-aware options
+  isGhostRecovery?: boolean; // NEW: True if persona is GHOST
   stageReason?: string;
   // NEW: Identity Progress & Caching
   progressionPercent?: number;
@@ -131,6 +151,7 @@ export interface WeeklyReviewState {
   cachedIdentityReflection?: string | null;
   cachedArchetype?: string | null;
   cachedWeeklyPlan?: WeeklyEvolutionPlan | null;
+  selectedOptionId?: EvolutionOptionId | null; // User's selected evolution option
 }
 
 // Firebase User type (simplified for state)
@@ -252,6 +273,7 @@ export interface UserState {
   setIdentityProfile: (profile: Partial<IdentityProfile>) => void;
   setLastEvolutionSuggestion: (suggestion: EvolutionSuggestion | null) => void;
   applyEvolutionPlan: () => Promise<{ success: boolean; narrative: string }>;
+  applySelectedEvolutionOption: (option: EvolutionOption) => Promise<{ success: boolean; message: string; identityChange?: boolean }>;
 
   // Cloud Sync (Firebase)
   initializeAuth: () => (() => void) | void;

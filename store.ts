@@ -659,6 +659,192 @@ export const useStore = create<ExtendedUserState>()(
         }
       },
 
+      /**
+       * APPLY SELECTED EVOLUTION OPTION
+       * Called when user selects an evolution option in Weekly Review
+       */
+      applySelectedEvolutionOption: async (option: import('./types').EvolutionOption) => {
+        const state = get();
+        const { identityProfile, habitRepository, isPremium, weeklyReview } = state;
+
+        console.log("🎯 [EVOLUTION] Applying selected option:", option.id);
+
+        // Import evolution engine functions
+        const {
+          calculateEvolutionEffects,
+          adjustHabitRepository,
+          generateInitiationHabits
+        } = await import('./services/evolutionEngine');
+
+        const effects = calculateEvolutionEffects(option, identityProfile);
+        console.log("🎯 [EVOLUTION] Calculated effects:", effects);
+
+        let updatedRepository = habitRepository;
+
+        // 1. Apply habit difficulty adjustments (rule-based)
+        if (effects.difficultyLevel && effects.difficultyLevel !== 'same' && habitRepository) {
+          const adjustment = effects.difficultyLevel === 'harder' ? 1
+            : effects.difficultyLevel === 'easier' ? -1
+              : effects.difficultyLevel === 'minimal' ? -2 : 0;
+
+          if (adjustment !== 0) {
+            updatedRepository = adjustHabitRepository(
+              habitRepository,
+              adjustment,
+              identityProfile?.type
+            );
+            console.log("📊 [EVOLUTION] Habit difficulty adjusted by:", adjustment);
+          }
+        }
+
+        // 2. Handle Fresh Start (generate INITIATION-level habits)
+        if (effects.isFreshStart && identityProfile?.type && state.identity) {
+          console.log("🌱 [EVOLUTION] Fresh start - generating initiation habits");
+          updatedRepository = generateInitiationHabits(
+            identityProfile.type,
+            state.identity
+          );
+          // Reset momentum baseline but keep streak
+        }
+
+        // Apply updated habit repository
+        if (updatedRepository !== habitRepository) {
+          set({
+            habitRepository: updatedRepository,
+            lastUpdated: Date.now()
+          });
+          console.log("✅ [EVOLUTION] Habit repository updated:", updatedRepository);
+        }
+
+        // 3. Apply stage changes
+        if (effects.newStage) {
+          const today = new Date().toISOString().split('T')[0];
+          set({
+            identityProfile: {
+              ...identityProfile,
+              stage: effects.newStage,
+              stageEnteredAt: today,
+              weeksInStage: 0
+            },
+            lastUpdated: Date.now()
+          });
+          console.log("🎯 [EVOLUTION] Stage updated to:", effects.newStage);
+        }
+
+        // 4. Handle identity change trigger
+        if (effects.triggerIdentityChange) {
+          console.log("🔄 [EVOLUTION] Identity change triggered - setting flag");
+          set({
+            currentView: 'onboarding', // Return to onboarding for new identity
+            lastUpdated: Date.now()
+          });
+          return { success: true, message: effects.message, identityChange: true };
+        }
+
+        // 5. Store the selected option in weeklyReview
+        if (weeklyReview) {
+          set({
+            weeklyReview: {
+              ...weeklyReview,
+              selectedOptionId: option.id
+            },
+            lastUpdated: Date.now()
+          });
+        }
+
+        // 6. For premium users, regenerate the weekly plan with the selected option
+        if (isPremium && state.identity && identityProfile?.type) {
+          console.log("🤖 [EVOLUTION] Regenerating weekly plan with option:", option.id);
+
+          try {
+            const { generateWeeklyReviewContent } = await import('./services/ai');
+
+            const content = await generateWeeklyReviewContent({
+              identity: state.identity,
+              identityType: identityProfile.type,
+              identityStage: effects.newStage || identityProfile.stage,
+              persona: weeklyReview?.persona || 'GRINDER',
+              streak: state.streak,
+              suggestionType: option.id, // Use the selected option as the suggestion type
+              currentRepository: updatedRepository || habitRepository,  // Use updated repository
+              difficultyLevel: effects.difficultyLevel  // Pass difficulty adjustment to AI
+            });
+
+            // Update the cached weekly plan
+            set({
+              weeklyReview: {
+                ...get().weeklyReview!,
+                cachedWeeklyPlan: {
+                  high: content.high,
+                  medium: content.medium,
+                  low: content.low,
+                  narrative: content.narrative,
+                  habitAdjustments: content.habitAdjustments,
+                  stageAdvice: content.stageAdvice,
+                  summary: content.summary
+                },
+                selectedOptionId: option.id
+              },
+              lastUpdated: Date.now()
+            });
+
+            console.log("🤖 [EVOLUTION] ✅ Weekly plan regenerated");
+          } catch (error) {
+            console.error("🤖 [EVOLUTION] ❌ Failed to regenerate plan:", error);
+          }
+        } else {
+          // 7. FREE USER FALLBACK: Generate rule-based plan
+          console.log("📋 [EVOLUTION] Free user - generating rule-based fallback plan");
+
+          // Get narrative and tips based on selected option
+          const fallbackNarratives: Record<string, string> = {
+            'INCREASE_DIFFICULTY': "You're ready to level up. Push a bit harder this week.",
+            'ADD_VARIATION': "Same commitment, fresh approach. Try new angles.",
+            'MAINTAIN': "Consistency is king. Keep showing up exactly like this.",
+            'SOFTER_HABIT': "Gentler pace this week. Focus on just starting.",
+            'FRICTION_REMOVAL': "Make it stupidly easy. Remove every barrier.",
+            'STABILIZATION_WEEK': "Steady and predictable. Build your rhythm.",
+            'REST_WEEK': "Recovery mode. Lighter load, same identity.",
+            'FRESH_START': "Clean slate. Back to basics with tiny wins."
+          };
+
+          const fallbackTips: Record<string, string[]> = {
+            'INCREASE_DIFFICULTY': ["Add 5 more minutes", "Do one extra rep"],
+            'ADD_VARIATION': ["Try a new time", "Switch up the location"],
+            'MAINTAIN': ["Keep the same routine", "Trust the process"],
+            'SOFTER_HABIT': ["Start smaller", "Remove one step"],
+            'FRICTION_REMOVAL': ["Prep the night before", "Use visual cues"],
+            'STABILIZATION_WEEK': ["Set a fixed time", "Same place, same habit"],
+            'REST_WEEK': ["Half the usual effort", "Permission to do less"],
+            'FRESH_START': ["2-minute versions only", "Just show up"]
+          };
+
+          // Update cached plan with rule-based content
+          if (updatedRepository || habitRepository) {
+            const repo = updatedRepository || habitRepository;
+            set({
+              weeklyReview: {
+                ...get().weeklyReview!,
+                cachedWeeklyPlan: {
+                  high: repo.high || [],
+                  medium: repo.medium || [],
+                  low: repo.low || [],
+                  narrative: fallbackNarratives[option.id] || fallbackNarratives['MAINTAIN'],
+                  habitAdjustments: fallbackTips[option.id] || fallbackTips['MAINTAIN'],
+                  stageAdvice: effects.message || "Keep going.",
+                  summary: "Your path is recalibrated."
+                },
+                selectedOptionId: option.id
+              },
+              lastUpdated: Date.now()
+            });
+            console.log("📋 [EVOLUTION] ✅ Free user fallback plan generated");
+          }
+        }
+
+        return { success: true, message: effects.message };
+      },
+
       activateRecoveryMode: () => {
 
         set({
@@ -910,6 +1096,7 @@ export const useStore = create<ExtendedUserState>()(
         let identityStage = state.identityProfile?.stage || 'INITIATION';
         let stageReason = '';
         let evolutionSuggestion = null;
+        let evolutionOptions: import('./types').EvolutionOption[] = [];
 
         // Edge case: Skip evolution engine if no identity or habit repository is set
         if (identityType && state.identity && state.habitRepository?.high?.length > 0) {
@@ -948,6 +1135,11 @@ export const useStore = create<ExtendedUserState>()(
               }
             );
             console.log("🌱 [EVOLUTION] Generated suggestion:", evolutionSuggestion);
+
+            // NEW: Generate persona-aware evolution options
+            const { generatePersonaEvolutionOptions } = await import('./services/evolutionEngine');
+            evolutionOptions = generatePersonaEvolutionOptions(persona, identityStage, state.identity);
+            console.log("🎯 [EVOLUTION] Generated persona options for", persona, ":", evolutionOptions.map(o => o.id));
           } catch (error) {
             console.error("🧬 [IDENTITY] ❌ Evolution engine error - using defaults:", error);
             // Graceful fallback - don't block weekly review
@@ -1059,6 +1251,8 @@ export const useStore = create<ExtendedUserState>()(
             identityType: identityType || null,
             identityStage: identityStage || null,
             evolutionSuggestion: evolutionSuggestion || null,
+            evolutionOptions, // NEW: Persona-aware options array
+            isGhostRecovery: persona === 'GHOST', // NEW: Flag for special GHOST UI
             stageReason: stageReason || null,
             // NEW: Identity Progress fields
             progressionPercent,
