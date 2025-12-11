@@ -387,7 +387,7 @@ export const generateWeeklyEvolutionPlan = async (
   };
 
   const prompt = `
-You are Bounce, the user's identity progression coach.
+You are Bounce, an identity-based behavior coach.
 
 Generate a weekly evolution plan for:
 - Identity: "${identity}"
@@ -405,15 +405,26 @@ Return JSON with:
   "high": ["habit1", "habit2", "habit3"],
   "medium": ["habit1", "habit2", "habit3"],
   "low": ["habit1", "habit2", "habit3"],
-  "narrative": "30-60 word emotional explanation",
-  "habitAdjustments": ["actionable change 1", "actionable change 2"],
-  "stageAdvice": "10-20 word instruction for this stage",
-  "summary": "1 sentence motivation"
+  "narrative": "20-30 word identity reflection (see example below)",
+  "habitAdjustments": ["short actionable tip 1", "short actionable tip 2"],
+  "stageAdvice": "10 words max",
+  "summary": "1 short sentence"
 }
+
+TONE RULES:
+- Speak directly to the user ("you", "your")
+- No fluffy language, no metaphors, no academic words
+- Sound like a trusted coach, not a motivational poster
+- Keep it short and actionable
+
+Example narrative:
+"Your base is settling in. Keep showing up in small ways that reinforce trust in this identity."
+
+BAD narrative (too wordy):
+"You're cementing the foundations of your writer identity! Each consistent step reinforces your commitment..."
 
 RULES:
 - LOW habits MUST be under 2 minutes (atomic steps)
-- Changes should feel like natural evolution
 - Return ONLY valid JSON, no markdown
   `;
 
@@ -472,21 +483,19 @@ export const generateIdentityReflection = async (
     .join(', ');
 
   const prompt = `
-You are Bounce, a behavioral identity coach.
+You are Bounce, an identity-based behavior coach.
 
-Generate a short (2-3 sentence) identity reflection.
+Write a short identity reflection (2 sentences MAX) for the user.
 
 STRICT RULES:
-- Never exceed 3 sentences
-- Do NOT repeat the stage name
-- Do NOT narrate events
-- Do NOT use numbers unless essential
-- Do NOT write long paragraphs
-
-Focus on:
-1. What this stage means for ${params.identity}
-2. What small behavioral shifts you're noticing
-3. What the next psychological milestone is
+- Speak directly to the user ("you"), never in third-person.
+- No academic language, no metaphors, no poetic phrasing.
+- No storytelling, no narration of events.
+- Do NOT repeat the stage name.
+- Do NOT analyze the user's week. Only interpret identity progression.
+- Focus on psychological meaning:
+  1. What this stage *means* for who they're becoming.
+  2. What small internal shift is emerging.
 
 Context:
 - Identity: "${params.identity}"
@@ -495,7 +504,10 @@ Context:
 - Persona: ${params.persona}
 - Streak: ${params.streak} days
 
-Return ONLY the reflection text. No quotes or labels.
+Example tones:
+"You're beginning to treat this identity as something real, not theoretical. Keep showing up in small ways — the next version of you grows from repetition, not intensity."
+
+Return ONLY the reflection text.
   `;
 
   try {

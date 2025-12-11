@@ -259,3 +259,81 @@ export function getSuggestionTitle(type: EvolutionSuggestionType): string {
         case 'MAINTAIN': return 'Keep Going';
     }
 }
+
+/**
+ * Compute identity progress as a percentage (0-100)
+ * Based on stage and weeks spent in that stage
+ */
+export function computeIdentityProgress(
+    identityType: IdentityType,
+    stage: IdentityStage,
+    weeksInStage: number,
+    hasGoodStats: boolean
+): number {
+    // Stage weights (cumulative progress)
+    const stageProgress: Record<IdentityStage, number> = {
+        'INITIATION': 0,
+        'INTEGRATION': 25,
+        'EXPANSION': 50,
+        'MAINTENANCE': 75
+    };
+
+    // Expected weeks per stage (varies by type)
+    const expectedWeeks: Record<IdentityType, Record<IdentityStage, number>> = {
+        'SKILL': { 'INITIATION': 2, 'INTEGRATION': 4, 'EXPANSION': 6, 'MAINTENANCE': 8 },
+        'CHARACTER': { 'INITIATION': 3, 'INTEGRATION': 5, 'EXPANSION': 8, 'MAINTENANCE': 10 },
+        'RECOVERY': { 'INITIATION': 4, 'INTEGRATION': 6, 'EXPANSION': 10, 'MAINTENANCE': 12 }
+    };
+
+    const baseProgress = stageProgress[stage];
+    const weeksForStage = expectedWeeks[identityType]?.[stage] || 4;
+
+    // Progress within current stage (0-25%)
+    const stageInternalProgress = Math.min(25, (weeksInStage / weeksForStage) * 25);
+
+    // Bonus for good performance
+    const performanceBonus = hasGoodStats ? 5 : 0;
+
+    return Math.min(100, Math.round(baseProgress + stageInternalProgress + performanceBonus));
+}
+
+/**
+ * Detect if user should see identity branching options
+ * Shows at EXPANSION stage after 3+ weeks with good performance
+ */
+export function detectIdentityBranching(
+    identity: string,
+    identityType: IdentityType,
+    stage: IdentityStage,
+    weeksInStage: number
+): { showBranching: boolean; options: string[]; reason?: string } {
+    // Only show branching at EXPANSION stage after 3+ weeks
+    if (stage !== 'EXPANSION' || weeksInStage < 3) {
+        return { showBranching: false, options: [] };
+    }
+
+    // Generate branching options based on identity type
+    const branchingOptions: Record<IdentityType, string[]> = {
+        'SKILL': [
+            `Deepen ${identity} (Mastery path)`,
+            `Expand to related skill`,
+            `Teach ${identity} to others`
+        ],
+        'CHARACTER': [
+            `Apply ${identity} in harder contexts`,
+            `Add complementary trait`,
+            `Lead by example`
+        ],
+        'RECOVERY': [
+            `Strengthen daily rituals`,
+            `Build support network`,
+            `Help others in recovery`
+        ]
+    };
+
+    return {
+        showBranching: true,
+        options: branchingOptions[identityType] || [],
+        reason: `You've been in Expansion for ${weeksInStage} weeks. Ready to branch out?`
+    };
+}

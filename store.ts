@@ -994,6 +994,56 @@ export const useStore = create<ExtendedUserState>()(
           console.log("📊 [IDENTITY PROGRESS]", progressionPercent + "%", "| Branching:", identityBranching.showBranching);
         }
 
+        // 9. AI GENERATION: Cache reflection and plan BEFORE setting state
+        let cachedIdentityReflection: string | null = null;
+        let cachedWeeklyPlan: {
+          high: string[];
+          medium: string[];
+          low: string[];
+          narrative: string;
+          habitAdjustments?: string[];
+          stageAdvice?: string;
+          summary?: string;
+        } | null = null;
+
+        // Generate AI reflection (psychology-focused, 2 sentences max)
+        if (identityType && state.identity) {
+          try {
+            console.log("🪞 [WEEKLY REVIEW] Generating AI reflection...");
+            const { generateIdentityReflection, generateWeeklyEvolutionPlan } = await import('./services/ai');
+
+            cachedIdentityReflection = await generateIdentityReflection({
+              identity: state.identity,
+              identityType: identityType,
+              identityStage: identityStage,
+              stageReason: stageReason,
+              missedHabits: missedHabits,
+              streak: state.streak,
+              persona: persona,
+              weeklyMomentumScore: weeklyMomentumScore,
+              totalCompletions: totalCompletions
+            });
+
+            console.log("🪞 [WEEKLY REVIEW] ✅ Reflection generated:", cachedIdentityReflection?.substring(0, 80) + "...");
+
+            // Premium: Generate weekly evolution plan
+            if (state.isPremium && evolutionSuggestion) {
+              console.log("🌱 [WEEKLY REVIEW] Generating AI evolution plan (Premium)...");
+              cachedWeeklyPlan = await generateWeeklyEvolutionPlan(
+                state.identity,
+                identityType,
+                identityStage,
+                evolutionSuggestion.type,
+                state.habitRepository
+              );
+              console.log("🌱 [WEEKLY REVIEW] ✅ Evolution plan generated");
+            }
+          } catch (error) {
+            console.error("📅 [WEEKLY REVIEW] ❌ AI generation error:", error);
+            // Graceful fallback - modal will show defaults
+          }
+        }
+
         set({
           weeklyReview: {
             // Preserve all existing core fields
@@ -1012,7 +1062,10 @@ export const useStore = create<ExtendedUserState>()(
             // NEW: Identity Progress fields
             progressionPercent,
             weeksInStage: newIdentityProfile.weeksInStage,
-            identityBranching
+            identityBranching,
+            // AI-GENERATED CONTENT (cached for instant modal display)
+            cachedIdentityReflection,
+            cachedWeeklyPlan
           },
           // Only update identityProfile if we have a valid type
           ...(identityType ? { identityProfile: newIdentityProfile } : {}),
