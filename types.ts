@@ -129,6 +129,7 @@ export interface WeeklyReviewState {
   weeksInStage?: number;
   identityBranching?: IdentityBranching;
   cachedIdentityReflection?: string | null;
+  cachedArchetype?: string | null;
   cachedWeeklyPlan?: WeeklyEvolutionPlan | null;
 }
 

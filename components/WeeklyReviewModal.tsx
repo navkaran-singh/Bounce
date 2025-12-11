@@ -34,11 +34,12 @@ const Modal = ({ children }: { children: React.ReactNode }) => (
 );
 
 // Progress Stepper Indicators
-const Stepper = ({ step, total, onNext, onBack, isLastAction, lastActionLabel }: {
+const Stepper = ({ step, total, onNext, onBack, onFinish, isLastAction, lastActionLabel }: {
   step: number;
   total: number;
   onNext: () => void;
   onBack: () => void;
+  onFinish?: () => void;
   isLastAction?: boolean;
   lastActionLabel?: string;
 }) => (
@@ -68,7 +69,7 @@ const Stepper = ({ step, total, onNext, onBack, isLastAction, lastActionLabel }:
         // Render nothing if custom action button is used in parent
         <div className="w-16" />
       ) : (
-        <button onClick={onNext} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-sm font-medium text-white">
+        <button onClick={onFinish} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-sm font-bold text-white shadow-lg shadow-green-500/20">
           <span>{lastActionLabel || "Finish"}</span><CheckCircle2 className="w-4 h-4" />
         </button>
       )}
@@ -102,14 +103,17 @@ const ProgressBar = ({ percent }: { percent: number }) => (
   </div>
 );
 
-// Identity Type Card
-const IdentityTypeCard = ({ type }: { type: string | null | undefined }) => {
+// Identity Type Card - Now shows personalized archetype
+const IdentityTypeCard = ({ type, archetype }: { type: string | null | undefined, archetype?: string | null }) => {
   if (!type) return null;
   const colors = {
-    SKILL: { bg: 'from-blue-500 to-purple-600', text: 'Skill Identity' },
-    CHARACTER: { bg: 'from-teal-400 to-emerald-600', text: 'Character Identity' },
-    RECOVERY: { bg: 'from-orange-400 to-red-500', text: 'Recovery Journey' }
-  }[type] || { bg: 'from-gray-500 to-gray-600', text: 'Identity' };
+    SKILL: { bg: 'from-blue-500 to-purple-600', fallback: 'Skill Identity' },
+    CHARACTER: { bg: 'from-teal-400 to-emerald-600', fallback: 'Character Identity' },
+    RECOVERY: { bg: 'from-orange-400 to-red-500', fallback: 'Recovery Journey' }
+  }[type] || { bg: 'from-gray-500 to-gray-600', fallback: 'Identity' };
+
+  // Use AI-generated archetype or fallback to generic
+  const displayArchetype = archetype || colors.fallback;
 
   return (
     <div className={`rounded-2xl p-4 bg-gradient-to-br ${colors.bg} bg-opacity-10 border border-white/10 w-full`}>
@@ -117,7 +121,7 @@ const IdentityTypeCard = ({ type }: { type: string | null | undefined }) => {
         <span className="text-3xl">{getIdentityTypeEmoji(type as any)}</span>
         <div>
           <p className="text-[10px] text-white/60 uppercase font-bold">Archetype</p>
-          <p className="text-base font-bold text-white tracking-wide">{colors.text}</p>
+          <p className="text-base font-bold text-white tracking-wide">{displayArchetype}</p>
         </div>
       </div>
     </div>
@@ -365,7 +369,7 @@ export const WeeklyReviewModal: React.FC = () => {
           <p className="text-xs text-white/40">Identity Tracker</p>
         </div>
 
-        <IdentityTypeCard type={weeklyReview?.identityType} />
+        <IdentityTypeCard type={weeklyReview?.identityType} archetype={weeklyReview?.cachedArchetype} />
 
         <StageCard
           stage={weeklyReview?.identityStage}
@@ -426,6 +430,7 @@ export const WeeklyReviewModal: React.FC = () => {
         total={3}
         onNext={() => setCurrentStep((s) => Math.min(3, s + 1))}
         onBack={() => setCurrentStep((s) => Math.max(1, s - 1))}
+        onFinish={completeWeeklyReview}
         isLastAction={currentStep === 3 && isPremium && !weeklyReview?.cachedWeeklyPlan} // Hide finish button if loading
         lastActionLabel="Seal Week"
       />

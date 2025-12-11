@@ -342,6 +342,162 @@ export const generateDailyAdaptation = async (
   }
 };
 
+
+/**
+ * UNIFIED WEEKLY REVIEW CONTENT (Premium Feature)
+ * Single API call that generates:
+ * - Identity reflection (2 sentences)
+ * - Personalized archetype name
+ * - Evolved habits (high/medium/low)
+ * - Narrative, stageAdvice, habitAdjustments, summary
+ */
+interface WeeklyReviewParams {
+  identity: string;
+  identityType: 'SKILL' | 'CHARACTER' | 'RECOVERY';
+  identityStage: 'INITIATION' | 'INTEGRATION' | 'EXPANSION' | 'MAINTENANCE';
+  persona: 'TITAN' | 'GRINDER' | 'SURVIVOR' | 'GHOST';
+  streak: number;
+  suggestionType: string;
+  currentRepository: { high: string[], medium: string[], low: string[] };
+}
+
+interface WeeklyReviewContent {
+  reflection: string;
+  archetype: string;
+  high: string[];
+  medium: string[];
+  low: string[];
+  narrative: string;
+  habitAdjustments: string[];
+  stageAdvice: string;
+  summary: string;
+}
+
+export const generateWeeklyReviewContent = async (
+  params: WeeklyReviewParams
+): Promise<WeeklyReviewContent> => {
+  console.log("🌱 [WEEKLY AI] Generating unified weekly review content...");
+
+  const fallback: WeeklyReviewContent = {
+    reflection: "Keep building your identity one day at a time. Small wins compound.",
+    archetype: getDefaultArchetype(params.identityType, params.identity),
+    high: params.currentRepository.high,
+    medium: params.currentRepository.medium,
+    low: params.currentRepository.low,
+    narrative: "Stay consistent this week.",
+    habitAdjustments: ["Focus on showing up daily"],
+    stageAdvice: "Trust the process.",
+    summary: "Keep going."
+  };
+
+  if (!API_KEY) {
+    console.warn("🌱 [WEEKLY AI] No API key - using fallback");
+    return fallback;
+  }
+
+  const evolutionContext: Record<string, string> = {
+    'INCREASE_DIFFICULTY': 'User mastered current habits. Increase intensity by 15-25%.',
+    'ADD_VARIATION': 'User is stable. Add fresh variations to prevent boredom.',
+    'SHIFT_IDENTITY': 'User outgrew basics. Expand identity scope.',
+    'TECHNIQUE_WEEK': 'Focus on quality over quantity.',
+    'ADD_REFLECTION': 'Add reflective micro-habits.',
+    'DEEPEN_CONTEXT': 'Extend habits into harder contexts.',
+    'EMOTIONAL_WEEK': 'Focus on emotional awareness.',
+    'SOFTER_HABIT': 'User needs gentler habits. Reduce friction 30-50%.',
+    'FRICTION_REMOVAL': 'Make habits even more atomic.',
+    'STABILIZATION_WEEK': 'Keep habits predictable and soft.',
+    'RELAPSE_PATTERN': 'Add guardrail habits.',
+    'REST_WEEK': 'Reduce intensity 20-30%.',
+    'MAINTAIN': 'Keep habits as-is with minor refreshes.'
+  };
+
+  const prompt = `
+You are Bounce, an identity-based behavior coach.
+
+Generate a COMPLETE weekly review package for the user in ONE response.
+
+USER CONTEXT:
+- Identity: "${params.identity}"
+- Type: ${params.identityType}
+- Stage: ${params.identityStage}
+- Persona this week: ${params.persona}
+- Streak: ${params.streak} days
+- Evolution needed: ${params.suggestionType}
+
+${evolutionContext[params.suggestionType] || 'Maintain current habits.'}
+
+Current Habits:
+${JSON.stringify(params.currentRepository, null, 2)}
+
+Return a JSON object with ALL these fields:
+
+{
+  "reflection": "2 sentences only. Speak directly to user. What this stage means for who they're becoming + what small shift is emerging.",
+  "archetype": "A personalized 2-3 word title like 'The Emerging Writer' or 'The Grounded Self' based on their identity",
+  "high": ["habit1", "habit2", "habit3"],
+  "medium": ["habit1", "habit2", "habit3"],
+  "low": ["habit1", "habit2", "habit3"],
+  "narrative": "20-30 words. Direct, trusting tone. What to focus on this week.",
+  "habitAdjustments": ["short tip 1", "short tip 2"],
+  "stageAdvice": "10 words max",
+  "summary": "1 short sentence"
+}
+
+TONE RULES:
+- Speak directly to user ("you", "your")
+- No academic language, no metaphors
+- Sound like a trusted coach
+- Keep everything concise
+
+Return ONLY valid JSON. No markdown.
+  `;
+
+  try {
+    const rawText = await safeAIRequest(prompt);
+    const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleanedText);
+
+    // Validate required fields
+    if (
+      parsed?.reflection &&
+      parsed?.archetype &&
+      parsed?.high?.length === 3 &&
+      parsed?.medium?.length === 3 &&
+      parsed?.low?.length === 3
+    ) {
+      console.log("🌱 [WEEKLY AI] ✅ Generated complete review content");
+      return {
+        reflection: parsed.reflection,
+        archetype: parsed.archetype,
+        high: parsed.high,
+        medium: parsed.medium,
+        low: parsed.low,
+        narrative: parsed.narrative || fallback.narrative,
+        habitAdjustments: parsed.habitAdjustments || fallback.habitAdjustments,
+        stageAdvice: parsed.stageAdvice || fallback.stageAdvice,
+        summary: parsed.summary || fallback.summary
+      };
+    } else {
+      console.warn("🌱 [WEEKLY AI] ⚠️ Incomplete response, using fallback");
+      return fallback;
+    }
+  } catch (error) {
+    console.error("🌱 [WEEKLY AI] ❌ Error:", error);
+    return fallback;
+  }
+};
+
+// Helper: Generate default archetype based on identity type
+function getDefaultArchetype(type: string, identity: string): string {
+  const firstWord = identity.split(' ').slice(-1)[0] || 'Self';
+  const archetypes: Record<string, string> = {
+    'SKILL': `The Emerging ${firstWord}`,
+    'CHARACTER': `The Growing ${firstWord}`,
+    'RECOVERY': `The Healing ${firstWord}`
+  };
+  return archetypes[type] || `The ${firstWord}`;
+}
+
 /**
  * WEEKLY EVOLUTION PLAN (Premium Feature)
  * Generates evolved habits based on identity stage and evolution suggestion

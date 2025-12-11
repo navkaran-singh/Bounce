@@ -994,8 +994,9 @@ export const useStore = create<ExtendedUserState>()(
           console.log("📊 [IDENTITY PROGRESS]", progressionPercent + "%", "| Branching:", identityBranching.showBranching);
         }
 
-        // 9. AI GENERATION: Cache reflection and plan BEFORE setting state
+        // 9. AI GENERATION (SINGLE CALL): Generate all weekly review content at once
         let cachedIdentityReflection: string | null = null;
+        let cachedArchetype: string | null = null;
         let cachedWeeklyPlan: {
           high: string[];
           medium: string[];
@@ -1006,38 +1007,38 @@ export const useStore = create<ExtendedUserState>()(
           summary?: string;
         } | null = null;
 
-        // Generate AI reflection (psychology-focused, 2 sentences max)
-        if (identityType && state.identity) {
+        // Premium users get AI-generated content (single API call)
+        if (state.isPremium && identityType && state.identity && evolutionSuggestion) {
           try {
-            console.log("🪞 [WEEKLY REVIEW] Generating AI reflection...");
-            const { generateIdentityReflection, generateWeeklyEvolutionPlan } = await import('./services/ai');
+            console.log("🌱 [WEEKLY REVIEW] Generating unified AI content (single call)...");
+            const { generateWeeklyReviewContent } = await import('./services/ai');
 
-            cachedIdentityReflection = await generateIdentityReflection({
+            const content = await generateWeeklyReviewContent({
               identity: state.identity,
               identityType: identityType,
               identityStage: identityStage,
-              stageReason: stageReason,
-              missedHabits: missedHabits,
-              streak: state.streak,
               persona: persona,
-              weeklyMomentumScore: weeklyMomentumScore,
-              totalCompletions: totalCompletions
+              streak: state.streak,
+              suggestionType: evolutionSuggestion.type,
+              currentRepository: state.habitRepository
             });
 
-            console.log("🪞 [WEEKLY REVIEW] ✅ Reflection generated:", cachedIdentityReflection?.substring(0, 80) + "...");
+            // Extract all fields from unified response
+            cachedIdentityReflection = content.reflection;
+            cachedArchetype = content.archetype;
+            cachedWeeklyPlan = {
+              high: content.high,
+              medium: content.medium,
+              low: content.low,
+              narrative: content.narrative,
+              habitAdjustments: content.habitAdjustments,
+              stageAdvice: content.stageAdvice,
+              summary: content.summary
+            };
 
-            // Premium: Generate weekly evolution plan
-            if (state.isPremium && evolutionSuggestion) {
-              console.log("🌱 [WEEKLY REVIEW] Generating AI evolution plan (Premium)...");
-              cachedWeeklyPlan = await generateWeeklyEvolutionPlan(
-                state.identity,
-                identityType,
-                identityStage,
-                evolutionSuggestion.type,
-                state.habitRepository
-              );
-              console.log("🌱 [WEEKLY REVIEW] ✅ Evolution plan generated");
-            }
+            console.log("🌱 [WEEKLY REVIEW] ✅ Unified content generated");
+            console.log("🪞 Reflection:", cachedIdentityReflection?.substring(0, 60) + "...");
+            console.log("🎭 Archetype:", cachedArchetype);
           } catch (error) {
             console.error("📅 [WEEKLY REVIEW] ❌ AI generation error:", error);
             // Graceful fallback - modal will show defaults
@@ -1065,6 +1066,7 @@ export const useStore = create<ExtendedUserState>()(
             identityBranching,
             // AI-GENERATED CONTENT (cached for instant modal display)
             cachedIdentityReflection,
+            cachedArchetype,
             cachedWeeklyPlan
           },
           // Only update identityProfile if we have a valid type
