@@ -153,6 +153,7 @@ export interface WeeklyReviewState {
   cachedArchetype?: string | null;
   cachedWeeklyPlan?: WeeklyEvolutionPlan | null;
   selectedOptionId?: EvolutionOptionId | null; // User's selected evolution option
+  advancedIdentity?: string | null; // AI-suggested next identity for evolution
 }
 
 // Firebase User type (simplified for state)
@@ -240,6 +241,12 @@ export interface UserState {
   consecutiveMisses: number;
   lastMissedDate: string | null;
 
+  // Identity Change Flow
+  pendingIdentityChange: boolean;
+
+  // Maintenance Completion
+  maintenanceComplete: boolean;
+
   // Actions
   setIdentity: (identity: string) => void;
   setMicroHabits: (habits: string[]) => void;
@@ -275,6 +282,12 @@ export interface UserState {
   setLastEvolutionSuggestion: (suggestion: EvolutionSuggestion | null) => void;
   applyEvolutionPlan: () => Promise<{ success: boolean; narrative: string }>;
   applySelectedEvolutionOption: (option: EvolutionOption) => Promise<{ success: boolean; message: string; identityChange?: boolean }>;
+  initiateIdentityChange: () => void;
+
+  // Maintenance Completion Actions
+  handleDeepenIdentity: () => void;
+  handleEvolveIdentity: (newIdentity: string) => void;
+  handleStartNewIdentity: () => void;
 
   // Cloud Sync (Firebase)
   initializeAuth: () => (() => void) | void;

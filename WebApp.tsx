@@ -200,6 +200,17 @@ const WebApp: React.FC = () => {
     }
   }, [_hasHydrated, identity, microHabits.length, currentView, setView, user]);
 
+  // Handle pending identity change - navigate to onboarding and clear flag
+  const pendingIdentityChange = useStore(state => state.pendingIdentityChange);
+  useEffect(() => {
+    if (pendingIdentityChange) {
+      console.log("🔄 [WEBAPP] Pending identity change detected - navigating to onboarding");
+      setView('onboarding');
+      // Clear the flag after navigation
+      useStore.setState({ pendingIdentityChange: false });
+    }
+  }, [pendingIdentityChange, setView]);
+
   // Native platform setup
   useEffect(() => {
     if (isNative) {

@@ -372,6 +372,7 @@ interface WeeklyReviewContent {
   habitAdjustments: string[];
   stageAdvice: string;
   summary: string;
+  advancedIdentity?: string; // AI-suggested next identity for Maintenance completion
 }
 
 export const generateWeeklyReviewContent = async (
@@ -388,7 +389,8 @@ export const generateWeeklyReviewContent = async (
     narrative: "Stay consistent this week.",
     habitAdjustments: ["Focus on showing up daily"],
     stageAdvice: "Trust the process.",
-    summary: "Keep going."
+    summary: "Keep going.",
+    advancedIdentity: undefined
   };
 
   if (!API_KEY) {
@@ -462,6 +464,13 @@ TONE RULES:
 - Sound like a trusted coach
 - Keep everything concise
 
+ADVANCED IDENTITY (Required for MAINTENANCE stage users):
+Suggest ONE natural evolution of their current identity.
+- Must be 3-5 words
+- Must be a realistic progression (e.g., "A marathon runner" from "A runner")
+- NOT abstract or poetic
+- Include as "advancedIdentity" field in JSON
+
 Return ONLY valid JSON. No markdown.
   `;
 
@@ -488,7 +497,8 @@ Return ONLY valid JSON. No markdown.
         narrative: parsed.narrative || fallback.narrative,
         habitAdjustments: parsed.habitAdjustments || fallback.habitAdjustments,
         stageAdvice: parsed.stageAdvice || fallback.stageAdvice,
-        summary: parsed.summary || fallback.summary
+        summary: parsed.summary || fallback.summary,
+        advancedIdentity: parsed.advancedIdentity || undefined
       };
     } else {
       console.warn("🌱 [WEEKLY AI] ⚠️ Incomplete response, using fallback");

@@ -3,12 +3,13 @@ import { useStore } from "../store";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, CheckCircle2, ChevronLeft, ChevronRight, Lock,
-  Sparkles, TrendingUp, Target, Clock, Zap, ArrowUpRight, RefreshCw, Heart
+  Sparkles, TrendingUp, Target, Clock, Zap, ArrowUpRight, RefreshCw, Heart, Trophy
 } from "lucide-react";
 import { getIdentityTypeLabel, getIdentityTypeEmoji } from "../services/identityDetector";
 import { getStageLabel, getStageEmoji } from "../services/stageDetector";
 import { getSuggestionTitle } from "../services/evolutionEngine";
 import { EvolutionOption, EvolutionOptionId } from "../types";
+import { ChangeIdentityModal } from "./ChangeIdentityModal";
 
 /* -------------------------------------------------------------------------- */
 /*                                SUB COMPONENTS                              */
@@ -283,7 +284,136 @@ const GhostRecoveryCard = ({
   );
 };
 
-// Legacy Suggestion Card (keeping for backwards compatibility)
+// 🏆 Maintenance Completion Card - For users who have embodied their identity
+type MaintenancePath = 'DEEPEN' | 'EVOLVE' | 'START_NEW' | null;
+
+const MaintenanceCompletionCard = ({
+  advancedIdentity,
+  identity,
+  selectedPath,
+  onSelectPath,
+  customIdentity,
+  onCustomIdentityChange,
+  showCustomInput,
+  onToggleCustomInput,
+  isDisabled = false
+}: {
+  advancedIdentity: string | null;
+  identity: string;
+  selectedPath: MaintenancePath;
+  onSelectPath: (path: MaintenancePath) => void;
+  customIdentity: string;
+  onCustomIdentityChange: (value: string) => void;
+  showCustomInput: boolean;
+  onToggleCustomInput: (show: boolean) => void;
+  isDisabled?: boolean;
+}) => {
+  return (
+    <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-2xl p-4 border border-amber-500/20 w-full">
+      {/* Celebration Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30 animate-pulse">
+          <Trophy className="w-6 h-6 text-white" />
+        </div>
+        <div>
+          <p className="text-base font-bold text-amber-300">🏆 You've Embodied This Identity!</p>
+          <p className="text-xs text-white/60">"{identity}" is now part of who you are</p>
+        </div>
+      </div>
+
+      <p className="text-xs text-white/60 mb-4">What's next on your journey?</p>
+
+      {/* Three Paths */}
+      <div className="space-y-2 relative z-10">
+        {/* PATH 1: Deepen It */}
+        <button
+          onClick={() => onSelectPath('DEEPEN')}
+          disabled={isDisabled}
+          className={`w-full text-left py-3 px-4 rounded-xl border transition-all ${selectedPath === 'DEEPEN'
+            ? 'bg-emerald-500/20 border-emerald-400/50 ring-1 ring-emerald-400/30'
+            : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+            } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-emerald-400" />
+            <span className="text-sm font-bold text-white">Deepen It</span>
+          </div>
+          <p className="text-xs text-white/50 mt-1 ml-6">Master this identity further</p>
+        </button>
+
+        {/* PATH 2: Evolve It */}
+        <button
+          onClick={() => onSelectPath('EVOLVE')}
+          disabled={isDisabled}
+          className={`w-full text-left py-3 px-4 rounded-xl border transition-all ${selectedPath === 'EVOLVE'
+            ? 'bg-purple-500/20 border-purple-400/50 ring-1 ring-purple-400/30'
+            : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+            } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-purple-400" />
+            <span className="text-sm font-bold text-white">Evolve It</span>
+          </div>
+          <p className="text-xs text-white/50 mt-1 ml-6">Level up to an advanced identity</p>
+        </button>
+
+        {/* Evolve Options (show when EVOLVE is selected) */}
+        {selectedPath === 'EVOLVE' && (
+          <div className="ml-6 space-y-2">
+            {advancedIdentity && !showCustomInput && (
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+                <p className="text-xs text-white/50 mb-1">Suggested:</p>
+                <p className="text-sm font-medium text-purple-300">"{advancedIdentity}"</p>
+              </div>
+            )}
+            {showCustomInput ? (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={customIdentity}
+                  onChange={(e) => onCustomIdentityChange(e.target.value)}
+                  placeholder="e.g., A marathon runner"
+                  className="w-full px-3 py-2 rounded-lg bg-dark-900 border border-white/20 text-white text-sm placeholder:text-white/30 focus:border-purple-500/50 focus:outline-none"
+                  autoFocus
+                />
+                <button
+                  onClick={() => onToggleCustomInput(false)}
+                  className="text-xs text-white/40 hover:text-white/60"
+                >
+                  ← Use suggestion instead
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => onToggleCustomInput(true)}
+                className="text-xs text-purple-400 hover:text-purple-300"
+              >
+                Write my own identity →
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* PATH 3: Start Something New */}
+        <button
+          onClick={() => onSelectPath('START_NEW')}
+          disabled={isDisabled}
+          className={`w-full text-left py-3 px-4 rounded-xl border transition-all ${selectedPath === 'START_NEW'
+            ? 'bg-blue-500/20 border-blue-400/50 ring-1 ring-blue-400/30'
+            : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+            } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          <div className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 text-blue-400" />
+            <span className="text-sm font-bold text-white">Start Something New</span>
+          </div>
+          <p className="text-xs text-white/50 mt-1 ml-6">Begin a fresh identity journey</p>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const SuggestionCard = ({ suggestion }: { suggestion: any }) => {
   if (!suggestion) return null;
   return (
@@ -436,11 +566,24 @@ export const WeeklyReviewModal: React.FC = () => {
   const applyEvolutionPlan = useStore(state => state.applyEvolutionPlan);
   const applySelectedEvolutionOption = useStore(state => state.applySelectedEvolutionOption);
   const completeWeeklyReview = useStore(state => state.completeWeeklyReview);
+  const identity = useStore(state => state.identity);
+
+  // 🏆 Maintenance Completion handlers
+  const handleDeepenIdentity = useStore(state => state.handleDeepenIdentity);
+  const handleEvolveIdentity = useStore(state => state.handleEvolveIdentity);
+  const handleStartNewIdentity = useStore(state => state.handleStartNewIdentity);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedOption, setSelectedOption] = useState<EvolutionOption | null>(null);
   const [isApplying, setIsApplying] = useState(false);
   const [manualMode, setManualMode] = useState(false); // 🔧 Free user chose "I'll do it manually"
+  const [isChangeIdentityOpen, setIsChangeIdentityOpen] = useState(false); // 🔄 Change Identity modal
+  const [planState, setPlanState] = useState<'idle' | 'generating' | 'success' | 'error'>('idle'); // 🚀 Premium plan generation state
+
+  // 🏆 Maintenance Completion state
+  const [selectedMaintenancePath, setSelectedMaintenancePath] = useState<MaintenancePath>(null);
+  const [customIdentity, setCustomIdentity] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
 
   // Handler: Free user chooses to skip evolution and keep habits as-is
   const handleManualMode = () => {
@@ -454,6 +597,12 @@ export const WeeklyReviewModal: React.FC = () => {
   const plan = weeklyReview?.cachedWeeklyPlan ?? null;
   const evolutionOptions = weeklyReview?.evolutionOptions ?? [];
   const isGhostRecovery = weeklyReview?.isGhostRecovery ?? false;
+  const advancedIdentity = weeklyReview?.advancedIdentity ?? null;
+
+  // 🏆 Detect if user has completed MAINTENANCE (6+ weeks)
+  const isMaintenanceComplete =
+    weeklyReview?.identityStage === 'MAINTENANCE' &&
+    (weeklyReview?.weeksInStage ?? 0) >= 6;
 
   // Helper: Get preview text for free users (explains what WOULD happen with premium)
   const getFreeUserEvolutionPreview = (optionId: EvolutionOptionId): string => {
@@ -478,27 +627,124 @@ export const WeeklyReviewModal: React.FC = () => {
     return previews[optionId] || "Your coach would customize your habits based on your performance and goals.";
   };
 
-  // Handler for selecting an evolution option
-  const handleOptionSelect = async (option: EvolutionOption) => {
+  // Handler for selecting an evolution option (NO AI CALL - just selection)
+  const handleOptionSelect = (option: EvolutionOption) => {
+    // Don't allow changes if already generating/applied
+    if (planState === 'generating' || planState === 'success') return;
+
     setSelectedOption(option);
+    console.log("🎯 [EVOLUTION] Option selected:", option.id);
+    // NO AI CALL HERE - AI is called only when Apply is clicked
+  };
+
+  // Handler for applying evolution (TRIGGERS AI CALL)
+  const handleApplyEvolution = async () => {
+    if (!selectedOption) return;
 
     // 🔒 FREE USERS: Preview only, no actual changes
     if (!isPremium) {
       console.log("🔒 [FREE USER] Preview mode - no evolution applied");
-      return; // Just set selected option, don't apply anything
+      return;
     }
 
-    // ✅ PREMIUM USERS: Apply actual evolution effects
-    setIsApplying(true);
+    // ✅ PREMIUM USERS: Now trigger AI
+    setPlanState('generating');
+    console.log("🚀 [PREMIUM] Generating evolution plan for:", selectedOption.id);
+
     try {
-      const result = await applySelectedEvolutionOption(option);
+      const result = await applySelectedEvolutionOption(selectedOption);
       if (result?.identityChange) {
         return; // Exit early, UI will navigate away
       }
+      setPlanState('success');
+      console.log("✅ [PREMIUM] Evolution plan generated successfully");
     } catch (error) {
       console.error("Failed to apply evolution option:", error);
-    } finally {
-      setIsApplying(false);
+      setPlanState('error');
+    }
+  };
+
+  // 🏆 Handler for applying maintenance completion path (WITH AI CALL)
+  const handleApplyMaintenancePath = async () => {
+    if (!selectedMaintenancePath) return;
+
+    console.log("🏆 [MAINTENANCE] Applying path:", selectedMaintenancePath);
+
+    // START_NEW doesn't need AI - just goes to onboarding
+    if (selectedMaintenancePath === 'START_NEW') {
+      handleStartNewIdentity();
+      return;
+    }
+
+    // DEEPEN and EVOLVE need AI generation
+    if (!isPremium) {
+      console.log("🔒 [FREE USER] Maintenance completion requires premium");
+      return;
+    }
+
+    setPlanState('generating');
+
+    try {
+      if (selectedMaintenancePath === 'DEEPEN') {
+        // Deepen: Same identity, evolved habits using existing AI flow
+        const deepenOption: EvolutionOption = {
+          id: 'INCREASE_DIFFICULTY',
+          label: 'Deepen Mastery',
+          description: 'Continue mastering this identity with evolved habits',
+          impact: { difficultyAdjustment: 1 }
+        };
+
+        const result = await applySelectedEvolutionOption(deepenOption);
+        if (result?.success) {
+          // Reset the maintenance cycle AFTER AI completes
+          handleDeepenIdentity();
+          setPlanState('success');
+          console.log("✅ [MAINTENANCE] Deepen path applied with AI evolution");
+        } else {
+          setPlanState('error');
+        }
+      } else if (selectedMaintenancePath === 'EVOLVE') {
+        // Evolve: New identity - need to generate fresh habits
+        const newIdentity = showCustomInput && customIdentity.trim()
+          ? customIdentity.trim()
+          : advancedIdentity;
+
+        if (newIdentity) {
+          console.log("🏆 [MAINTENANCE] Evolving to new identity:", newIdentity);
+
+          // Call AI to generate habits for the NEW identity
+          const { generateHabits } = await import('../services/ai');
+          const result = await generateHabits(newIdentity);
+
+          if (result.high.length > 0) {
+            // Update identity and habits in store
+            handleEvolveIdentity(newIdentity);
+
+            // Apply the new habits
+            useStore.setState({
+              habitRepository: {
+                high: result.high,
+                medium: result.medium,
+                low: result.low
+              },
+              microHabits: result.medium, // Default to medium energy
+              currentHabitIndex: 0,
+              identityProfile: {
+                ...useStore.getState().identityProfile,
+                type: result.identityType || null
+              }
+            });
+
+            setPlanState('success');
+            console.log("✅ [MAINTENANCE] Evolve path applied with new habits:", result);
+          } else {
+            setPlanState('error');
+          }
+        }
+      }
+    } catch (error) {
+      console.error("❌ [MAINTENANCE] Failed to apply path:", error);
+      setPlanState('error');
     }
   };
 
@@ -587,33 +833,178 @@ export const WeeklyReviewModal: React.FC = () => {
           <p className="text-xs text-white/40">Choose your evolution path</p>
         </div>
 
+        {/* 🏆 MAINTENANCE COMPLETE: Show celebration card with 3 paths */}
+        {isMaintenanceComplete ? (
+          <>
+            <MaintenanceCompletionCard
+              advancedIdentity={advancedIdentity}
+              identity={identity}
+              selectedPath={selectedMaintenancePath}
+              onSelectPath={setSelectedMaintenancePath}
+              customIdentity={customIdentity}
+              onCustomIdentityChange={setCustomIdentity}
+              showCustomInput={showCustomInput}
+              onToggleCustomInput={setShowCustomInput}
+              isDisabled={planState === 'generating' || planState === 'success'}
+            />
 
-        {/* GHOST users get special recovery UI */}
-        {isGhostRecovery ? (
-          <GhostRecoveryCard
-            options={evolutionOptions}
-            onSelect={handleOptionSelect}
-            selectedId={selectedOption?.id}
-            isApplying={isApplying}
-          />
+            {/* Apply Maintenance Path Button - with loading/success states */}
+            {selectedMaintenancePath && planState === 'idle' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-3"
+              >
+                <button
+                  onClick={handleApplyMaintenancePath}
+                  disabled={selectedMaintenancePath === 'EVOLVE' && showCustomInput && !customIdentity.trim()}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold text-sm shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Zap className="w-5 h-5" />
+                  <span>
+                    {selectedMaintenancePath === 'DEEPEN' && 'Deepen This Identity'}
+                    {selectedMaintenancePath === 'EVOLVE' && 'Evolve to New Identity'}
+                    {selectedMaintenancePath === 'START_NEW' && 'Start Fresh Journey'}
+                  </span>
+                </button>
+              </motion.div>
+            )}
+
+            {/* Loading State */}
+            {planState === 'generating' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-amber-500/10 rounded-2xl p-6 border border-amber-500/20 text-center"
+              >
+                <Loader2 className="w-8 h-8 animate-spin text-amber-400 mx-auto mb-3" />
+                <p className="text-sm font-medium text-white/80">Generating your evolution plan...</p>
+                <p className="text-xs text-white/40 mt-1">AI is crafting personalized habits</p>
+              </motion.div>
+            )}
+
+            {/* Success State */}
+            {planState === 'success' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-green-500/10 rounded-2xl p-6 border border-green-500/30 text-center"
+              >
+                <CheckCircle2 className="w-8 h-8 text-green-400 mx-auto mb-3" />
+                <p className="text-sm font-bold text-green-400">Plan Generated Successfully!</p>
+                <p className="text-xs text-white/50 mt-1">Your new habits are ready for this week</p>
+                <button
+                  onClick={completeWeeklyReview}
+                  className="mt-4 w-full py-3 rounded-xl bg-green-500/20 text-green-400 font-bold text-sm hover:bg-green-500/30 transition"
+                >
+                  Close & Start Week
+                </button>
+              </motion.div>
+            )}
+          </>
         ) : (
-          /* Other personas get standard evolution options */
-          <EvolutionOptionsCard
-            options={evolutionOptions}
-            onSelect={handleOptionSelect}
-            selectedId={selectedOption?.id}
-            isApplying={isApplying}
-          />
+          /* Normal users: Standard evolution flow */
+          <>
+            {/* GHOST users get special recovery UI */}
+            {isGhostRecovery ? (
+              <GhostRecoveryCard
+                options={evolutionOptions}
+                onSelect={handleOptionSelect}
+                selectedId={selectedOption?.id}
+                isApplying={isApplying}
+              />
+            ) : (
+              /* Other personas get standard evolution options */
+              <>
+                <EvolutionOptionsCard
+                  options={evolutionOptions}
+                  onSelect={handleOptionSelect}
+                  selectedId={selectedOption?.id}
+                  isApplying={isApplying}
+                />
+
+                {/* 🔄 Identity Options Section - Only for non-GHOST personas */}
+                <div className="bg-white/5 rounded-2xl p-4 border border-white/10 w-full">
+                  <p className="text-xs text-white/40 mb-3">Thinking of shifting direction?</p>
+                  <button
+                    onClick={() => setIsChangeIdentityOpen(true)}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white/80 transition-all"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span className="text-sm font-medium">Change Identity</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </>
         )}
 
-        {/* Premium: Show AI plan preview if an option is selected */}
-        {isPremium && selectedOption && plan && (
-          <WeeklyPlanPreview plan={plan} onApply={applyEvolutionPlan} />
+        {/* 🚀 PREMIUM: Apply Evolution Button and States (NOT for maintenance-complete users) */}
+        {isPremium && selectedOption && planState === 'idle' && !isMaintenanceComplete && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-3"
+          >
+            {/* Selected option confirmation */}
+            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+              <p className="text-xs text-green-400">
+                ✓ Selected: <span className="font-bold">{selectedOption.label}</span>
+              </p>
+            </div>
+
+            {/* Apply Evolution Button */}
+            <button
+              onClick={handleApplyEvolution}
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-500/20 hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+            >
+              <Zap className="w-5 h-5" />
+              <span>Apply Evolution Plan</span>
+            </button>
+          </motion.div>
         )}
 
-        {/* Premium: Loading state */}
-        {isPremium && selectedOption && !plan && (
-          <LoadingCard label="Crafting your evolution plan..." />
+        {/* 🚀 PREMIUM: Loading State (NOT for maintenance-complete users) */}
+        {isPremium && planState === 'generating' && !isMaintenanceComplete && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white/5 rounded-2xl p-6 border border-white/10 text-center"
+          >
+            <Loader2 className="w-8 h-8 animate-spin text-green-400 mx-auto mb-3" />
+            <p className="text-sm font-medium text-white/80">Generating your evolution plan...</p>
+            <p className="text-xs text-white/40 mt-1">AI is crafting personalized habits for you</p>
+          </motion.div>
+        )}
+
+        {/* 🚀 PREMIUM: Success State (NOT for maintenance-complete users) */}
+        {isPremium && planState === 'success' && !isMaintenanceComplete && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-green-500/10 rounded-2xl p-6 border border-green-500/30 text-center"
+          >
+            <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto mb-3" />
+            <p className="text-lg font-bold text-green-400">Plan Generated Successfully!</p>
+            <p className="text-xs text-white/50 mt-2">Your habits have been evolved. Seal the week to apply.</p>
+          </motion.div>
+        )}
+
+        {/* 🚀 PREMIUM: Error State (NOT for maintenance-complete users) */}
+        {isPremium && planState === 'error' && !isMaintenanceComplete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-red-500/10 rounded-2xl p-4 border border-red-500/30 text-center"
+          >
+            <p className="text-sm text-red-400">Something went wrong. Please try again.</p>
+            <button
+              onClick={() => setPlanState('idle')}
+              className="mt-3 px-4 py-2 rounded-xl bg-white/10 text-white/70 text-xs hover:bg-white/20 transition"
+            >
+              Try Again
+            </button>
+          </motion.div>
         )}
 
         {/* 🔒 FREE USERS: Show preview card instead of actual plan (only if NOT in manual mode) */}
@@ -649,15 +1040,6 @@ export const WeeklyReviewModal: React.FC = () => {
             </p>
           </motion.div>
         )}
-
-        {/* Show selected option confirmation - only for premium (free users see preview) */}
-        {isPremium && selectedOption && (
-          <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
-            <p className="text-xs text-green-400">
-              ✓ Selected: <span className="font-bold">{selectedOption.label}</span>
-            </p>
-          </div>
-        )}
       </div>
     );
   }
@@ -682,6 +1064,12 @@ export const WeeklyReviewModal: React.FC = () => {
         onFinish={completeWeeklyReview}
         isLastAction={currentStep === 3 && isPremium && !weeklyReview?.cachedWeeklyPlan} // Hide finish button if loading
         lastActionLabel="Seal Week"
+      />
+
+      {/* Change Identity Confirmation Modal */}
+      <ChangeIdentityModal
+        isOpen={isChangeIdentityOpen}
+        onClose={() => setIsChangeIdentityOpen(false)}
       />
     </Modal>
   );

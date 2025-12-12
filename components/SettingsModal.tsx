@@ -1,14 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Moon, Sun, Monitor, X, CloudRain, Trees, Waves, Save, Download, Upload, Check, Cloud, LogOut, User } from 'lucide-react';
+import { Moon, Sun, Monitor, X, CloudRain, Trees, Waves, Save, Download, Upload, Check, Cloud, LogOut, User, RefreshCw, Bell, BellOff } from 'lucide-react';
 import { useStore } from '../store';
 import { Theme, SoundType } from '../types';
 import { AuthModal } from './AuthModal';
+import { ChangeIdentityModal } from './ChangeIdentityModal';
 import { usePlatform } from '../hooks/usePlatform';
-import { useNotifications } from '../hooks/useNotifications'; // 👈 NEW
-import { Bell, BellOff } from 'lucide-react'; // 👈 NEW ICONS
-// Add this line at the top
+import { useNotifications } from '../hooks/useNotifications';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 interface SettingsModalProps {
@@ -27,6 +26,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [isAuthOpen, setIsAuthOpen] = useState(false);
     const { isWeb, isIOS, isAndroid, isNative } = usePlatform();
+
+    const [isChangeIdentityOpen, setIsChangeIdentityOpen] = useState(false);
 
     const { requestPermission, scheduleReminder, clearReminders } = useNotifications();
     const [reminderTime, setReminderTime] = useState(localStorage.getItem('bounce_reminder') || '');
@@ -213,6 +214,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                             <p className="text-sm font-bold text-gray-900 dark:text-white">{identity || "Not set"}</p>
                                         </div>
                                     </div>
+
+                                    {/* Change Identity Button */}
+                                    <button
+                                        onClick={() => {
+                                            setIsChangeIdentityOpen(true);
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors text-white/60 hover:text-white/80"
+                                    >
+                                        <RefreshCw size={16} />
+                                        <span className="text-sm font-medium">Change Identity</span>
+                                    </button>
 
                                     {/* Low Energy Habits List */}
                                     <div>
@@ -403,6 +415,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                             </div>
 
                             <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+                            <ChangeIdentityModal isOpen={isChangeIdentityOpen} onClose={() => setIsChangeIdentityOpen(false)} />
 
                         </div>
                     </motion.div>

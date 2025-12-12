@@ -101,6 +101,12 @@ export const useStore = create<ExtendedUserState>()(
       },
       lastEvolutionSuggestion: null,
 
+      // Identity Change Flow
+      pendingIdentityChange: false,
+
+      // Maintenance Completion
+      maintenanceComplete: false,
+
       logout: async () => {
         await auth.signOut();
         set({
@@ -615,6 +621,79 @@ export const useStore = create<ExtendedUserState>()(
         console.log("🌱 [EVOLUTION] Suggestion updated:", suggestion);
       },
 
+      // Identity Change Flow Action
+      initiateIdentityChange: () => {
+        console.log("🔄 [IDENTITY CHANGE] Initiating identity change...");
+
+        set((state) => ({
+          // Clear identity to trigger re-onboarding (prevents auto-redirect back to dashboard)
+          identity: '',
+          // Clear habits so onboarding generates new ones
+          habitRepository: { high: [], medium: [], low: [] },
+          microHabits: [],
+          currentHabitIndex: 0,
+          identityProfile: {
+            ...state.identityProfile,  // Preserve type + all other fields
+            type: null,  // Reset type so it gets re-detected
+            stage: 'INITIATION' as const,
+            weeksInStage: 0,
+            stageEnteredAt: new Date().toISOString(),
+          },
+          pendingIdentityChange: true,
+          weeklyReview: null, // Close any open weekly review
+          maintenanceComplete: false, // Reset maintenance completion flag
+          lastUpdated: Date.now()
+        }));
+
+        console.log("🔄 [IDENTITY CHANGE] Identity + habits cleared, stage reset to INITIATION, pendingIdentityChange = true");
+        console.log("🔄 [IDENTITY CHANGE] Current identityProfile:", get().identityProfile);
+      },
+
+      // Maintenance Completion Actions
+      handleDeepenIdentity: () => {
+        console.log("🏆 [MAINTENANCE] Deepening identity - resetting maintenance cycle");
+        const state = get();
+
+        set({
+          identityProfile: {
+            ...state.identityProfile,
+            stage: 'MAINTENANCE' as const,
+            weeksInStage: 0,  // Reset the maintenance cycle
+            stageEnteredAt: new Date().toISOString().split('T')[0],
+          },
+          maintenanceComplete: false,
+          lastUpdated: Date.now()
+        });
+
+        console.log("🏆 [MAINTENANCE] Cycle reset - weekly AI will evolve habits next week");
+      },
+
+      handleEvolveIdentity: (newIdentity: string) => {
+        console.log("🏆 [MAINTENANCE] Evolving to new identity:", newIdentity);
+        const state = get();
+
+        set({
+          identity: newIdentity,
+          identityProfile: {
+            ...state.identityProfile,
+            stage: 'INTEGRATION' as const,  // Start at INTEGRATION since they have momentum
+            weeksInStage: 0,
+            stageEnteredAt: new Date().toISOString().split('T')[0],
+          },
+          maintenanceComplete: false,
+          // NOTE: Don't set weeklyReview: null here - let user close modal with "Seal Week"
+          lastUpdated: Date.now()
+        });
+
+        console.log("🏆 [MAINTENANCE] Identity evolved, stage reset to INTEGRATION");
+      },
+
+      handleStartNewIdentity: () => {
+        console.log("🏆 [MAINTENANCE] Starting fresh - triggering identity change flow");
+        get().initiateIdentityChange();
+        set({ maintenanceComplete: false });
+      },
+
       applyEvolutionPlan: async () => {
         const state = get();
         const { identity, identityProfile, lastEvolutionSuggestion, habitRepository, isPremium } = state;
@@ -770,8 +849,22 @@ export const useStore = create<ExtendedUserState>()(
               difficultyLevel: effects.difficultyLevel  // Pass difficulty adjustment to AI
             });
 
-            // Update the cached weekly plan
+            // 🔥 CRITICAL: Apply the new habits to habitRepository AND set today's microHabits
+            const newRepository = {
+              high: content.high,
+              medium: content.medium,
+              low: content.low
+            };
+
+            // Determine default energy level based on current state
+            const currentEnergy = state.currentEnergyLevel || 'medium';
+            const defaultHabits = newRepository[currentEnergy] || newRepository.medium;
+
+            // Update the cached weekly plan AND apply habits immediately
             set({
+              habitRepository: newRepository,
+              microHabits: defaultHabits,
+              currentHabitIndex: 0,
               weeklyReview: {
                 ...get().weeklyReview!,
                 cachedWeeklyPlan: {
@@ -788,7 +881,7 @@ export const useStore = create<ExtendedUserState>()(
               lastUpdated: Date.now()
             });
 
-            console.log("🤖 [EVOLUTION] ✅ Weekly plan regenerated");
+            console.log("🤖 [EVOLUTION] ✅ Weekly plan regenerated AND habits applied:", newRepository);
           } catch (error) {
             console.error("🤖 [EVOLUTION] ❌ Failed to regenerate plan:", error);
           }
@@ -1198,6 +1291,7 @@ export const useStore = create<ExtendedUserState>()(
           stageAdvice?: string;
           summary?: string;
         } | null = null;
+        let cachedAdvancedIdentity: string | null = null;
 
         // Premium users get AI-generated content (single API call)
         if (state.isPremium && identityType && state.identity && evolutionSuggestion) {
@@ -1227,10 +1321,13 @@ export const useStore = create<ExtendedUserState>()(
               stageAdvice: content.stageAdvice,
               summary: content.summary
             };
+            // Capture advancedIdentity for Maintenance completion modal
+            cachedAdvancedIdentity = content.advancedIdentity || null;
 
             console.log("🌱 [WEEKLY REVIEW] ✅ Unified content generated");
             console.log("🪞 Reflection:", cachedIdentityReflection?.substring(0, 60) + "...");
             console.log("🎭 Archetype:", cachedArchetype);
+            console.log("🏆 Advanced Identity:", cachedAdvancedIdentity);
           } catch (error) {
             console.error("📅 [WEEKLY REVIEW] ❌ AI generation error:", error);
             // Graceful fallback - modal will show defaults
@@ -1261,16 +1358,21 @@ export const useStore = create<ExtendedUserState>()(
             // AI-GENERATED CONTENT (cached for instant modal display)
             cachedIdentityReflection,
             cachedArchetype,
-            cachedWeeklyPlan
+            cachedWeeklyPlan,
+            advancedIdentity: cachedAdvancedIdentity
           },
           // Only update identityProfile if we have a valid type
           ...(identityType ? { identityProfile: newIdentityProfile } : {}),
           lastEvolutionSuggestion: evolutionSuggestion || null,
           shields: Math.min(3, (state.shields || 0) + weeklyShieldBonus), // Cap at 3
+          // Trigger Maintenance Completion modal if user has been in MAINTENANCE for 6+ weeks
+          maintenanceComplete: identityStage === 'MAINTENANCE' && newIdentityProfile.weeksInStage >= 6,
           lastUpdated: Date.now()
         });
 
-
+        if (identityStage === 'MAINTENANCE' && newIdentityProfile.weeksInStage >= 6) {
+          console.log("🏆 [MAINTENANCE COMPLETE] User has embodied this identity! Triggering celebration modal.");
+        }
 
         console.log("📅 [WEEKLY REVIEW] ✅ Review is now available for user");
       },
