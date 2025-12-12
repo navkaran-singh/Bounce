@@ -194,11 +194,13 @@ const PersonaHeader = ({ persona }: { persona: string }) => {
 const EvolutionOptionsCard = ({
   options,
   onSelect,
-  selectedId
+  selectedId,
+  isApplying = false
 }: {
   options: EvolutionOption[],
   onSelect: (option: EvolutionOption) => void,
-  selectedId?: EvolutionOptionId | null
+  selectedId?: EvolutionOptionId | null,
+  isApplying?: boolean
 }) => {
   if (!options || options.length === 0) return null;
 
@@ -213,10 +215,11 @@ const EvolutionOptionsCard = ({
           <button
             key={option.id}
             onClick={() => onSelect(option)}
+            disabled={isApplying}
             className={`w-full text-left py-3 px-4 rounded-xl border transition-all ${selectedId === option.id
               ? 'bg-cyan-500/20 border-cyan-400/50 ring-1 ring-cyan-400/30'
               : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
-              }`}
+              } ${isApplying ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-white">{option.label}</span>
@@ -241,11 +244,13 @@ const EvolutionOptionsCard = ({
 const GhostRecoveryCard = ({
   options,
   onSelect,
-  selectedId
+  selectedId,
+  isApplying = false
 }: {
   options: EvolutionOption[],
   onSelect: (option: EvolutionOption) => void,
-  selectedId?: EvolutionOptionId | null
+  selectedId?: EvolutionOptionId | null,
+  isApplying?: boolean
 }) => {
   if (!options || options.length === 0) return null;
 
@@ -263,10 +268,11 @@ const GhostRecoveryCard = ({
           <button
             key={option.id}
             onClick={() => onSelect(option)}
+            disabled={isApplying}
             className={`w-full text-left py-3 px-4 rounded-xl border transition-all ${selectedId === option.id
               ? 'bg-purple-500/20 border-purple-400/50 ring-1 ring-purple-400/30'
               : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
-              }`}
+              } ${isApplying ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <span className="text-sm font-bold text-white">{option.label}</span>
             <p className="text-xs text-white/50 mt-1">{option.description}</p>
@@ -374,28 +380,49 @@ const LoadingCard = ({ label }: { label: string }) => (
   </div>
 );
 
-// Free User Notice
-const FreeUserNotice = () => (
-  <div className="space-y-3 w-full">
-    <div className="relative bg-purple-500/10 rounded-2xl p-4 border border-purple-500/20 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-transparent pointer-events-none" />
-      <div className="flex items-center gap-2 mb-2 relative z-10">
-        <Lock className="w-4 h-4 text-purple-400" />
-        <span className="text-xs font-bold text-purple-300 uppercase tracking-wider">Premium Feature</span>
-      </div>
-      <p className="text-xs text-white/60 relative z-10">
-        Upgrade to get AI-generated evolution plans that auto-adjust your habits based on performance and stage.
+// 🔒 FREE USER PREVIEW CARD - Shows what premium would do (no actual changes)
+const FreeUserPreviewCard = ({
+  previewText,
+  optionLabel
+}: {
+  previewText: string;
+  optionLabel: string;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-4 border border-purple-500/20 w-full"
+  >
+    {/* Preview Title */}
+    <div className="flex items-center gap-2 mb-3">
+      <Sparkles className="w-4 h-4 text-purple-400" />
+      <span className="text-xs font-bold text-purple-300 uppercase tracking-wider">What This Would Do</span>
+    </div>
+
+    {/* Preview Description */}
+    <p className="text-sm text-white/70 leading-relaxed mb-4 border-l-2 border-purple-500/30 pl-3">
+      {previewText}
+    </p>
+
+    {/* Premium Notice */}
+    <div className="bg-white/5 rounded-xl p-3 mb-4">
+      <p className="text-xs text-white/50 text-center">
+        Upgrade to Premium to activate weekly coaching, automatic habit adjustments, and AI-based evolution.
       </p>
     </div>
-    <div className="grid grid-cols-2 gap-3">
-      <button className="py-3 px-4 rounded-xl bg-white/10 border border-white/20 text-xs font-bold text-white hover:bg-white/15 transition text-center">
-        Adjust Manually
-      </button>
-      <button className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-xs text-white/60 hover:bg-white/10 transition text-center">
-        Keep Habits
-      </button>
-    </div>
-  </div>
+
+    {/* Upgrade CTA Button */}
+    <button
+      className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-sm shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition flex items-center justify-center gap-2"
+      onClick={() => {
+        // TODO: Open upgrade modal or navigate to upgrade page
+        console.log("🔒 [UPGRADE] User clicked upgrade CTA");
+      }}
+    >
+      <Lock className="w-4 h-4" />
+      <span>Unlock Premium Coaching</span>
+    </button>
+  </motion.div>
 );
 
 /* -------------------------------------------------------------------------- */
@@ -413,6 +440,14 @@ export const WeeklyReviewModal: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedOption, setSelectedOption] = useState<EvolutionOption | null>(null);
   const [isApplying, setIsApplying] = useState(false);
+  const [manualMode, setManualMode] = useState(false); // 🔧 Free user chose "I'll do it manually"
+
+  // Handler: Free user chooses to skip evolution and keep habits as-is
+  const handleManualMode = () => {
+    console.log("🔧 [FREE USER] Manual mode selected - habits will stay unchanged");
+    setSelectedOption(null);
+    setManualMode(true);
+  };
 
   // Read directly from cached data (AI calls happen in store.ts during checkWeeklyReview)
   const reflection = weeklyReview?.cachedIdentityReflection ?? null;
@@ -420,16 +455,43 @@ export const WeeklyReviewModal: React.FC = () => {
   const evolutionOptions = weeklyReview?.evolutionOptions ?? [];
   const isGhostRecovery = weeklyReview?.isGhostRecovery ?? false;
 
+  // Helper: Get preview text for free users (explains what WOULD happen with premium)
+  const getFreeUserEvolutionPreview = (optionId: EvolutionOptionId): string => {
+    const previews: Record<string, string> = {
+      'INCREASE_DIFFICULTY': "Your coach would increase difficulty and shift your habits up one level, making them more challenging.",
+      'ADD_VARIATION': "Your coach would add new habit variations to keep things fresh while maintaining your current intensity.",
+      'BRANCH_IDENTITY': "Your coach would help you explore a new branch of your identity and expand your growth path.",
+      'START_MASTERY_WEEK': "Your coach would activate mastery mode, fine-tuning your habits for peak performance.",
+      'MAINTAIN': "Your coach would keep your current habits stable while monitoring your progress for opportunities.",
+      'SOFTER_HABIT': "Your coach would soften your high-energy habits, reduce weekly load, and adjust your difficulty curve.",
+      'TECHNIQUE_WEEK': "Your coach would focus on habit quality over quantity, helping you refine your existing routines.",
+      'REDUCE_SCOPE': "Your coach would simplify your habits, keeping only the most impactful ones.",
+      'REST_WEEK': "Your coach would reduce your workload by 30% and give you a recovery-focused week.",
+      'REDUCE_DIFFICULTY': "Your coach would switch you to low-energy habits this week and prioritize recovery.",
+      'FRICTION_REMOVAL': "Your coach would switch you to minimal-effort habits this week and prioritize recovery.",
+      'STABILIZATION_WEEK': "Your coach would stabilize your current habits, preventing burnout while maintaining momentum.",
+      'FRESH_START_WEEK': "Your coach would reset you to Initiation habits and restart your identity momentum.",
+      'FRESH_START': "Your coach would reset you to Initiation habits and restart your identity momentum.",
+      'CHANGE_IDENTITY': "Your coach would guide you through a complete identity transition to a new goal.",
+      'SOFTER_WEEK': "Your coach would give you ultra-gentle habits this week. Just exist, no pressure."
+    };
+    return previews[optionId] || "Your coach would customize your habits based on your performance and goals.";
+  };
+
   // Handler for selecting an evolution option
   const handleOptionSelect = async (option: EvolutionOption) => {
     setSelectedOption(option);
+
+    // 🔒 FREE USERS: Preview only, no actual changes
+    if (!isPremium) {
+      console.log("🔒 [FREE USER] Preview mode - no evolution applied");
+      return; // Just set selected option, don't apply anything
+    }
+
+    // ✅ PREMIUM USERS: Apply actual evolution effects
     setIsApplying(true);
-
     try {
-      // Call the store action to apply evolution effects
       const result = await applySelectedEvolutionOption(option);
-
-      // If identity change was triggered, the store will redirect to onboarding
       if (result?.identityChange) {
         return; // Exit early, UI will navigate away
       }
@@ -532,6 +594,7 @@ export const WeeklyReviewModal: React.FC = () => {
             options={evolutionOptions}
             onSelect={handleOptionSelect}
             selectedId={selectedOption?.id}
+            isApplying={isApplying}
           />
         ) : (
           /* Other personas get standard evolution options */
@@ -539,6 +602,7 @@ export const WeeklyReviewModal: React.FC = () => {
             options={evolutionOptions}
             onSelect={handleOptionSelect}
             selectedId={selectedOption?.id}
+            isApplying={isApplying}
           />
         )}
 
@@ -552,13 +616,42 @@ export const WeeklyReviewModal: React.FC = () => {
           <LoadingCard label="Crafting your evolution plan..." />
         )}
 
-        {/* Free users */}
-        {!isPremium && (
-          <FreeUserNotice />
+        {/* 🔒 FREE USERS: Show preview card instead of actual plan (only if NOT in manual mode) */}
+        {!isPremium && selectedOption && !manualMode && (
+          <FreeUserPreviewCard
+            previewText={getFreeUserEvolutionPreview(selectedOption.id)}
+            optionLabel={selectedOption.label}
+          />
         )}
 
-        {/* Show selected option confirmation */}
-        {selectedOption && (
+        {/* 🔧 FREE USERS: "I'll do it manually" button (show when option selected, not in manual mode) */}
+        {!isPremium && selectedOption && !manualMode && (
+          <button
+            onClick={handleManualMode}
+            className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-medium hover:bg-white/10 hover:text-white/80 transition"
+          >
+            No, I'll do it manually
+          </button>
+        )}
+
+        {/* 🔧 FREE USERS: Reassurance microcopy (show when in manual mode) */}
+        {!isPremium && manualMode && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white/5 rounded-xl p-4 text-center border border-white/10"
+          >
+            <p className="text-sm text-white/70 mb-1">
+              ✓ Your habits will stay exactly as they are.
+            </p>
+            <p className="text-xs text-white/40">
+              You can adjust them anytime from your dashboard.
+            </p>
+          </motion.div>
+        )}
+
+        {/* Show selected option confirmation - only for premium (free users see preview) */}
+        {isPremium && selectedOption && (
           <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
             <p className="text-xs text-green-400">
               ✓ Selected: <span className="font-bold">{selectedOption.label}</span>

@@ -429,7 +429,8 @@ function getGhostOptions(identity: string): EvolutionOption[] {
             id: 'FRESH_START_WEEK',
             label: '🌱 Fresh Start',
             description: 'Wipe the slate. Begin again with no judgment.',
-            impact: { stageChange: 'INITIATION', difficultyAdjustment: -2 }
+            // 🛠️ FIX: Added isFreshStart flag for proper Fresh Start detection
+            impact: { stageChange: 'INITIATION', difficultyAdjustment: -2, isFreshStart: true }
         },
         {
             id: 'SOFTER_WEEK',

@@ -115,8 +115,8 @@ export interface WeeklyEvolutionPlan {
 export type EvolutionOptionId =
   | 'INCREASE_DIFFICULTY' | 'ADD_VARIATION' | 'BRANCH_IDENTITY' | 'START_MASTERY_WEEK'
   | 'MAINTAIN' | 'SOFTER_HABIT' | 'TECHNIQUE_WEEK' | 'REDUCE_SCOPE'
-  | 'REST_WEEK' | 'REDUCE_DIFFICULTY'
-  | 'FRESH_START_WEEK' | 'CHANGE_IDENTITY' | 'SOFTER_WEEK';
+  | 'REST_WEEK' | 'REDUCE_DIFFICULTY' | 'FRICTION_REMOVAL' | 'STABILIZATION_WEEK'
+  | 'FRESH_START_WEEK' | 'FRESH_START' | 'CHANGE_IDENTITY' | 'SOFTER_WEEK';
 
 export interface EvolutionOption {
   id: EvolutionOptionId;
@@ -126,6 +126,7 @@ export interface EvolutionOption {
     stageChange?: IdentityStage;
     difficultyAdjustment?: number; // +1 = harder, -1 = easier
     identityShift?: boolean;
+    isFreshStart?: boolean;  // 🛠️ FIX: Added for Fresh Start detection
   };
 }
 

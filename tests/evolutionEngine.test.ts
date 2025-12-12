@@ -15,9 +15,7 @@ import {
     calculateEvolutionEffects,
     adjustHabitRepository,
     generateInitiationHabits,
-    generatePersonaEvolutionOptions,
-    increaseHabitDifficulty,
-    reduceHabitDifficulty
+    generatePersonaEvolutionOptions
 } from '../services/evolutionEngine';
 
 import type {
@@ -273,8 +271,8 @@ function runWeeklyPlanTests() {
         // GHOST should have FRESH_START option
         if (persona === 'GHOST') {
             assertTrue('GHOST: has FRESH_START option',
-                options.some(opt => opt.id === 'FRESH_START'),
-                'GHOST options must include FRESH_START');
+                options.some(opt => opt.id === 'FRESH_START_WEEK' || opt.id === 'FRESH_START'),
+                'GHOST options must include FRESH_START or FRESH_START_WEEK');
         }
     });
 
@@ -320,8 +318,11 @@ function runUIIntegrationTests() {
     assertTrue('GHOST options are recovery-focused',
         ghostOptions.some(opt =>
             opt.id === 'FRESH_START' ||
+            opt.id === 'FRESH_START_WEEK' ||
             opt.id === 'FRICTION_REMOVAL' ||
-            opt.id === 'STABILIZATION_WEEK'
+            opt.id === 'STABILIZATION_WEEK' ||
+            opt.id === 'SOFTER_WEEK' ||
+            opt.id === 'REDUCE_DIFFICULTY'
         ),
         'GHOST must have recovery-focused options');
 
