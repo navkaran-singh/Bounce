@@ -1332,6 +1332,33 @@ export const useStore = create<ExtendedUserState>()(
             console.error("📅 [WEEKLY REVIEW] ❌ AI generation error:", error);
             // Graceful fallback - modal will show defaults
           }
+        } else {
+          // FREE USERS: Use template-based reflection and archetype (no AI call)
+          console.log("🆓 [WEEKLY REVIEW] Generating template-based content for free user...");
+          try {
+            const { generateFreeUserReflection, getArchetype } = await import('./services/freeUserTemplates');
+
+            cachedIdentityReflection = generateFreeUserReflection(
+              persona,
+              identityStage,
+              identityType
+            );
+
+            cachedArchetype = getArchetype(
+              persona,
+              state.identity || '',
+              identityType
+            );
+
+            console.log("🆓 [WEEKLY REVIEW] ✅ Template content generated");
+            console.log("🪞 Reflection:", cachedIdentityReflection?.substring(0, 60) + "...");
+            console.log("🎭 Archetype:", cachedArchetype);
+          } catch (error) {
+            console.error("📅 [WEEKLY REVIEW] ❌ Template generation error:", error);
+            // Graceful fallback
+            cachedIdentityReflection = "Your efforts this week are shaping who you're becoming.";
+            cachedArchetype = null;
+          }
         }
 
         set({

@@ -40,7 +40,7 @@ Keep it simple: no extra habit systems, no rule complexity.
 
 This gives emotional closure and keeps the journey alive.
 
-🔥 FIX 3 — Free User Experience Upgrade (Reflection + Archetype)
+🔥 FIX 3 — Free User Experience Upgrade (Reflection + Archetype) (DONE)
 Problem
 Free users get almost nothing:
 
