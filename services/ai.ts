@@ -359,7 +359,8 @@ interface WeeklyReviewParams {
   streak: number;
   suggestionType: string;
   currentRepository: { high: string[], medium: string[], low: string[] };
-  difficultyLevel?: 'harder' | 'easier' | 'minimal' | 'same';  // Difficulty adjustment from selected option
+  difficultyLevel?: 'harder' | 'easier' | 'minimal' | 'same';
+  isNoveltyWeek?: boolean;  // 🌀 Novelty Injection: true if 14 days since last novelty
 }
 
 interface WeeklyReviewContent {
@@ -399,19 +400,40 @@ export const generateWeeklyReviewContent = async (
   }
 
   const evolutionContext: Record<string, string> = {
+    // TITAN options
     'INCREASE_DIFFICULTY': 'User mastered current habits. Increase intensity by 15-25%.',
     'ADD_VARIATION': 'User is stable. Add fresh variations to prevent boredom.',
-    'SHIFT_IDENTITY': 'User outgrew basics. Expand identity scope.',
+    'START_MASTERY_WEEK': 'Focus on perfecting technique and form, not volume.',
+    'BRANCH_IDENTITY': 'User is expanding. Add habits that extend identity into new territory.',
+    'VARIATION_WEEK': 'User has pushed hard 3+ weeks. Keep intensity same, add new angles.',
+
+    // GRINDER options
+    'MAINTAIN': 'Keep habits as-is with minor refreshes.',
     'TECHNIQUE_WEEK': 'Focus on quality over quantity.',
+    'SOFTER_HABIT': 'User needs gentler habits. Reduce friction 30-50%.',
+    'REDUCE_SCOPE': 'Simplify to only 2 core habits. Quality over quantity.',
+
+    // SURVIVOR options
+    'REST_WEEK': 'Reduce intensity 20-30%.',
+    'REDUCE_DIFFICULTY': 'Make habits much easier. Only low-energy options.',
+
+    // GHOST options
+    'FRESH_START_WEEK': 'Complete reset. Ultra-simple habits. Zero judgment.',
+    'FRESH_START': 'Complete reset. Ultra-simple habits. Zero judgment.',
+    'SOFTER_WEEK': 'Ultra-gentle habits. Just exist. No pressure.',
+    'ATOMIC_RESCUE': 'User in ghost loop. Only ONE tiny habit this week. Maximum gentleness.',
+
+    // Overreach options
+    'PULLBACK_RECOVERY': 'User pushed too hard last week. Reduce intensity slightly. Rebuild gently.',
+    'STABILIZATION_WEEK': 'Keep habits predictable and soft.',
+
+    // Other
+    'FRICTION_REMOVAL': 'Make habits even more atomic.',
+    'SHIFT_IDENTITY': 'User outgrew basics. Expand identity scope.',
     'ADD_REFLECTION': 'Add reflective micro-habits.',
     'DEEPEN_CONTEXT': 'Extend habits into harder contexts.',
     'EMOTIONAL_WEEK': 'Focus on emotional awareness.',
-    'SOFTER_HABIT': 'User needs gentler habits. Reduce friction 30-50%.',
-    'FRICTION_REMOVAL': 'Make habits even more atomic.',
-    'STABILIZATION_WEEK': 'Keep habits predictable and soft.',
-    'RELAPSE_PATTERN': 'Add guardrail habits.',
-    'REST_WEEK': 'Reduce intensity 20-30%.',
-    'MAINTAIN': 'Keep habits as-is with minor refreshes.'
+    'RELAPSE_PATTERN': 'Add guardrail habits.'
   };
 
   // Difficulty adjustment context for habit generation
@@ -435,11 +457,23 @@ USER CONTEXT:
 - Streak: ${params.streak} days
 - Evolution needed: ${params.suggestionType}
 - Difficulty adjustment: ${params.difficultyLevel || 'same'}
+- Novelty week: ${params.isNoveltyWeek ? 'YES' : 'NO'}
 
 ${evolutionContext[params.suggestionType] || 'Maintain current habits.'}
 
 DIFFICULTY INSTRUCTION:
 ${difficultyContext[params.difficultyLevel || 'same']}
+
+${params.isNoveltyWeek ? `
+NOVELTY WEEK INSTRUCTION (IMPORTANT):
+This is a novelty week. You MUST add a small variation to AT LEAST ONE high or medium habit.
+Keep difficulty the SAME but add a twist:
+- Add "(try a new location)" or "(different time)" or "(with music)" to the habit text
+- OR change ONE habit to a fresh variation that achieves the same goal
+- The variation should be noticeable but NOT harder
+
+Example: "Run 30 min" → "Run 30 min (try a new route)"
+` : ''}
 
 Current Habits:
 ${JSON.stringify(params.currentRepository, null, 2)}
@@ -479,21 +513,32 @@ Return ONLY valid JSON. No markdown.
     const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleanedText);
 
-    // Validate required fields
-    if (
-      parsed?.reflection &&
-      parsed?.archetype &&
-      parsed?.high?.length === 3 &&
-      parsed?.medium?.length === 3 &&
-      parsed?.low?.length === 3
-    ) {
+    // Validate required fields (relaxed: accept 1-3 habits, will pad if needed)
+    const hasReflection = !!parsed?.reflection;
+    const hasArchetype = !!parsed?.archetype;
+    const hasHigh = Array.isArray(parsed?.high) && parsed.high.length >= 1;
+    const hasMedium = Array.isArray(parsed?.medium) && parsed.medium.length >= 1;
+    const hasLow = Array.isArray(parsed?.low) && parsed.low.length >= 1;
+
+    console.log("🌱 [WEEKLY AI] Validation:", { hasReflection, hasArchetype, hasHigh, hasMedium, hasLow });
+
+    if (hasReflection && hasArchetype && hasHigh && hasMedium && hasLow) {
       console.log("🌱 [WEEKLY AI] ✅ Generated complete review content");
+
+      // Pad arrays to 3 items if needed
+      const padToThree = (arr: string[], fallbackArr: string[]): string[] => {
+        while (arr.length < 3) {
+          arr.push(fallbackArr[arr.length] || arr[0]);
+        }
+        return arr.slice(0, 3);
+      };
+
       return {
         reflection: parsed.reflection,
         archetype: parsed.archetype,
-        high: parsed.high,
-        medium: parsed.medium,
-        low: parsed.low,
+        high: padToThree(parsed.high, fallback.high),
+        medium: padToThree(parsed.medium, fallback.medium),
+        low: padToThree(parsed.low, fallback.low),
         narrative: parsed.narrative || fallback.narrative,
         habitAdjustments: parsed.habitAdjustments || fallback.habitAdjustments,
         stageAdvice: parsed.stageAdvice || fallback.stageAdvice,
@@ -501,7 +546,8 @@ Return ONLY valid JSON. No markdown.
         advancedIdentity: parsed.advancedIdentity || undefined
       };
     } else {
-      console.warn("🌱 [WEEKLY AI] ⚠️ Incomplete response, using fallback");
+      console.warn("🌱 [WEEKLY AI] ⚠️ Incomplete response:", { parsed });
+      console.warn("🌱 [WEEKLY AI] Using fallback");
       return fallback;
     }
   } catch (error) {

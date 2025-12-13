@@ -3,7 +3,7 @@ import { useStore } from "../store";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, CheckCircle2, ChevronLeft, ChevronRight, Lock,
-  Sparkles, TrendingUp, Target, Clock, Zap, ArrowUpRight, RefreshCw, Heart, Trophy
+  Sparkles, TrendingUp, Target, Clock, Zap, ArrowUpRight, RefreshCw, Heart, Trophy, AlertTriangle
 } from "lucide-react";
 import { getIdentityTypeLabel, getIdentityTypeEmoji } from "../services/identityDetector";
 import { getStageLabel, getStageEmoji } from "../services/stageDetector";
@@ -241,6 +241,54 @@ const EvolutionOptionsCard = ({
   );
 };
 
+// 🛡️ OVERREACH RECOVERY CARD - When user pushed too hard last week
+const OverreachCard = ({
+  options,
+  onSelect,
+  selectedId,
+  isApplying = false
+}: {
+  options: EvolutionOption[],
+  onSelect: (option: EvolutionOption) => void,
+  selectedId?: EvolutionOptionId | null,
+  isApplying?: boolean
+}) => {
+  if (!options || options.length === 0) return null;
+
+  return (
+    <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 rounded-2xl p-4 border border-orange-500/20 w-full">
+      <div className="flex items-center gap-2 mb-2">
+        <AlertTriangle className="w-4 h-4 text-orange-400" />
+        <span className="text-xs font-bold text-orange-300 uppercase tracking-wider">
+          Recovery Mode
+        </span>
+      </div>
+
+      <p className="text-xs text-white/60 mb-3 leading-relaxed">
+        You pushed hard last week — <strong className="text-orange-300">that takes courage</strong>.
+        This week, let's recover wisely and rebuild momentum.
+      </p>
+
+      <div className="space-y-2">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            onClick={() => onSelect(option)}
+            disabled={isApplying}
+            className={`w-full text-left py-3 px-4 rounded-xl border transition-all ${selectedId === option.id
+              ? 'bg-orange-500/20 border-orange-400/50 ring-1 ring-orange-400/30'
+              : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+              } ${isApplying ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <span className="text-sm font-bold text-white">{option.label}</span>
+            <p className="text-xs text-white/50 mt-1">{option.description}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // GHOST Recovery Card - Special compassionate section
 const GhostRecoveryCard = ({
   options,
@@ -255,15 +303,29 @@ const GhostRecoveryCard = ({
 }) => {
   if (!options || options.length === 0) return null;
 
+  // 🛡️ Ghost Loop Protection: Check if Atomic Rescue is being offered
+  const isAtomicRescue = options.some(o => o.id === 'ATOMIC_RESCUE');
+
   return (
     <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-4 border border-purple-500/20 w-full">
       <div className="flex items-center gap-2 mb-2">
         <Heart className="w-4 h-4 text-purple-400" />
-        <span className="text-xs font-bold text-purple-300 uppercase tracking-wider">Recovery Options</span>
+        <span className="text-xs font-bold text-purple-300 uppercase tracking-wider">
+          {isAtomicRescue ? '🆘 Rescue Mode' : 'Recovery Options'}
+        </span>
       </div>
-      <p className="text-xs text-white/50 mb-3">
-        It's okay. Sometimes we need to reset. Choose what feels right:
-      </p>
+
+      {isAtomicRescue ? (
+        <p className="text-xs text-white/60 mb-3 leading-relaxed">
+          We noticed you've had a tough couple of weeks. That's okay — <strong className="text-purple-300">progress is progress</strong>.
+          Let's make this week about rebuilding, not restarting.
+        </p>
+      ) : (
+        <p className="text-xs text-white/50 mb-3">
+          It's okay. Sometimes we need to reset. Choose what feels right:
+        </p>
+      )}
+
       <div className="space-y-2">
         {options.map((option) => (
           <button
@@ -277,6 +339,11 @@ const GhostRecoveryCard = ({
           >
             <span className="text-sm font-bold text-white">{option.label}</span>
             <p className="text-xs text-white/50 mt-1">{option.description}</p>
+            {option.id === 'ATOMIC_RESCUE' && selectedId === 'ATOMIC_RESCUE' && (
+              <p className="text-xs text-purple-300 mt-2 italic">
+                "Just one tiny action. You're rebuilding, not restarting."
+              </p>
+            )}
           </button>
         ))}
       </div>
@@ -513,10 +580,12 @@ const LoadingCard = ({ label }: { label: string }) => (
 // 🔒 FREE USER PREVIEW CARD - Shows what premium would do (no actual changes)
 const FreeUserPreviewCard = ({
   previewText,
-  optionLabel
+  optionLabel,
+  isNoveltyWeek
 }: {
   previewText: string;
   optionLabel: string;
+  isNoveltyWeek?: boolean;
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 10 }}
@@ -537,7 +606,9 @@ const FreeUserPreviewCard = ({
     {/* Premium Notice */}
     <div className="bg-white/5 rounded-xl p-3 mb-4">
       <p className="text-xs text-white/50 text-center">
-        Upgrade to Premium to activate weekly coaching, automatic habit adjustments, and AI-based evolution.
+        {isNoveltyWeek
+          ? 'Upgrade to Premium for AI coaching, automatic habit evolution, and auto novelty variations.'
+          : 'Upgrade to Premium for AI coaching and automatic habit evolution.'}
       </p>
     </div>
 
@@ -585,6 +656,9 @@ export const WeeklyReviewModal: React.FC = () => {
   const [customIdentity, setCustomIdentity] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
 
+  // 🌀 Novelty opt-out (premium users can skip auto novelty)
+  const [noveltyOptOut, setNoveltyOptOut] = useState(false);
+
   // Handler: Free user chooses to skip evolution and keep habits as-is
   const handleManualMode = () => {
     console.log("🔧 [FREE USER] Manual mode selected - habits will stay unchanged");
@@ -598,6 +672,8 @@ export const WeeklyReviewModal: React.FC = () => {
   const evolutionOptions = weeklyReview?.evolutionOptions ?? [];
   const isGhostRecovery = weeklyReview?.isGhostRecovery ?? false;
   const advancedIdentity = weeklyReview?.advancedIdentity ?? null;
+  const isOverreach = weeklyReview?.overreach ?? false; // 🛡️ Overreach Detection
+  const isNoveltyWeek = weeklyReview?.isNoveltyWeek ?? false; // 🌀 Novelty Week
 
   // 🏆 Detect if user has completed MAINTENANCE (6+ weeks)
   const isMaintenanceComplete =
@@ -641,18 +717,27 @@ export const WeeklyReviewModal: React.FC = () => {
   const handleApplyEvolution = async () => {
     if (!selectedOption) return;
 
-    // 🔒 FREE USERS: Preview only, no actual changes
+    // 🔒 FREE USERS: Still apply evolution (for novelty, tracking, etc.) but no AI
     if (!isPremium) {
-      console.log("🔒 [FREE USER] Preview mode - no evolution applied");
+      console.log("🆓 [FREE USER] Applying evolution (no AI)...");
+      try {
+        const result = await applySelectedEvolutionOption(selectedOption);
+        if (result?.identityChange) {
+          return; // Exit early, UI will navigate away
+        }
+        console.log("🆓 [FREE USER] Evolution applied successfully");
+      } catch (error) {
+        console.error("Failed to apply evolution for free user:", error);
+      }
       return;
     }
 
     // ✅ PREMIUM USERS: Now trigger AI
     setPlanState('generating');
-    console.log("🚀 [PREMIUM] Generating evolution plan for:", selectedOption.id);
+    console.log("🚀 [PREMIUM] Generating evolution plan for:", selectedOption.id, "skipNovelty:", noveltyOptOut);
 
     try {
-      const result = await applySelectedEvolutionOption(selectedOption);
+      const result = await applySelectedEvolutionOption(selectedOption, noveltyOptOut);
       if (result?.identityChange) {
         return; // Exit early, UI will navigate away
       }
@@ -833,6 +918,58 @@ export const WeeklyReviewModal: React.FC = () => {
           <p className="text-xs text-white/40">Choose your evolution path</p>
         </div>
 
+        {/* 🌀 NOVELTY WEEK BANNER */}
+        {isNoveltyWeek && (
+          <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-xl px-4 py-3 border border-cyan-500/20 mb-3">
+            {isPremium ? (
+              // Premium: Show choice with Yes/No buttons
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🌀</span>
+                  <span className="text-sm font-medium text-cyan-300">A Fresh Twist Is Available</span>
+                </div>
+                <p className="text-xs text-white/60 pl-7">
+                  {noveltyOptOut
+                    ? "Keeping things stable this week. Novelty will be offered again in 2 weeks."
+                    : "We can add a tiny variation this week to keep things engaging. Want to include it?"}
+                </p>
+                {!noveltyOptOut && (
+                  <div className="flex gap-2 pl-7 pt-1">
+                    <button
+                      onClick={() => setNoveltyOptOut(false)}
+                      className="text-xs px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 transition"
+                    >
+                      Yes, Add Variation
+                    </button>
+                    <button
+                      onClick={() => setNoveltyOptOut(true)}
+                      className="text-xs px-3 py-1.5 rounded-lg bg-white/10 text-white/60 hover:bg-white/20 transition"
+                    >
+                      No, Keep Things Stable
+                    </button>
+                  </div>
+                )}
+                {noveltyOptOut && (
+                  <button
+                    onClick={() => setNoveltyOptOut(false)}
+                    className="text-xs text-cyan-400 pl-7 hover:underline"
+                  >
+                    ↩ Changed my mind, add variation
+                  </button>
+                )}
+              </div>
+            ) : (
+              // Free: Simple suggestion banner
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🌀</span>
+                <span className="text-xs text-cyan-300">
+                  Try adding a small twist this week to keep things fresh.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 🏆 MAINTENANCE COMPLETE: Show celebration card with 3 paths */}
         {isMaintenanceComplete ? (
           <>
@@ -905,8 +1042,16 @@ export const WeeklyReviewModal: React.FC = () => {
         ) : (
           /* Normal users: Standard evolution flow */
           <>
-            {/* GHOST users get special recovery UI */}
-            {isGhostRecovery ? (
+            {/* 🛡️ OVERREACH users get special recovery UI */}
+            {isOverreach ? (
+              <OverreachCard
+                options={evolutionOptions}
+                onSelect={handleOptionSelect}
+                selectedId={selectedOption?.id}
+                isApplying={isApplying}
+              />
+            ) : isGhostRecovery ? (
+              /* GHOST users get special recovery UI */
               <GhostRecoveryCard
                 options={evolutionOptions}
                 onSelect={handleOptionSelect}
@@ -1012,6 +1157,7 @@ export const WeeklyReviewModal: React.FC = () => {
           <FreeUserPreviewCard
             previewText={getFreeUserEvolutionPreview(selectedOption.id)}
             optionLabel={selectedOption.label}
+            isNoveltyWeek={isNoveltyWeek}
           />
         )}
 

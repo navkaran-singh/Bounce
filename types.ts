@@ -116,7 +116,10 @@ export type EvolutionOptionId =
   | 'INCREASE_DIFFICULTY' | 'ADD_VARIATION' | 'BRANCH_IDENTITY' | 'START_MASTERY_WEEK'
   | 'MAINTAIN' | 'SOFTER_HABIT' | 'TECHNIQUE_WEEK' | 'REDUCE_SCOPE'
   | 'REST_WEEK' | 'REDUCE_DIFFICULTY' | 'FRICTION_REMOVAL' | 'STABILIZATION_WEEK'
-  | 'FRESH_START_WEEK' | 'FRESH_START' | 'CHANGE_IDENTITY' | 'SOFTER_WEEK';
+  | 'FRESH_START_WEEK' | 'FRESH_START' | 'CHANGE_IDENTITY' | 'SOFTER_WEEK'
+  | 'ATOMIC_RESCUE'       // Ghost Loop Protection
+  | 'PULLBACK_RECOVERY'   // Overreach Detection
+  | 'VARIATION_WEEK';     // Titan Saturation replacement
 
 export interface EvolutionOption {
   id: EvolutionOptionId;
@@ -127,6 +130,7 @@ export interface EvolutionOption {
     difficultyAdjustment?: number; // +1 = harder, -1 = easier
     identityShift?: boolean;
     isFreshStart?: boolean;  // 🛠️ FIX: Added for Fresh Start detection
+    isRescueMode?: boolean;  // 🛡️ Ghost Loop Protection: Atomic Rescue mode
   };
 }
 
@@ -154,6 +158,8 @@ export interface WeeklyReviewState {
   cachedWeeklyPlan?: WeeklyEvolutionPlan | null;
   selectedOptionId?: EvolutionOptionId | null; // User's selected evolution option
   advancedIdentity?: string | null; // AI-suggested next identity for evolution
+  overreach?: boolean; // Overreach Detection: user pushed too hard last week
+  isNoveltyWeek?: boolean; // Novelty Injection: true if 14 days since last novelty
 }
 
 // Firebase User type (simplified for state)
@@ -247,6 +253,17 @@ export interface UserState {
   // Maintenance Completion
   maintenanceComplete: boolean;
 
+  // Ghost Loop Protection
+  consecutiveGhostWeeks: number;
+
+  // Titan Saturation + Overreach Detection
+  lastSelectedEvolutionOption: string | null;
+  consecutiveDifficultyUps: number;
+
+  // Novelty Injection (weekly-count-based system)
+  weeklyReviewCount: number;
+  lastNoveltyReviewIndex: number | null;
+
   // Actions
   setIdentity: (identity: string) => void;
   setMicroHabits: (habits: string[]) => void;
@@ -281,7 +298,7 @@ export interface UserState {
   setIdentityProfile: (profile: Partial<IdentityProfile>) => void;
   setLastEvolutionSuggestion: (suggestion: EvolutionSuggestion | null) => void;
   applyEvolutionPlan: () => Promise<{ success: boolean; narrative: string }>;
-  applySelectedEvolutionOption: (option: EvolutionOption) => Promise<{ success: boolean; message: string; identityChange?: boolean }>;
+  applySelectedEvolutionOption: (option: EvolutionOption, skipNovelty?: boolean) => Promise<{ success: boolean; message: string; identityChange?: boolean }>;
   initiateIdentityChange: () => void;
 
   // Maintenance Completion Actions

@@ -10,7 +10,7 @@ Reset stage → INITIATION, weeksInStage → 0, preserve type, clear weeklyRevie
 GHOST keeps Change Identity only in the recovery card.
 Status: Completed ✔
 
-🔥 FIX 2 — Maintenance Completion → “What’s Next?” Modal
+🔥 FIX 2 — Maintenance Completion → “What’s Next?” Modal (DONE)
 Problem
 Users reaching MAINTENANCE feel “done,” because the app provides no closure, no celebration, and no next stage. This kills momentum and causes silent churn.
 Fix
@@ -82,7 +82,7 @@ Add “No, I’ll do it manually” as an escape hatch.
 No habit changes, no AI calls, no rule engine for free.
 Status: Completed ✔
 
-🔥 FIX 5 — Difficulty Ladder System (Free Users Only)
+🔥 FIX 5 — Difficulty Ladder System (Free Users Only) (DONE - did not add ladder, rather added previous selections)
 Problem
 Rule-based text parsing (“increase difficulty”, “simplify text”) is fragile and leads to nonsense habits (“Make It Easier → harder habits”).
 Free users need deterministic, stable evolution.
@@ -103,7 +103,7 @@ minimal mode → set all habits to levels 1–2
 Lightweight, predictable, clean.
 Premium continues using AI evolution.
 
-🔥 FIX 6 — Ghost Loop Protection
+🔥 FIX 6 — Ghost Loop Protection (DONE)
 Problem
 Users who fail repeatedly get stuck in Fresh Start → GHOST → Fresh Start. They never see progress and feel broken.
 Fix
@@ -123,7 +123,7 @@ Show gentle narrative
 
 This stops the shame loop and preserves motivation.
 
-🔥 FIX 7 — Titan Saturation Protection
+🔥 FIX 7 — Titan Saturation Protection (DONE)
 Problem
 Titans repeatedly choosing “Push Harder” eventually hit impossible levels (e.g., “Run 4 hours”).
 This behavior becomes unsafe and unrealistic.
@@ -133,7 +133,7 @@ When max is reached:
 “Push Harder” automatically transforms into Variation Week (change style, not intensity).
 Simple model, huge safety benefit.
 
-🔵 FIX 8 — Novelty Injection (14-Day System)
+🔵 FIX 8 — Novelty Injection (14-Day System) (DONE- BUT we need to add manual novelty injection in settings/weekly modal)
 Problem
 Even high performers get bored after a few weeks of repeating habits. Without small twists, engagement drops.
 Fix

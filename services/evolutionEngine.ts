@@ -31,6 +31,7 @@ export interface EvolutionEffectResult {
     // Special flags
     isFreshStart?: boolean;
     triggerIdentityChange?: boolean;
+    isRescueMode?: boolean;  // 🛡️ Ghost Loop Protection: Atomic Rescue mode
 
     // UI feedback
     message: string;
@@ -81,6 +82,19 @@ export function calculateEvolutionEffects(
         result.resetWeeksInStage = true;
         result.difficultyLevel = 'minimal';
         result.message = `Fresh start activated. No judgment, just begin again.`;
+    }
+
+    // 🛡️ Handle Atomic Rescue (Ghost Loop Protection)
+    if (option.id === 'ATOMIC_RESCUE' || option.impact.isRescueMode) {
+        result.difficultyLevel = 'minimal';
+        result.isRescueMode = true;
+        result.message = `Atomic Rescue activated. Just one tiny habit this week. You're rebuilding, not restarting.`;
+    }
+
+    // 🛡️ Handle Pullback Recovery (Overreach Detection)
+    if (option.id === 'PULLBACK_RECOVERY') {
+        result.difficultyLevel = 'easier';
+        result.message = `Recovery pullback activated. You pushed hard — now let's recover wisely.`;
     }
 
     return result;
@@ -243,6 +257,50 @@ function makeMinimalHabit(habit: string): string {
 }
 
 /**
+ * 🌀 NOVELTY INJECTION - Apply small variations to habits
+ * For premium users: handled by AI (we just mark it)
+ * For free users: deterministic novelty suffix
+ */
+export function applyNoveltyToHabits(
+    repo: { high: string[], medium: string[], low: string[] },
+    isPremium: boolean
+): { high: string[], medium: string[], low: string[] } {
+    console.log("🌀 [NOVELTY] Applying novelty to habits, isPremium:", isPremium);
+
+    // Premium users: AI handles novelty via prompt, we don't modify
+    if (isPremium) {
+        console.log("🌀 [NOVELTY] Premium user - AI will handle novelty");
+        return repo;
+    }
+
+    // Free users: Add simple deterministic novelty
+    const noveltyPhrases = [
+        " (try a new variation)",
+        " (at a different time)",
+        " (in a new location)",
+        " (with a twist)",
+        " (fresh approach)"
+    ];
+
+    // Pick a random phrase
+    const phrase = noveltyPhrases[Math.floor(Math.random() * noveltyPhrases.length)];
+
+    const newRepo = {
+        high: [...repo.high],
+        medium: [...repo.medium],
+        low: [...repo.low]
+    };
+
+    // Add novelty to first high habit
+    if (newRepo.high.length > 0 && !newRepo.high[0].includes("(")) {
+        newRepo.high[0] = newRepo.high[0] + phrase;
+        console.log("🌀 [NOVELTY] ✅ Applied novelty:", newRepo.high[0]);
+    }
+
+    return newRepo;
+}
+
+/**
  * FRESH START - Generate INITIATION level habits
  */
 export function generateInitiationHabits(
@@ -312,29 +370,45 @@ type WeeklyPersona = 'TITAN' | 'GRINDER' | 'SURVIVOR' | 'GHOST';
 export function generatePersonaEvolutionOptions(
     persona: WeeklyPersona,
     stage: IdentityStage,
-    identity: string
+    identity: string,
+    consecutiveGhostWeeks: number = 0,
+    consecutiveDifficultyUps: number = 0
 ): EvolutionOption[] {
     switch (persona) {
         case 'TITAN':
-            return getTitanOptions(stage, identity);
+            return getTitanOptions(stage, identity, consecutiveDifficultyUps);
         case 'GRINDER':
             return getGrinderOptions(stage);
         case 'SURVIVOR':
             return getSurvivorOptions(stage);
         case 'GHOST':
-            return getGhostOptions(identity);
+            return getGhostOptions(identity, consecutiveGhostWeeks);
     }
 }
 
 // === TITAN: Crushing it - Push harder ===
-function getTitanOptions(stage: IdentityStage, identity: string): EvolutionOption[] {
-    const options: EvolutionOption[] = [
-        {
+function getTitanOptions(stage: IdentityStage, identity: string, consecutiveDifficultyUps: number = 0): EvolutionOption[] {
+    const options: EvolutionOption[] = [];
+
+    // 🛡️ TITAN SATURATION: After 3 consecutive difficulty increases, replace it with variation
+    if (consecutiveDifficultyUps >= 3) {
+        console.log("🏆 [TITAN SATURATION] Max difficulty reached - offering variation instead");
+        options.push({
+            id: 'VARIATION_WEEK',
+            label: '🔄 Variation Week',
+            description: 'You\'ve pushed hard 3 weeks in a row. Same intensity, new angles.',
+            impact: { difficultyAdjustment: 0 }
+        });
+    } else {
+        options.push({
             id: 'INCREASE_DIFFICULTY',
             label: 'Level Up',
             description: 'Increase habit intensity by 15-25%. You\'re ready.',
             impact: { difficultyAdjustment: 1 }
-        },
+        });
+    }
+
+    options.push(
         {
             id: 'ADD_VARIATION',
             label: 'Add Variation',
@@ -347,7 +421,7 @@ function getTitanOptions(stage: IdentityStage, identity: string): EvolutionOptio
             description: 'Focus on perfecting technique, not just showing up.',
             impact: { difficultyAdjustment: 0 }
         }
-    ];
+    );
 
     // At EXPANSION or MAINTENANCE, offer identity branching
     if (stage === 'EXPANSION' || stage === 'MAINTENANCE') {
@@ -423,13 +497,39 @@ function getSurvivorOptions(stage: IdentityStage): EvolutionOption[] {
 }
 
 // === GHOST: Needs recovery - special compassionate options ===
-function getGhostOptions(identity: string): EvolutionOption[] {
+function getGhostOptions(identity: string, consecutiveGhostWeeks: number = 0): EvolutionOption[] {
+    // 🛡️ GHOST LOOP PROTECTION: After 2 consecutive ghost weeks, offer Atomic Rescue
+    if (consecutiveGhostWeeks >= 2) {
+        console.log("👻 [ATOMIC RESCUE] Offering rescue options for user in ghost loop");
+        return [
+            {
+                id: 'ATOMIC_RESCUE',
+                label: '🆘 Atomic Rescue',
+                description: 'Just ONE tiny habit this week. We reset the pressure, not your identity.',
+                impact: { difficultyAdjustment: -2, isRescueMode: true }
+            },
+            {
+                id: 'SOFTER_WEEK',
+                label: '🛋️ Softer Week',
+                description: 'Ultra-gentle habits. Focus on stability.',
+                impact: { difficultyAdjustment: -2 }
+            },
+            {
+                id: 'REDUCE_DIFFICULTY',
+                label: '📉 Minimal Mode',
+                description: 'Only the easiest habits. No pressure.',
+                impact: { difficultyAdjustment: -2 }
+            }
+        ];
+    }
+
+    // Standard GHOST options (Fresh Start available for first-time ghosts)
+    // Note: CHANGE_IDENTITY is handled by separate UI button for all personas
     return [
         {
             id: 'FRESH_START_WEEK',
             label: '🌱 Fresh Start',
             description: 'Wipe the slate. Begin again with no judgment.',
-            // 🛠️ FIX: Added isFreshStart flag for proper Fresh Start detection
             impact: { stageChange: 'INITIATION', difficultyAdjustment: -2, isFreshStart: true }
         },
         {
@@ -443,12 +543,6 @@ function getGhostOptions(identity: string): EvolutionOption[] {
             label: '📉 Reduce Everything',
             description: 'Minimum viable habits only.',
             impact: { difficultyAdjustment: -2 }
-        },
-        {
-            id: 'CHANGE_IDENTITY',
-            label: '🔄 Change Identity',
-            description: `Maybe "${identity}" isn't right for now.`,
-            impact: { identityShift: true }
         }
     ];
 }

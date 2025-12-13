@@ -107,6 +107,17 @@ export const useStore = create<ExtendedUserState>()(
       // Maintenance Completion
       maintenanceComplete: false,
 
+      // Ghost Loop Protection
+      consecutiveGhostWeeks: 0,
+
+      // Titan Saturation + Overreach Detection
+      lastSelectedEvolutionOption: null as string | null,
+      consecutiveDifficultyUps: 0,
+
+      // Novelty Injection (weekly-count-based system)
+      weeklyReviewCount: 0,
+      lastNoveltyReviewIndex: null as number | null,
+
       logout: async () => {
         await auth.signOut();
         set({
@@ -742,11 +753,12 @@ export const useStore = create<ExtendedUserState>()(
        * APPLY SELECTED EVOLUTION OPTION
        * Called when user selects an evolution option in Weekly Review
        */
-      applySelectedEvolutionOption: async (option: import('./types').EvolutionOption) => {
+      applySelectedEvolutionOption: async (option: import('./types').EvolutionOption, skipNovelty?: boolean) => {
         const state = get();
-        const { identityProfile, habitRepository, isPremium, weeklyReview } = state;
+        const { identityProfile, isPremium, weeklyReview } = state;
+        let { habitRepository } = state;
 
-        console.log("🎯 [EVOLUTION] Applying selected option:", option.id);
+        console.log("🎯 [EVOLUTION] Applying selected option:", option.id, "skipNovelty:", skipNovelty);
 
         // Import evolution engine functions
         const {
@@ -754,6 +766,20 @@ export const useStore = create<ExtendedUserState>()(
           adjustHabitRepository,
           generateInitiationHabits
         } = await import('./services/evolutionEngine');
+
+        // 🛡️ SAFETY: Ensure habitRepository exists before any adjustments
+        // For new users or users without habits, generate initiation habits first
+        if (!habitRepository || !habitRepository.high?.length || !habitRepository.medium?.length || !habitRepository.low?.length) {
+          console.log("🛡️ [EVOLUTION] No valid habit repository - generating defaults");
+          if (identityProfile?.type && state.identity) {
+            habitRepository = generateInitiationHabits(identityProfile.type, state.identity);
+            set({ habitRepository, lastUpdated: Date.now() });
+            console.log("🛡️ [EVOLUTION] ✅ Default habits generated:", habitRepository);
+          } else {
+            console.warn("🛡️ [EVOLUTION] ⚠️ Cannot generate habits - missing identity/type");
+            return { success: false, message: "Please complete your identity setup first." };
+          }
+        }
 
         const effects = calculateEvolutionEffects(option, identityProfile);
         console.log("🎯 [EVOLUTION] Calculated effects:", effects);
@@ -846,7 +872,8 @@ export const useStore = create<ExtendedUserState>()(
               streak: state.streak,
               suggestionType: option.id, // Use the selected option as the suggestion type
               currentRepository: updatedRepository || habitRepository,  // Use updated repository
-              difficultyLevel: effects.difficultyLevel  // Pass difficulty adjustment to AI
+              difficultyLevel: effects.difficultyLevel,  // Pass difficulty adjustment to AI
+              isNoveltyWeek: skipNovelty ? false : weeklyReview?.isNoveltyWeek  // 🌀 Pass novelty flag (unless user opted out)
             });
 
             // 🔥 CRITICAL: Apply the new habits to habitRepository AND set today's microHabits
@@ -933,6 +960,54 @@ export const useStore = create<ExtendedUserState>()(
             });
             console.log("📋 [EVOLUTION] ✅ Free user fallback plan generated");
           }
+        }
+
+        // 🎯 TITAN SATURATION + OVERREACH DETECTION: Track the selected option
+        if (option.id === 'INCREASE_DIFFICULTY') {
+          const currentUps = state.consecutiveDifficultyUps || 0;
+          set({
+            lastSelectedEvolutionOption: option.id,
+            consecutiveDifficultyUps: currentUps + 1,
+            lastUpdated: Date.now()
+          });
+          console.log("📈 [TITAN SATURATION] Difficulty up count:", currentUps + 1);
+        } else {
+          // Any other option resets the counter
+          set({
+            lastSelectedEvolutionOption: option.id,
+            consecutiveDifficultyUps: 0,
+            lastUpdated: Date.now()
+          });
+          console.log("📊 [EVOLUTION] Selected option tracked:", option.id);
+        }
+
+        // 🌀 NOVELTY INJECTION: Apply novelty if it's a novelty week (FREE USERS ONLY)
+        // Premium users get novelty via AI prompt, so we skip them here
+        if (weeklyReview?.isNoveltyWeek && !isPremium) {
+          console.log("🌀 [NOVELTY] Applying novelty for FREE user (cycle #" + state.weeklyReviewCount + ")");
+          const { applyNoveltyToHabits } = await import('./services/evolutionEngine');
+
+          // Get the current habitRepository (may have been updated by previous steps)
+          const currentRepo = get().habitRepository || habitRepository;
+
+          if (currentRepo && currentRepo.high && currentRepo.high.length > 0) {
+            const noveltyRepo = applyNoveltyToHabits(currentRepo, false);
+
+            set({
+              habitRepository: noveltyRepo,
+              lastNoveltyReviewIndex: state.weeklyReviewCount,
+              lastUpdated: Date.now()
+            });
+            console.log("🌀 [NOVELTY] ✅ Novelty applied:", noveltyRepo.high[0]);
+          } else {
+            console.warn("🌀 [NOVELTY] ⚠️ No valid habitRepository to apply novelty to");
+          }
+        } else if (weeklyReview?.isNoveltyWeek && isPremium && !skipNovelty) {
+          // Premium users: AI already handled novelty, just update the index
+          set({ lastNoveltyReviewIndex: state.weeklyReviewCount });
+          console.log("🌀 [NOVELTY] Premium user - AI handled novelty, index updated to", state.weeklyReviewCount);
+        } else if (weeklyReview?.isNoveltyWeek && isPremium && skipNovelty) {
+          console.log("🌀 [NOVELTY] Premium user skipped novelty - not updating index");
         }
 
         return { success: true, message: effects.message };
@@ -1177,6 +1252,30 @@ export const useStore = create<ExtendedUserState>()(
           console.log("📅 [WEEKLY REVIEW] Persona: 👻 GHOST (Score <= 6.0 - Need reconnection)");
         }
 
+        // 4.5 GHOST LOOP TRACKING: Track consecutive ghost weeks
+        if (persona === 'GHOST') {
+          const newGhostCount = (state.consecutiveGhostWeeks || 0) + 1;
+          set({ consecutiveGhostWeeks: newGhostCount });
+          console.log("👻 [GHOST LOOP] Consecutive ghost weeks:", newGhostCount);
+          if (newGhostCount >= 2) {
+            console.log("⚠️ [GHOST LOOP] User in ghost loop - Atomic Rescue will be offered");
+          }
+        } else {
+          if ((state.consecutiveGhostWeeks || 0) > 0) {
+            set({ consecutiveGhostWeeks: 0 });
+            console.log("✅ [GHOST LOOP] Reset - user broke out of ghost pattern");
+          }
+        }
+
+        // 4.6 OVERREACH DETECTION: User pushed too hard last week
+        const overreached =
+          state.lastSelectedEvolutionOption === 'INCREASE_DIFFICULTY' &&
+          (persona === 'SURVIVOR' || persona === 'GHOST');
+
+        if (overreached) {
+          console.log("⚠️ [OVERREACH] Detected! User picked INCREASE_DIFFICULTY but crashed to", persona);
+        }
+
         // 5. PREMIUM WEEKLY SHIELD: Grant +1 shield to premium users every week
         let weeklyShieldBonus = 0;
         if (state.isPremium) {
@@ -1191,8 +1290,18 @@ export const useStore = create<ExtendedUserState>()(
         let evolutionSuggestion = null;
         let evolutionOptions: import('./types').EvolutionOption[] = [];
 
-        // Edge case: Skip evolution engine if no identity or habit repository is set
-        if (identityType && state.identity && state.habitRepository?.high?.length > 0) {
+        // 🛡️ SAFETY: Generate default habits if missing (for new users)
+        let currentHabitRepository = state.habitRepository;
+        if (identityType && state.identity && (!currentHabitRepository || !currentHabitRepository.high?.length)) {
+          console.log("🛡️ [WEEKLY REVIEW] No habit repository - generating defaults for new user");
+          const { generateInitiationHabits } = await import('./services/evolutionEngine');
+          currentHabitRepository = generateInitiationHabits(identityType, state.identity);
+          set({ habitRepository: currentHabitRepository, lastUpdated: Date.now() });
+          console.log("🛡️ [WEEKLY REVIEW] ✅ Default habits generated:", currentHabitRepository);
+        }
+
+        // Now check if we can run evolution engine
+        if (identityType && state.identity && currentHabitRepository?.high?.length > 0) {
           try {
             console.log("🧬 [IDENTITY] Running evolution engine for:", identityType, "at stage:", identityStage);
 
@@ -1229,9 +1338,37 @@ export const useStore = create<ExtendedUserState>()(
             );
             console.log("🌱 [EVOLUTION] Generated suggestion:", evolutionSuggestion);
 
-            // NEW: Generate persona-aware evolution options
+            // NEW: Generate persona-aware evolution options (includes Ghost Loop + Titan Saturation)
             const { generatePersonaEvolutionOptions } = await import('./services/evolutionEngine');
-            evolutionOptions = generatePersonaEvolutionOptions(persona, identityStage, state.identity);
+            const ghostWeeks = get().consecutiveGhostWeeks || 0;
+            const difficultyUps = get().consecutiveDifficultyUps || 0;
+
+            // 🛡️ OVERREACH DETECTION: Override with recovery options if user pushed too hard
+            if (overreached) {
+              console.log("⚠️ [OVERREACH] Overriding with recovery pullback options");
+              evolutionOptions = [
+                {
+                  id: 'PULLBACK_RECOVERY' as any,
+                  label: '🔙 Recovery Pullback',
+                  description: 'You pushed hard last week — let\'s recover wisely. Slight reduction.',
+                  impact: { difficultyAdjustment: -1 }
+                },
+                {
+                  id: 'STABILIZATION_WEEK' as any,
+                  label: '⚖️ Stabilize',
+                  description: 'Same as before. Rebuild momentum without more pressure.',
+                  impact: { difficultyAdjustment: 0 }
+                },
+                {
+                  id: 'REST_WEEK' as any,
+                  label: '🛋️ Rest Week',
+                  description: 'Take it easy. Reduce intensity 20-30%.',
+                  impact: { difficultyAdjustment: -1 }
+                }
+              ];
+            } else {
+              evolutionOptions = generatePersonaEvolutionOptions(persona, identityStage, state.identity, ghostWeeks, difficultyUps);
+            }
             console.log("🎯 [EVOLUTION] Generated persona options for", persona, ":", evolutionOptions.map(o => o.id));
           } catch (error) {
             console.error("🧬 [IDENTITY] ❌ Evolution engine error - using defaults:", error);
@@ -1386,7 +1523,18 @@ export const useStore = create<ExtendedUserState>()(
             cachedIdentityReflection,
             cachedArchetype,
             cachedWeeklyPlan,
-            advancedIdentity: cachedAdvancedIdentity
+            advancedIdentity: cachedAdvancedIdentity,
+            // 🛡️ OVERREACH DETECTION FLAG
+            overreach: overreached,
+            // 🌀 NOVELTY INJECTION FLAG - true every 2 weekly reviews
+            isNoveltyWeek: (() => {
+              const count = state.weeklyReviewCount;
+              const lastIndex = state.lastNoveltyReviewIndex;
+              const isNovelty = lastIndex === null || (count - lastIndex >= 2);
+              console.log("🌀 [NOVELTY] count:", count, "lastIndex:", lastIndex, "isNovelty:", isNovelty);
+              if (isNovelty) console.log("🌀 [NOVELTY] Triggered based on weekly cycle (#" + count + ")");
+              return isNovelty;
+            })()
           },
           // Only update identityProfile if we have a valid type
           ...(identityType ? { identityProfile: newIdentityProfile } : {}),
@@ -1394,6 +1542,8 @@ export const useStore = create<ExtendedUserState>()(
           shields: Math.min(3, (state.shields || 0) + weeklyShieldBonus), // Cap at 3
           // Trigger Maintenance Completion modal if user has been in MAINTENANCE for 6+ weeks
           maintenanceComplete: identityStage === 'MAINTENANCE' && newIdentityProfile.weeksInStage >= 6,
+          // Increment weekly review counter for novelty tracking
+          weeklyReviewCount: (state.weeklyReviewCount || 0) + 1,
           lastUpdated: Date.now()
         });
 
@@ -1811,6 +1961,9 @@ export const useStore = create<ExtendedUserState>()(
         // Weekly Review fields
         weeklyReview: state.weeklyReview,
         lastWeeklyReviewDate: state.lastWeeklyReviewDate,
+        // Novelty Injection (weekly-count-based)
+        weeklyReviewCount: state.weeklyReviewCount,
+        lastNoveltyReviewIndex: state.lastNoveltyReviewIndex,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
