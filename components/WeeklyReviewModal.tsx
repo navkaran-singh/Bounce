@@ -212,10 +212,10 @@ const IdentityEvolutionMap = ({ currentStage }: { currentStage: string | null | 
               {/* Dot with glow for current */}
               <div
                 className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${isCurrent
-                    ? 'text-white'
-                    : isPast
-                      ? 'bg-white/20 border border-white/40 text-white/60'
-                      : 'bg-white/5 border border-white/15 text-white/20'
+                  ? 'text-white'
+                  : isPast
+                    ? 'bg-white/20 border border-white/40 text-white/60'
+                    : 'bg-white/5 border border-white/15 text-white/20'
                   }`}
                 style={isCurrent ? {
                   background: 'linear-gradient(to right, #6cf, #b7f)',
@@ -229,10 +229,10 @@ const IdentityEvolutionMap = ({ currentStage }: { currentStage: string | null | 
               {/* Label with emoji */}
               <div className="mt-2 text-center">
                 <p className={`text-[9px] leading-tight ${isCurrent
-                    ? 'font-semibold text-cyan-300'
-                    : isPast
-                      ? 'font-medium text-white/50'
-                      : 'font-normal text-white/30'
+                  ? 'font-semibold text-cyan-300'
+                  : isPast
+                    ? 'font-medium text-white/50'
+                    : 'font-normal text-white/30'
                   }`}>
                   {stage.label}
                 </p>
@@ -610,6 +610,78 @@ const BranchingOptions = ({ options }: { options: string[] }) => (
   </div>
 );
 
+// 🚪 v8 Stage Resonance Confirmation Card
+const ResonanceConfirmationCard = ({
+  stageMessage,
+  resonanceStatements,
+  onAccept,
+  onDismiss,
+  isDismissed
+}: {
+  stageMessage: string;
+  resonanceStatements: string[];
+  onAccept: (statement: string) => void;
+  onDismiss: () => void;
+  isDismissed?: boolean;
+}) => {
+  // If dismissed, show affirming message instead
+  if (isDismissed) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="bg-white/5 rounded-2xl p-4 border border-white/10 w-full mt-3 text-center"
+      >
+        <p className="text-sm text-white/60 italic">
+          "That's okay. Staying where you are is progress too."
+        </p>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 rounded-2xl p-4 border border-emerald-500/20 w-full mt-3"
+    >
+      {/* Title */}
+      <div className="flex items-center gap-2 mb-2">
+        <Sparkles className="w-4 h-4 text-emerald-400" />
+        <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
+          Does this feel true right now?
+        </span>
+      </div>
+
+      {/* Subtitle - Stage Message */}
+      <p className="text-sm text-white/70 mb-4 leading-relaxed">
+        {stageMessage}
+      </p>
+
+      {/* Resonance Statements as Buttons */}
+      <div className="space-y-2">
+        {resonanceStatements.map((statement, i) => (
+          <button
+            key={i}
+            onClick={() => onAccept(statement)}
+            className="w-full text-left py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:bg-emerald-500/20 hover:border-emerald-400/30 transition-all text-sm text-white/80 italic"
+          >
+            "{statement}"
+          </button>
+        ))}
+      </div>
+
+      {/* Not Now Button */}
+      <button
+        onClick={onDismiss}
+        className="w-full text-center text-xs text-white/40 hover:text-white/60 mt-4 py-2 transition"
+      >
+        Not now
+      </button>
+    </motion.div>
+  );
+};
+
 // Weekly Plan Preview (Premium)
 const WeeklyPlanPreview = ({ plan, onApply }: { plan: any, onApply: () => Promise<any> }) => {
   const [applying, setApplying] = useState(false);
@@ -741,6 +813,8 @@ export const WeeklyReviewModal: React.FC = () => {
   const handleDeepenIdentity = useStore(state => state.handleDeepenIdentity);
   const handleEvolveIdentity = useStore(state => state.handleEvolveIdentity);
   const handleStartNewIdentity = useStore(state => state.handleStartNewIdentity);
+  // 🚪 v8 Stage Gatekeeper
+  const acceptStagePromotion = useStore(state => state.acceptStagePromotion);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedOption, setSelectedOption] = useState<EvolutionOption | null>(null);
@@ -756,6 +830,9 @@ export const WeeklyReviewModal: React.FC = () => {
 
   // 🌀 Novelty opt-out (premium users can skip auto novelty)
   const [noveltyOptOut, setNoveltyOptOut] = useState(false);
+
+  // 🚪 v8 Stage Resonance dismissal state
+  const [resonanceDismissed, setResonanceDismissed] = useState(false);
 
   // Handler: Free user chooses to skip evolution and keep habits as-is
   const handleManualMode = () => {
@@ -1000,6 +1077,27 @@ export const WeeklyReviewModal: React.FC = () => {
           weeks={weeklyReview?.weeksInStage || 0}
           stageProgress={stageProgress}
         />
+
+        {/* 🚪 v8 Stage Resonance Confirmation - only show for EXPANSION/MAINTENANCE suggestions */}
+        {weeklyReview?.suggestedStage &&
+          weeklyReview?.resonanceStatements &&
+          weeklyReview?.resonanceStatements.length > 0 &&
+          weeklyReview?.persona !== 'GHOST' && (
+            <ResonanceConfirmationCard
+              stageMessage={weeklyReview.stageMessage || "You may be ready for the next stage."}
+              resonanceStatements={weeklyReview.resonanceStatements}
+              isDismissed={resonanceDismissed}
+              onAccept={(statement) => {
+                console.log("🚪 [RESONANCE] User accepted stage promotion via:", statement);
+                acceptStagePromotion();
+                setResonanceDismissed(true); // Hide card after acceptance
+              }}
+              onDismiss={() => {
+                console.log("🚪 [RESONANCE] User dismissed stage suggestion");
+                setResonanceDismissed(true);
+              }}
+            />
+          )}
 
         <IdentityEvolutionMap currentStage={weeklyReview?.identityStage} />
 
