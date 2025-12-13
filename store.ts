@@ -7,6 +7,8 @@ import { auth, db, doc, getDoc, serverTimestamp, writeBatch, onAuthStateChanged,
 import { calculateWeeklyStats, detectStageTransition } from './services/stageDetector';
 import { generateEvolutionSuggestion } from './services/evolutionEngine';
 import { generateWeeklyEvolutionPlan } from './services/ai';
+import { checkStageEligibility, getAutoPromotionMessage, getSuggestedUpgradeMessage } from './services/stageGatekeeper';
+import { getRandomResonanceStatements } from './data/resonanceTemplates';
 
 
 const capacitorStorage = {
@@ -1294,6 +1296,10 @@ export const useStore = create<ExtendedUserState>()(
         let stageReason = '';
         let evolutionSuggestion = null;
         let evolutionOptions: import('./types').EvolutionOption[] = [];
+        // v8 Gatekeeper fields (declared at outer scope)
+        let suggestedStage: import('./types').IdentityStage | null = null;
+        let resonanceStatements: string[] | null = null;
+        let stageMessage: string | null = null;
 
         // 🛡️ SAFETY: Generate default habits if missing (for new users)
         let currentHabitRepository = state.habitRepository;
@@ -1315,23 +1321,43 @@ export const useStore = create<ExtendedUserState>()(
             console.log("🧬 [IDENTITY] Weekly stats:", weeklyStats);
             console.log("🧬 [IDENTITY] Stats detail - Week0:", weeklyStats[0]?.weeklyCompletionRate?.toFixed(1) + "%", "Week1:", weeklyStats[1]?.weeklyCompletionRate?.toFixed(1) + "%");
 
-            // Detect stage transition
-            const transition = detectStageTransition(
-              identityType,
-              identityStage,
-              state.identityProfile?.weeksInStage || 0,
-              weeklyStats,
-              state.streak
-            );
+            // v8 GATEKEEPER: Check stage eligibility (replaces automatic detectStageTransition)
+            const eligibleStage = weeklyStats.length > 0
+              ? checkStageEligibility(state.identityProfile, weeklyStats[0])
+              : null;
 
-            console.log("🧬 [STAGE CHECK] Result:", transition.changed ? "CHANGED" : "NO CHANGE", "| Reason:", transition.reason);
+            console.log("🚪 [GATEKEEPER] Eligible stage:", eligibleStage || "none");
 
-            if (transition.changed) {
-              console.log("⚡ [STAGE TRANSITION]", identityStage, "→", transition.newStage);
-              identityStage = transition.newStage;
-              stageReason = transition.reason;
+            // v8 GATEKEEPER: Process eligibility and set fields
+
+            if (eligibleStage) {
+              if (identityStage === 'INITIATION' && eligibleStage === 'INTEGRATION') {
+                // v8: INITIATION → INTEGRATION is AUTO-PROMOTED (no user confirmation needed)
+                console.log("⚡ [GATEKEEPER] AUTO-PROMOTING: INITIATION → INTEGRATION");
+                identityStage = 'INTEGRATION';
+                stageReason = getAutoPromotionMessage();
+                stageMessage = stageReason;
+              } else if (eligibleStage !== 'INTEGRATION') {
+                // v8: EXPANSION and MAINTENANCE are SUGGESTED (need user confirmation)
+                console.log("🔔 [GATEKEEPER] SUGGESTING:", eligibleStage, "(needs user confirmation)");
+                suggestedStage = eligibleStage;
+                stageMessage = getSuggestedUpgradeMessage(eligibleStage);
+
+                // Get resonance statements for user to confirm readiness
+                if (state.isPremium) {
+                  // TODO: Premium users get AI-generated resonance statements
+                  console.log("💎 [GATEKEEPER] Premium user - AI resonance statements (TODO)");
+                  resonanceStatements = getRandomResonanceStatements(eligibleStage, 3);
+                } else {
+                  // Free users get template-based statements
+                  resonanceStatements = getRandomResonanceStatements(eligibleStage, 3);
+                  console.log("🆓 [GATEKEEPER] Free user resonance statements:", resonanceStatements);
+                }
+
+                stageReason = "You may be ready for the next stage.";
+              }
             } else {
-              stageReason = transition.reason;
+              stageReason = "Keep going at your current pace.";
             }
 
             // Generate evolution suggestion
@@ -1543,6 +1569,10 @@ export const useStore = create<ExtendedUserState>()(
               if (isNovelty) console.log("🌀 [NOVELTY] Triggered based on weekly cycle (#" + count + ")");
               return isNovelty;
             })(),
+            // 🚪 v8 GATEKEEPER FIELDS - Hybrid stage progression
+            suggestedStage: suggestedStage || null,
+            resonanceStatements: resonanceStatements || null,
+            stageMessage: stageMessage || null,
             // 📊 STAGE PROGRESS - Visualization for Step 2
             stageProgress: (() => {
               const stage = identityStage || 'INITIATION';
@@ -1597,6 +1627,48 @@ export const useStore = create<ExtendedUserState>()(
         console.log("☁️ [WEEKLY REVIEW] Forcing Firebase sync to lock review...");
         get().syncToFirebase(true);
         console.log("☁️ [WEEKLY REVIEW] ✅ Review locked and synced.");
+      },
+
+      // v8 GATEKEEPER: Accept suggested stage promotion
+      acceptStagePromotion: () => {
+        const state = get();
+        const suggestedStage = state.weeklyReview?.suggestedStage;
+
+        if (!suggestedStage) {
+          console.log("🚪 [GATEKEEPER] No suggested stage to accept");
+          return;
+        }
+
+        console.log("🚪 [GATEKEEPER] ✅ User accepted stage promotion:", state.identityProfile?.stage, "→", suggestedStage);
+
+        const today = new Date().toISOString().split('T')[0];
+
+        // Update identity profile with new stage
+        const newIdentityProfile: IdentityProfile = {
+          ...state.identityProfile,
+          type: state.identityProfile?.type || null,
+          stage: suggestedStage,
+          stageEnteredAt: today,
+          weeksInStage: 0
+        };
+
+        // Clear gatekeeper fields from weeklyReview
+        set({
+          identityProfile: newIdentityProfile,
+          weeklyReview: state.weeklyReview ? {
+            ...state.weeklyReview,
+            suggestedStage: null,
+            resonanceStatements: null,
+            stageMessage: null,
+            identityStage: suggestedStage // Update displayed stage
+          } : null,
+          lastUpdated: Date.now()
+        });
+
+        console.log("🚪 [GATEKEEPER] ✅ Stage promotion complete. Profile updated:", newIdentityProfile);
+
+        // Sync to Firebase
+        get().syncToFirebase(true);
       },
 
       // WEEKLY ROUTINE OPTIMIZATION: Level Up or Reset based on performance

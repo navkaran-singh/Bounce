@@ -172,6 +172,10 @@ export interface WeeklyReviewState {
     progress: number; // 0-1
     totalWeeks: number;
   };
+  // v8 Stage Gatekeeper fields
+  suggestedStage?: IdentityStage | null; // Stage user can upgrade to (needs confirmation)
+  resonanceStatements?: string[] | null; // Statements to help user confirm readiness
+  stageMessage?: string | null; // Message about stage (auto-promotion or suggestion)
 }
 
 // Firebase User type (simplified for state)
@@ -312,6 +316,9 @@ export interface UserState {
   applyEvolutionPlan: () => Promise<{ success: boolean; narrative: string }>;
   applySelectedEvolutionOption: (option: EvolutionOption, skipNovelty?: boolean) => Promise<{ success: boolean; message: string; identityChange?: boolean }>;
   initiateIdentityChange: () => void;
+
+  // v8 Stage Gatekeeper Actions
+  acceptStagePromotion: () => void;
 
   // Maintenance Completion Actions
   handleDeepenIdentity: () => void;
