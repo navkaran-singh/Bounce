@@ -1344,17 +1344,23 @@ export const useStore = create<ExtendedUserState>()(
                 stageMessage = getSuggestedUpgradeMessage(eligibleStage);
 
                 // Get resonance statements for user to confirm readiness
-                if (state.isPremium) {
-                  // TODO: Premium users get AI-generated resonance statements
-                  console.log("💎 [GATEKEEPER] Premium user - AI resonance statements (TODO)");
-                  resonanceStatements = getRandomResonanceStatements(eligibleStage, 3);
-                } else {
-                  // Free users get template-based statements
-                  resonanceStatements = getRandomResonanceStatements(eligibleStage, 3);
-                  console.log("🆓 [GATEKEEPER] Free user resonance statements:", resonanceStatements);
-                }
+                // Note: Premium users will get AI-generated statements from unified generateWeeklyReviewContent call later
+                // Use templates as fallback/initial value for both free and premium
+                resonanceStatements = getRandomResonanceStatements(eligibleStage, 3);
+                console.log(state.isPremium
+                  ? "💎 [GATEKEEPER] Premium user - using templates as fallback, AI resonance will come from unified call"
+                  : "🆓 [GATEKEEPER] Free user resonance statements:", resonanceStatements);
 
                 stageReason = "You may be ready for the next stage.";
+
+                // 🚪 v8 GHOST GUARD: Never suggest stage promotion to GHOST users
+                if (persona === 'GHOST') {
+                  console.log("🚪 [GATEKEEPER] GHOST guard triggered - clearing stage suggestion");
+                  suggestedStage = null;
+                  resonanceStatements = null;
+                  stageMessage = null;
+                  stageReason = "Focus on rebuilding this week.";
+                }
               }
             } else {
               stageReason = "Keep going at your current pace.";
@@ -1477,7 +1483,9 @@ export const useStore = create<ExtendedUserState>()(
               persona: persona,
               streak: state.streak,
               suggestionType: evolutionSuggestion.type,
-              currentRepository: state.habitRepository
+              currentRepository: state.habitRepository,
+              // 🚪 v8 Gatekeeper: Pass suggestedStage for AI resonance (null for GHOST users)
+              suggestedStage: persona === 'GHOST' ? null : suggestedStage as 'EXPANSION' | 'MAINTENANCE' | null
             });
 
             // Extract all fields from unified response
@@ -1494,6 +1502,12 @@ export const useStore = create<ExtendedUserState>()(
             };
             // Capture advancedIdentity for Maintenance completion modal
             cachedAdvancedIdentity = content.advancedIdentity || null;
+
+            // 🚪 v8 Gatekeeper: Override template resonance with AI-generated if present
+            if (content.resonanceStatements && content.resonanceStatements.length >= 3) {
+              resonanceStatements = content.resonanceStatements;
+              console.log("🚪 [GATEKEEPER] AI resonance statements applied:", resonanceStatements);
+            }
 
             console.log("🌱 [WEEKLY REVIEW] ✅ Unified content generated");
             console.log("🪞 Reflection:", cachedIdentityReflection?.substring(0, 60) + "...");

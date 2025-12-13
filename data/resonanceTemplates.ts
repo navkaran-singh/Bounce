@@ -35,7 +35,7 @@ export const RESONANCE_TEMPLATES: Record<IdentityStage, string[]> = {
         "I don't need willpower anymore.",
         "It feels weird not doing this.",
         "This identity feels stable.",
-        "I can't imagine going back."
+        "I don't think about this much anymore."
     ]
 };
 

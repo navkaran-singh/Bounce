@@ -362,6 +362,7 @@ interface WeeklyReviewParams {
   difficultyLevel?: 'harder' | 'easier' | 'minimal' | 'same';
   isNoveltyWeek?: boolean;  // 🌀 Novelty Injection: true if due for novelty
   stageProgress?: { label: string; weeks: number; totalWeeks: number }; // 📊 Stage progress info
+  suggestedStage?: 'EXPANSION' | 'MAINTENANCE' | null; // 🚪 v8 Gatekeeper: Stage user can upgrade to
 }
 
 interface WeeklyReviewContent {
@@ -375,6 +376,7 @@ interface WeeklyReviewContent {
   stageAdvice: string;
   summary: string;
   advancedIdentity?: string; // AI-suggested next identity for Maintenance completion
+  resonanceStatements?: string[]; // 🚪 v8 Gatekeeper: First-person statements for stage promotion
 }
 
 export const generateWeeklyReviewContent = async (
@@ -504,12 +506,31 @@ TONE RULES:
 - Sound like a trusted coach
 - Keep everything concise
 
-ADVANCED IDENTITY (Required for MAINTENANCE stage users):
+${params.identityStage === 'MAINTENANCE' ? `
+ADVANCED IDENTITY (Required - User is in MAINTENANCE):
 Suggest ONE natural evolution of their current identity.
 - Must be 3-5 words
 - Must be a realistic progression (e.g., "A marathon runner" from "A runner")
 - NOT abstract or poetic
 - Include as "advancedIdentity" field in JSON
+` : ''}
+
+${params.suggestedStage ? `
+🚪 STAGE UPGRADE RESONANCE (REQUIRED - User qualifies for ${params.suggestedStage}):
+Generate exactly 3 first-person statements that would feel emotionally true when ready for this upgrade.
+
+STRICT RULES for resonance statements:
+- No motivation fluff
+- Must feel like honest self-recognition, not advice
+- Each statement MUST be 12 words or fewer
+- First person only ("I...", "This...", "My...")
+- Simple, everyday language
+
+GOOD: "I don't force this anymore.", "This feels normal now.", "I'm ready for more."
+BAD: "I feel empowered to take on new challenges!"
+
+Include as "resonanceStatements": ["stmt1", "stmt2", "stmt3"] in JSON
+` : ''}
 
 Return ONLY valid JSON. No markdown.
   `;
@@ -539,6 +560,19 @@ Return ONLY valid JSON. No markdown.
         return arr.slice(0, 3);
       };
 
+      // Extract and validate resonance statements if present
+      let resonanceStatements: string[] | undefined = undefined;
+      if (Array.isArray(parsed.resonanceStatements) && parsed.resonanceStatements.length >= 3) {
+        resonanceStatements = parsed.resonanceStatements.slice(0, 3).map((s: string) => {
+          const words = s.split(' ');
+          if (words.length > 12) {
+            return words.slice(0, 12).join(' ') + '...';
+          }
+          return s;
+        });
+        console.log("🚪 [WEEKLY AI] Resonance statements extracted:", resonanceStatements);
+      }
+
       return {
         reflection: parsed.reflection,
         archetype: parsed.archetype,
@@ -549,7 +583,8 @@ Return ONLY valid JSON. No markdown.
         habitAdjustments: parsed.habitAdjustments || fallback.habitAdjustments,
         stageAdvice: parsed.stageAdvice || fallback.stageAdvice,
         summary: parsed.summary || fallback.summary,
-        advancedIdentity: parsed.advancedIdentity || undefined
+        advancedIdentity: parsed.advancedIdentity || undefined,
+        resonanceStatements: resonanceStatements
       };
     } else {
       console.warn("🌱 [WEEKLY AI] ⚠️ Incomplete response:", { parsed });
@@ -761,3 +796,112 @@ function getDefaultReflection(params: IdentityReflectionParams): string {
 
   return stageMessages[params.identityStage] || "This stage represents steady progress. Keep building momentum.";
 }
+
+/**
+ * PREMIUM RESONANCE STATEMENTS (Premium Feature - Stage Promotion)
+ * Generates personalized first-person statements for stage upgrade confirmation.
+ * These are shown in the Weekly Review when user qualifies for EXPANSION or MAINTENANCE.
+ * 
+ * Rules:
+ * - Only called for Premium users
+ * - Cached in weeklyReview.resonanceStatements
+ * - Falls back to templates on error
+ */
+export interface PremiumResonanceParams {
+  identity: string;
+  identityType: 'SKILL' | 'CHARACTER' | 'RECOVERY';
+  currentStage: 'INITIATION' | 'INTEGRATION' | 'EXPANSION' | 'MAINTENANCE';
+  targetStage: 'INTEGRATION' | 'EXPANSION' | 'MAINTENANCE';
+}
+
+export const generatePremiumResonanceStatements = async (
+  params: PremiumResonanceParams
+): Promise<string[]> => {
+  console.log("🚪 [RESONANCE AI] Generating premium resonance statements...");
+  console.log("🚪 [RESONANCE AI] Params:", params);
+
+  // Fallback statements if AI fails
+  const fallbackStatements: Record<string, string[]> = {
+    'INTEGRATION': [
+      "It's starting to feel easier.",
+      "I remember to do it more often now.",
+      "I'm figuring out a rhythm."
+    ],
+    'EXPANSION': [
+      "The routine feels manageable now.",
+      "I feel curious about pushing a little further.",
+      "I think I can handle more."
+    ],
+    'MAINTENANCE': [
+      "This is just part of who I am now.",
+      "I don't need willpower anymore.",
+      "It feels weird not doing this."
+    ]
+  };
+
+  if (!API_KEY) {
+    console.warn("🚪 [RESONANCE AI] No API key - using fallback");
+    return fallbackStatements[params.targetStage] || fallbackStatements['EXPANSION'];
+  }
+
+  const prompt = `
+You are a behavioral coach helping someone recognize when they're ready for the next stage of identity growth.
+
+User context:
+- Identity: "${params.identity}"
+- Identity type: ${params.identityType}
+- Moving from: ${params.currentStage} → ${params.targetStage}
+
+Generate exactly 3 short, first-person internal statements that would feel emotionally true when someone is genuinely ready for this stage upgrade.
+
+STRICT RULES:
+- No motivation fluff or encouragement
+- Must feel like honest self-recognition, not advice
+- Each statement MUST be 12 words or fewer
+- First person only ("I...", "This...", "My...")
+- Simple, everyday language
+- No metaphors or poetic phrasing
+
+GOOD EXAMPLES:
+- "I don't have to force this anymore."
+- "This feels normal now."
+- "I trust myself with more responsibility."
+- "I'm not faking it anymore."
+
+BAD EXAMPLES (too fluffy/long):
+- "I feel empowered to take on new challenges in my journey!"
+- "My commitment to this path has grown stronger each day."
+
+Return ONLY a JSON array of 3 strings.
+Example: ["statement 1", "statement 2", "statement 3"]
+
+No markdown, no explanation, just the JSON array.
+  `;
+
+  try {
+    const rawText = await safeAIRequest(prompt);
+    const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleanedText);
+
+    if (Array.isArray(parsed) && parsed.length >= 3) {
+      // Ensure we have exactly 3 statements, each under 12 words
+      const statements = parsed.slice(0, 3).map((s: string) => {
+        const words = s.split(' ');
+        if (words.length > 12) {
+          return words.slice(0, 12).join(' ') + '...';
+        }
+        return s;
+      });
+
+      console.log("🚪 [RESONANCE AI] ✅ Generated statements:", statements);
+      return statements;
+    }
+
+    console.warn("🚪 [RESONANCE AI] ⚠️ Invalid response format, using fallback");
+    return fallbackStatements[params.targetStage] || fallbackStatements['EXPANSION'];
+  } catch (error) {
+    console.error("🚪 [RESONANCE AI] ❌ Error:", error);
+    return fallbackStatements[params.targetStage] || fallbackStatements['EXPANSION'];
+  }
+};
+
