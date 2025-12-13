@@ -17,11 +17,15 @@ export type IdentityStage =
   | 'EXPANSION'
   | 'MAINTENANCE';
 
+// v8 Behavior-Based Stage Initialization
+export type InitialFamiliarity = 'NEW' | 'INCONSISTENT' | 'BASIC' | 'REGULAR' | 'IDENTITY';
+
 export interface IdentityProfile {
   type: IdentityType | null;
   stage: IdentityStage;
   stageEnteredAt: string | null; // ISO (YYYY-MM-DD)
   weeksInStage: number;
+  initialFamiliarity?: InitialFamiliarity; // v8: Set during onboarding
 }
 
 export type EvolutionSuggestionType =

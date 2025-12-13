@@ -1812,6 +1812,8 @@ export const useStore = create<ExtendedUserState>()(
             lastDailyPlanDate: profile.lastDailyPlanDate || null,
             weeklyReview: profile.weeklyReview || null,
             lastWeeklyReviewDate: profile.lastWeeklyReviewDate || null,
+            // Identity Evolution Engine
+            identityProfile: profile.identityProfile || state.identityProfile,
             theme: settings?.theme || state.theme,
             soundEnabled: settings?.soundEnabled ?? state.soundEnabled,
             goal: settings?.goal || state.goal,
@@ -1864,6 +1866,8 @@ export const useStore = create<ExtendedUserState>()(
             // Weekly Review
             weeklyReview: state.weeklyReview,
             lastWeeklyReviewDate: state.lastWeeklyReviewDate,
+            // Identity Evolution Engine
+            identityProfile: state.identityProfile,
             settings: {
               theme: state.theme,
               soundEnabled: state.soundEnabled,
@@ -1986,6 +1990,8 @@ export const useStore = create<ExtendedUserState>()(
         // Weekly Review fields
         weeklyReview: state.weeklyReview,
         lastWeeklyReviewDate: state.lastWeeklyReviewDate,
+        // Identity Evolution Engine
+        identityProfile: state.identityProfile,
         // Novelty Injection (weekly-count-based)
         weeklyReviewCount: state.weeklyReviewCount,
         lastNoveltyReviewIndex: state.lastNoveltyReviewIndex,

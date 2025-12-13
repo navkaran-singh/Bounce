@@ -2,8 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Sparkles, Plus, Info, X, Loader2 } from 'lucide-react';
 import { useStore } from '../store';
-import { Message, IdentityType } from '../types';
+import { Message, IdentityType, InitialFamiliarity } from '../types';
 import { generateHabits, GenerateHabitsResult } from '../services/ai';
+
+// Familiarity options for v8 behavior-based stage initialization
+const FAMILIARITY_OPTIONS: { label: string; value: InitialFamiliarity; emoji: string }[] = [
+  { label: "I'm completely new to this.", value: 'NEW', emoji: '🌱' },
+  { label: "I've tried it before, but inconsistently.", value: 'INCONSISTENT', emoji: '🔄' },
+  { label: "I do this sometimes and understand the basics.", value: 'BASIC', emoji: '📖' },
+  { label: "I already do this regularly.", value: 'REGULAR', emoji: '⚡' },
+  { label: "This already feels like part of who I am.", value: 'IDENTITY', emoji: '🔥' },
+];
 
 // Internal Tooltip Component
 const Tooltip: React.FC<{ text: string; onClose: () => void; delay?: number }> = ({ text, onClose, delay = 0 }) => (
@@ -26,18 +35,20 @@ const Tooltip: React.FC<{ text: string; onClose: () => void; delay?: number }> =
 );
 
 export const Onboarding: React.FC = () => {
-  const { identity, setIdentity, setHabitsWithLevels, setEnergyTime, setView, dismissedTooltips, dismissTooltip, setIdentityProfile } = useStore();
+  const { identity, setIdentity, setHabitsWithLevels, setView, dismissedTooltips, dismissTooltip, setIdentityProfile } = useStore();
   const [inputValue, setInputValue] = useState('');
   const [habitInputs, setHabitInputs] = useState<string[]>(['', '', '']);
   const [generatedHabits, setGeneratedHabits] = useState<GenerateHabitsResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedFamiliarity, setSelectedFamiliarity] = useState<InitialFamiliarity | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<Message[]>([
     { id: '1', sender: 'bot', text: "Let's start with the big picture. Who are we becoming?", type: 'text' }
   ]);
 
-  const [step, setStep] = useState(0); // 0: Identity, 1: Habits, 2: Time
+  const [step, setStep] = useState(0); // 0: Identity, 1: Familiarity, 2: Habits (then → contract)
+
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -64,15 +75,12 @@ export const Onboarding: React.FC = () => {
         setHabitInputs(newInputs);
         setGeneratedHabits(suggestions);
 
-        // Store identityType if AI detected it
+        // Store identityType if AI detected it (v8: preserve stage from familiarity step)
         if (suggestions.identityType) {
           console.log("🧬 [ONBOARDING] AI detected identity type:", suggestions.identityType, "-", suggestions.identityReason);
-          const today = new Date().toISOString().split('T')[0];
+          // Only update the type, preserve stage/weeksInStage from familiarity step
           setIdentityProfile({
-            type: suggestions.identityType,
-            stage: 'INITIATION',
-            stageEnteredAt: today,
-            weeksInStage: 0
+            type: suggestions.identityType
           });
         }
       } else {
@@ -116,7 +124,7 @@ export const Onboarding: React.FC = () => {
 
 
   const handleSend = (value: string | string[]) => {
-    // Logic for Identity Step
+    // Logic for Identity Step (Step 0)
     if (step === 0 && typeof value === 'string') {
       if (!value.trim()) return;
       const newMessages = [...messages, { id: Date.now().toString(), sender: 'user', text: value } as Message];
@@ -126,17 +134,81 @@ export const Onboarding: React.FC = () => {
       setTimeout(() => {
         setIdentity(value);
         const nextBotMsg: Message = {
-          id: 'bot-2',
+          id: 'bot-familiarity',
           sender: 'bot',
-          text: `Nice! Now let's build your energy deck. Give me one habit for each energy state — when you're fully charged 🔥, on a normal day ⚡, and running low 🌱.`,
+          text: `Love it! ✨ How familiar are you already with being "${value}"?`,
           type: 'text'
         };
         setMessages(prev => [...prev, nextBotMsg]);
-        setStep(1);
+        setStep(1); // Move to familiarity step
       }, 600);
     }
-    // Logic for Habits Step
-    else if (step === 1 && Array.isArray(value)) {
+
+    // Logic for Familiarity Step (Step 1) - NEW v8
+    else if (step === 1 && typeof value === 'string') {
+      const familiarity = value as InitialFamiliarity;
+      setSelectedFamiliarity(familiarity);
+
+      // Find the option to get the label for display
+      const option = FAMILIARITY_OPTIONS.find(o => o.value === familiarity);
+      const displayText = option ? `${option.emoji} ${option.label}` : familiarity;
+
+      const newMessages = [...messages, { id: Date.now().toString(), sender: 'user', text: displayText } as Message];
+      setMessages(newMessages);
+
+      setTimeout(() => {
+        // v8 Mapping: Familiarity → Stage & weeksInStage
+        const today = new Date().toISOString().split('T')[0];
+        let stage: 'INITIATION' | 'INTEGRATION' | 'EXPANSION' = 'INITIATION';
+        let weeksInStage = 0;
+
+        switch (familiarity) {
+          case 'NEW':
+            stage = 'INITIATION';
+            weeksInStage = 0;
+            break;
+          case 'INCONSISTENT':
+            stage = 'INITIATION';
+            weeksInStage = 1;
+            break;
+          case 'BASIC':
+            stage = 'INTEGRATION';
+            weeksInStage = 0;
+            break;
+          case 'REGULAR':
+            stage = 'INTEGRATION';
+            weeksInStage = 3;
+            break;
+          case 'IDENTITY':
+            stage = 'EXPANSION';
+            weeksInStage = 0;
+            break;
+        }
+
+        console.log(`🎯 [ONBOARDING] v8 Stage Init: ${familiarity} → ${stage} (week ${weeksInStage})`);
+
+        // Set identity profile with familiarity-based stage (type will be set by AI later)
+        setIdentityProfile({
+          type: null, // Will be detected by AI in handleMagicWand
+          stage,
+          stageEnteredAt: today,
+          weeksInStage,
+          initialFamiliarity: familiarity
+        });
+
+        const nextBotMsg: Message = {
+          id: 'bot-2',
+          sender: 'bot',
+          text: `Got it! Now let's build your energy deck. Give me one habit for each energy state — when you're fully charged 🔥, on a normal day ⚡, and running low 🌱.`,
+          type: 'text'
+        };
+        setMessages(prev => [...prev, nextBotMsg]);
+        setStep(2); // Move to habits step
+      }, 600);
+    }
+
+    // Logic for Habits Step (Step 2)
+    else if (step === 2 && Array.isArray(value)) {
       const validHabits = value.filter(h => h.trim().length > 0);
       if (validHabits.length === 0) return;
 
@@ -169,26 +241,8 @@ export const Onboarding: React.FC = () => {
 
         setHabitsWithLevels(finalHabits);
 
-
-        const nextBotMsg: Message = {
-          id: 'bot-3',
-          sender: 'bot',
-          text: 'Perfect. When do you usually get your burst of energy?',
-          type: 'options',
-          options: ['Morning', 'Afternoon', 'Evening']
-        };
-        setMessages(prev => [...prev, nextBotMsg]);
-        setStep(2);
-      }, 600);
-    }
-
-    // Logic for Time Step
-    else if (step === 2 && typeof value === 'string') {
-      const newMessages = [...messages, { id: Date.now().toString(), sender: 'user', text: value } as Message];
-      setMessages(newMessages);
-
-      setTimeout(() => {
-        setEnergyTime(value);
+        // v8: Skip time question - go directly to contract
+        console.log('🎯 [ONBOARDING] Habits confirmed, proceeding to contract');
         setView('contract');
       }, 600);
     }
@@ -206,7 +260,7 @@ export const Onboarding: React.FC = () => {
             delay={1}
           />
         )}
-        {step === 1 && shouldShowTooltip('micro') && (
+        {step === 2 && shouldShowTooltip('micro') && (
           <Tooltip
             key="t2"
             text="Why so small? To prevent burnout. On bad days, the smallest version keeps the streak alive."
@@ -220,7 +274,7 @@ export const Onboarding: React.FC = () => {
       <div className="absolute top-[-20%] left-[-20%] w-[300px] h-[300px] bg-primary-purple rounded-full blur-[100px] opacity-10 dark:opacity-20 pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[250px] h-[250px] bg-primary-cyan rounded-full blur-[100px] opacity-10 dark:opacity-20 pointer-events-none" />
 
-      {/* Header Progress */}
+      {/* Header Progress - 3 steps: Identity, Familiarity, Habits */}
       <div className="flex justify-center gap-2 pt-8 pb-4 relative z-10">
         {[0, 1, 2].map((i) => (
           <div
@@ -255,20 +309,24 @@ export const Onboarding: React.FC = () => {
           ))}
         </AnimatePresence>
 
-        {/* Options for Step 2 (Time) */}
-        {step === 2 && messages[messages.length - 1].sender === 'bot' && (
+        {/* Options for Step 1 (Familiarity) */}
+        {step === 1 && messages[messages.length - 1].sender === 'bot' && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="flex gap-2 justify-end flex-wrap"
+            className="flex flex-col gap-2 w-full"
           >
-            {['Morning', 'Afternoon', 'Evening'].map(opt => (
-              <button
-                key={opt}
-                onClick={() => handleSend(opt)}
-                className="px-6 py-3 rounded-xl bg-white dark:bg-white/5 border border-dark-900/10 dark:border-white/20 hover:bg-dark-50 dark:hover:bg-white/10 transition-colors text-sm font-medium text-dark-900 dark:text-white"
+            {FAMILIARITY_OPTIONS.map((opt, idx) => (
+              <motion.button
+                key={opt.value}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.08 }}
+                onClick={() => handleSend(opt.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-white/5 border border-dark-900/10 dark:border-white/20 hover:bg-primary-cyan/10 dark:hover:bg-primary-cyan/10 hover:border-primary-cyan/30 transition-all text-left text-sm font-medium text-dark-900 dark:text-white flex items-center gap-3"
               >
-                {opt}
-              </button>
+                <span className="text-lg">{opt.emoji}</span>
+                <span>{opt.label}</span>
+              </motion.button>
             ))}
           </motion.div>
         )}
@@ -300,8 +358,8 @@ export const Onboarding: React.FC = () => {
           </div>
         )}
 
-        {/* Step 1: Micro-Habit Deck Input */}
-        {step === 1 && (
+        {/* Step 2: Micro-Habit Deck Input */}
+        {step === 2 && (
           <div className="space-y-3">
             <div className="flex justify-between items-center px-1 mb-2">
               <span className="text-xs text-gray-500 dark:text-white/40 font-medium uppercase tracking-wider">Your Deck</span>
