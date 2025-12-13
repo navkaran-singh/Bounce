@@ -159,7 +159,15 @@ export interface WeeklyReviewState {
   selectedOptionId?: EvolutionOptionId | null; // User's selected evolution option
   advancedIdentity?: string | null; // AI-suggested next identity for evolution
   overreach?: boolean; // Overreach Detection: user pushed too hard last week
-  isNoveltyWeek?: boolean; // Novelty Injection: true if 14 days since last novelty
+  isNoveltyWeek?: boolean; // Novelty Injection: true if due for novelty
+  stageProgress?: {
+    stage: IdentityStage;
+    weeks: number;
+    label: string;
+    description: string;
+    progress: number; // 0-1
+    totalWeeks: number;
+  };
 }
 
 // Firebase User type (simplified for state)

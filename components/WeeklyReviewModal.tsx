@@ -131,31 +131,129 @@ const IdentityTypeCard = ({ type, archetype }: { type: string | null | undefined
 };
 
 // Stage Card
-const StageCard = ({ stage, weeks }: { stage: string | null | undefined, weeks: number }) => {
+const StageCard = ({ stage, weeks, stageProgress }: {
+  stage: string | null | undefined;
+  weeks: number;
+  stageProgress?: { label: string; description: string; progress: number; totalWeeks: number } | null;
+}) => {
   if (!stage) return null;
-  const label = getStageLabel(stage as any);
+  const label = stageProgress?.label || getStageLabel(stage as any);
   const emoji = getStageEmoji(stage as any);
+  const progress = stageProgress?.progress ?? 0;
+  const description = stageProgress?.description;
+  const totalWeeks = stageProgress?.totalWeeks ?? 4;
 
   return (
     <div className="rounded-2xl p-4 bg-white/5 border border-white/10 w-full">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <span className="text-3xl">{emoji}</span>
           <div>
-            <p className="text-[10px] text-white/50 uppercase font-bold">Current Stage</p>
+            <p className="text-[10px] text-white/50 uppercase font-bold">Identity Stage</p>
             <p className="text-base font-bold text-white tracking-wide">{label}</p>
           </div>
         </div>
         <div className="text-right bg-white/5 px-2 py-1 rounded-lg">
           <div className="flex items-center gap-1 text-white/60">
             <Clock className="w-3 h-3" />
-            <span className="text-xs font-medium">{weeks} weeks</span>
+            <span className="text-xs font-medium">{weeks}/{totalWeeks} weeks</span>
           </div>
         </div>
       </div>
+
+      {/* Progress Bar */}
+      <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+        <div
+          className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all duration-500"
+          style={{ width: `${Math.min(100, progress * 100)}%` }}
+        />
+      </div>
+
+      {/* Description */}
+      {description && (
+        <p className="text-xs text-white/50 leading-relaxed">{description}</p>
+      )}
     </div>
   );
 };
+
+// 🗺️ Identity Evolution Map - Shows all stages with current highlighted
+const IdentityEvolutionMap = ({ currentStage }: { currentStage: string | null | undefined }) => {
+  const stages = [
+    { id: 'INITIATION', label: 'Initiation', emoji: '🌱' },
+    { id: 'INTEGRATION', label: 'Integration', emoji: '🌿' },
+    { id: 'EXPANSION', label: 'Expansion', emoji: '🌳' },
+    { id: 'MAINTENANCE', label: 'Maintenance', emoji: '🌲' }
+  ];
+
+  const currentIndex = stages.findIndex(s => s.id === currentStage);
+
+  return (
+    <div className="rounded-2xl p-4 bg-white/5 border border-white/10 w-full mt-3">
+      <p className="text-[10px] text-white/50 uppercase font-bold mb-4 tracking-wider">Identity Journey</p>
+
+      {/* Horizontal Stage Map */}
+      <div className="flex items-start justify-between relative px-2">
+        {/* Gradient Path Line (behind dots) */}
+        <div
+          className="absolute top-3 left-6 right-6 h-[2px] rounded-full"
+          style={{
+            background: 'linear-gradient(to right, #6cf 0%, #b7f 100%)',
+            opacity: 0.35
+          }}
+        />
+
+        {stages.map((stage, index) => {
+          const isCurrent = stage.id === currentStage;
+          const isPast = currentIndex > index;
+
+          return (
+            <div key={stage.id} className="flex flex-col items-center z-10 flex-1">
+              {/* Dot with glow for current */}
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${isCurrent
+                    ? 'text-white'
+                    : isPast
+                      ? 'bg-white/20 border border-white/40 text-white/60'
+                      : 'bg-white/5 border border-white/15 text-white/20'
+                  }`}
+                style={isCurrent ? {
+                  background: 'linear-gradient(to right, #6cf, #b7f)',
+                  borderColor: '#b7f',
+                  boxShadow: '0 0 12px rgba(120, 180, 255, 0.55), 0 0 20px rgba(180, 120, 255, 0.3)'
+                } : undefined}
+              >
+                {isCurrent ? '★' : isPast ? '✓' : ''}
+              </div>
+
+              {/* Label with emoji */}
+              <div className="mt-2 text-center">
+                <p className={`text-[9px] leading-tight ${isCurrent
+                    ? 'font-semibold text-cyan-300'
+                    : isPast
+                      ? 'font-medium text-white/50'
+                      : 'font-normal text-white/30'
+                  }`}>
+                  {stage.label}
+                </p>
+                <p className="text-xs mt-0.5">{stage.emoji}</p>
+                {isCurrent && (
+                  <p className="text-[8px] text-purple-400/90 mt-1 font-medium">You're here</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Micro-help text */}
+      <p className="text-[9px] text-white/30 text-center mt-4 italic">
+        Every stage brings you closer to your identity.
+      </p>
+    </div>
+  );
+};
+
 
 // AI Reflection Bubble
 const AIReflection = ({ text }: { text: string }) => (
@@ -674,6 +772,7 @@ export const WeeklyReviewModal: React.FC = () => {
   const advancedIdentity = weeklyReview?.advancedIdentity ?? null;
   const isOverreach = weeklyReview?.overreach ?? false; // 🛡️ Overreach Detection
   const isNoveltyWeek = weeklyReview?.isNoveltyWeek ?? false; // 🌀 Novelty Week
+  const stageProgress = weeklyReview?.stageProgress; // 📊 Stage Progress
 
   // 🏆 Detect if user has completed MAINTENANCE (6+ weeks)
   const isMaintenanceComplete =
@@ -899,9 +998,10 @@ export const WeeklyReviewModal: React.FC = () => {
         <StageCard
           stage={weeklyReview?.identityStage}
           weeks={weeklyReview?.weeksInStage || 0}
+          stageProgress={stageProgress}
         />
 
-        <ProgressBar percent={weeklyReview?.progressionPercent ?? 0} />
+        <IdentityEvolutionMap currentStage={weeklyReview?.identityStage} />
 
         {reflection && (
           <AIReflection text={reflection} />

@@ -873,7 +873,12 @@ export const useStore = create<ExtendedUserState>()(
               suggestionType: option.id, // Use the selected option as the suggestion type
               currentRepository: updatedRepository || habitRepository,  // Use updated repository
               difficultyLevel: effects.difficultyLevel,  // Pass difficulty adjustment to AI
-              isNoveltyWeek: skipNovelty ? false : weeklyReview?.isNoveltyWeek  // 🌀 Pass novelty flag (unless user opted out)
+              isNoveltyWeek: skipNovelty ? false : weeklyReview?.isNoveltyWeek,  // 🌀 Pass novelty flag (unless user opted out)
+              stageProgress: weeklyReview?.stageProgress ? {  // 📊 Pass stage progress for AI insight
+                label: weeklyReview.stageProgress.label,
+                weeks: weeklyReview.stageProgress.weeks,
+                totalWeeks: weeklyReview.stageProgress.totalWeeks
+              } : undefined
             });
 
             // 🔥 CRITICAL: Apply the new habits to habitRepository AND set today's microHabits
@@ -1308,6 +1313,7 @@ export const useStore = create<ExtendedUserState>()(
             // Calculate weekly stats for stage detection
             const weeklyStats = calculateWeeklyStats(state.history, 3);
             console.log("🧬 [IDENTITY] Weekly stats:", weeklyStats);
+            console.log("🧬 [IDENTITY] Stats detail - Week0:", weeklyStats[0]?.weeklyCompletionRate?.toFixed(1) + "%", "Week1:", weeklyStats[1]?.weeklyCompletionRate?.toFixed(1) + "%");
 
             // Detect stage transition
             const transition = detectStageTransition(
@@ -1318,8 +1324,10 @@ export const useStore = create<ExtendedUserState>()(
               state.streak
             );
 
+            console.log("🧬 [STAGE CHECK] Result:", transition.changed ? "CHANGED" : "NO CHANGE", "| Reason:", transition.reason);
+
             if (transition.changed) {
-              console.log("🧬 [IDENTITY] Stage transition:", identityStage, "->", transition.newStage);
+              console.log("⚡ [STAGE TRANSITION]", identityStage, "→", transition.newStage);
               identityStage = transition.newStage;
               stageReason = transition.reason;
             } else {
@@ -1534,6 +1542,23 @@ export const useStore = create<ExtendedUserState>()(
               console.log("🌀 [NOVELTY] count:", count, "lastIndex:", lastIndex, "isNovelty:", isNovelty);
               if (isNovelty) console.log("🌀 [NOVELTY] Triggered based on weekly cycle (#" + count + ")");
               return isNovelty;
+            })(),
+            // 📊 STAGE PROGRESS - Visualization for Step 2
+            stageProgress: (() => {
+              const stage = identityStage || 'INITIATION';
+              // Use the ORIGINAL weeks before increment for display (weeksInStage was already +1 in newIdentityProfile)
+              const weeks = state.identityProfile?.weeksInStage || 0;
+              // Import STAGE_INFO inline to avoid circular deps
+              const stageInfo: Record<string, { label: string; description: string; length: number }> = {
+                INITIATION: { label: "Initiation", description: "You're building the foundation of your identity.", length: 3 },
+                INTEGRATION: { label: "Integration", description: "Your habits are stabilizing and becoming reliable.", length: 4 },
+                EXPANSION: { label: "Expansion", description: "You're exploring variations and expanding your skill.", length: 6 },
+                MAINTENANCE: { label: "Maintenance", description: "You've embodied the identity. This stage focuses on refinement.", length: 12 }
+              };
+              const info = stageInfo[stage] || stageInfo.INITIATION;
+              const progress = Math.min(1, weeks / info.length);
+              console.log("📊 [STAGE PROGRESS] Added stage progress visualization for stage", stage, "- week", weeks + "/" + info.length);
+              return { stage, weeks, label: info.label, description: info.description, progress, totalWeeks: info.length };
             })()
           },
           // Only update identityProfile if we have a valid type

@@ -172,14 +172,14 @@ Mindful Week
 
 Themes only change narrative + minor habit text, no heavy logic.
 
-🔵 FIX 10 — Stage Progress Visualization
+🔵 FIX 10 — Stage Progress Visualization (DONE)
 Problem
 Users can’t tell how far they are in the current stage, or when a new stage will unlock. This kills anticipation.
 Fix
 Add a simple Stage Progress bar (1–4 labels).
 Give the user a visual sense of journey and proximity to next stage.
 
-🔵 FIX 11 — Identity Evolution Map
+🔵 FIX 11 — Identity Evolution Map (DONE)
 Problem
 Users don’t understand the bigger journey of identity change. They feel lost or directionless.
 Fix

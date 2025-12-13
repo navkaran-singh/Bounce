@@ -62,7 +62,8 @@ export function calculateWeeklyStats(
             const dateKey = currentDay.toISOString().split('T')[0];
 
             const log = history[dateKey];
-            const completions = log?.completedIndices?.length || 0;
+            // Use completedHabitNames (primary) or completedIndices (fallback)
+            const completions = log?.completedHabitNames?.length || log?.completedIndices?.length || 0;
             const dailyScore = log?.dailyScore || 0;
 
             if (completions > 0) {

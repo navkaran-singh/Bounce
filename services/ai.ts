@@ -360,7 +360,8 @@ interface WeeklyReviewParams {
   suggestionType: string;
   currentRepository: { high: string[], medium: string[], low: string[] };
   difficultyLevel?: 'harder' | 'easier' | 'minimal' | 'same';
-  isNoveltyWeek?: boolean;  // 🌀 Novelty Injection: true if 14 days since last novelty
+  isNoveltyWeek?: boolean;  // 🌀 Novelty Injection: true if due for novelty
+  stageProgress?: { label: string; weeks: number; totalWeeks: number }; // 📊 Stage progress info
 }
 
 interface WeeklyReviewContent {
@@ -473,6 +474,11 @@ Keep difficulty the SAME but add a twist:
 - The variation should be noticeable but NOT harder
 
 Example: "Run 30 min" → "Run 30 min (try a new route)"
+` : ''}
+
+${params.stageProgress ? `
+📊 Stage Progress: User is in the "${params.stageProgress.label}" stage (week ${params.stageProgress.weeks} of ${params.stageProgress.totalWeeks}).
+Include 1 sentence of stage insight in the reflection about what this progress means.
 ` : ''}
 
 Current Habits:

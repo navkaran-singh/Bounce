@@ -10,6 +10,46 @@
 
 import { IdentityType, IdentityStage, EvolutionSuggestion, EvolutionSuggestionType, EvolutionOption, EvolutionOptionId, IdentityProfile } from '../types';
 
+/**
+ * 📊 STAGE INFO - Metadata for each identity stage
+ */
+export const STAGE_INFO: Record<IdentityStage, {
+    label: string;
+    description: string;
+    length: number; // Expected weeks in this stage
+}> = {
+    INITIATION: {
+        label: "Initiation",
+        description: "You're building the foundation of your identity.",
+        length: 3
+    },
+    INTEGRATION: {
+        label: "Integration",
+        description: "Your habits are stabilizing and becoming reliable.",
+        length: 4
+    },
+    EXPANSION: {
+        label: "Expansion",
+        description: "You're exploring variations and expanding your skill.",
+        length: 6
+    },
+    MAINTENANCE: {
+        label: "Maintenance",
+        description: "You've embodied the identity. This stage focuses on refinement.",
+        length: 12
+    }
+};
+
+/**
+ * 🗺️ IDENTITY STAGES ORDERED - For the Evolution Map visualization
+ */
+export const IDENTITY_STAGES_ORDERED: IdentityStage[] = [
+    "INITIATION",
+    "INTEGRATION",
+    "EXPANSION",
+    "MAINTENANCE"
+];
+
 interface EvolutionContext {
     weeklyCompletionRate: number;
     streak: number;
