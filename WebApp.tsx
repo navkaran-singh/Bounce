@@ -89,14 +89,30 @@ const WebApp: React.FC = () => {
               setPaymentStatus('idle');
             }, 5000);
           } else {
-            console.error("❌ [APP] Payment verification failed:", result.error);
-            setPaymentStatus('error');
-            setPaymentError(result.error || 'Payment verification failed');
+            // 🛡️ PARANOID VERIFICATION: Don't downgrade on verification failure
+            // Only show error if API explicitly says payment is invalid
+            // Network errors, 404s, or env mismatches should NOT affect premium status
+            const isExplicitFailure = result.error?.includes('expired') ||
+              result.error?.includes('cancelled') ||
+              result.error?.includes('refunded');
+
+            if (isExplicitFailure) {
+              console.error("❌ [APP] Payment explicitly invalid:", result.error);
+              setPaymentStatus('error');
+              setPaymentError(result.error);
+            } else {
+              // Trust cached state - don't show error UI
+              console.warn("⚠️ [APP] Verification failed, trusting cached state:", result.error);
+              setPaymentStatus('idle');
+              // Clean URL to prevent repeated verification attempts
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }
           }
         } catch (error: any) {
-          console.error("❌ [APP] Payment verification error:", error);
-          setPaymentStatus('error');
-          setPaymentError('Network error. Please contact support.');
+          // 🛡️ NETWORK ERROR: Never downgrade on network failure
+          console.warn("⚠️ [APP] Network error during verification - trusting cached state:", error);
+          setPaymentStatus('idle'); // Don't show error, just proceed
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
       } else if (legacyStatus === 'success' && !paymentId) {
         // Legacy fallback: if only 'payment=success' without payment_id, 

@@ -33,6 +33,7 @@ const toAppUser = (firebaseUser: User | null): AppUser | null => {
 interface ExtendedUserState extends UserState {
   lastUpdated: number;
   lastSync: number;
+  initialLoadComplete: boolean; // 🛡️ SAFETY LOCK: True after cloud sync is done
   _hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
   completeHabit: (habitIndex: number) => void;
@@ -56,6 +57,7 @@ export const useStore = create<ExtendedUserState>()(
       user: null,
       lastUpdated: 0,
       lastSync: 0,
+      initialLoadComplete: false, // 🛡️ SAFETY LOCK: Prevents sync before cloud data is loaded
       setUser: (user) => set({ user }),
       theme: 'dark',
       soundEnabled: false,
@@ -2075,8 +2077,14 @@ export const useStore = create<ExtendedUserState>()(
             console.log("[LOAD] No cloud data - uploading local...");
             await get().syncToFirebase(true);
           }
+
+          // 🛡️ SAFETY LOCK: Mark initial load as complete - safe to sync now
+          set({ initialLoadComplete: true });
+          console.log("🛡️ [LOAD] Initial load complete - sync unlocked");
         } catch (error) {
           console.error("[LOAD] Error checking sync:", error);
+          // Still mark as complete on error to avoid blocking forever
+          set({ initialLoadComplete: true });
         }
       },
     }),
@@ -2145,6 +2153,10 @@ export const useStore = create<ExtendedUserState>()(
           if (state.user) {
             console.log("[REHYDRATE] User logged in, checking cloud sync...");
             state.loadFromFirebase();
+          } else {
+            // 🛡️ SAFETY LOCK: No user = no cloud sync needed, unlock immediately
+            console.log("[REHYDRATE] No user logged in, skipping cloud sync");
+            useStore.setState({ initialLoadComplete: true });
           }
 
           // Check for missed days after hydration (triggers recovery mode if needed)
@@ -2178,6 +2190,15 @@ if (typeof window !== 'undefined') {
 // Auto-sync listener
 useStore.subscribe(
   (state, prevState) => {
+    // 🛡️ SAFETY LOCK: Never sync before initial cloud load is complete
+    // This prevents a fresh device from overwriting cloud premium status
+    if (!state.initialLoadComplete) {
+      if (state.lastUpdated > prevState.lastUpdated) {
+        console.log("🛡️ [SYNC] Blocked - waiting for initial cloud load");
+      }
+      return;
+    }
+
     if (state._hasHydrated && state.lastUpdated > prevState.lastUpdated) {
       // Debounce or throttle this call in a real app to avoid excessive writes
       useStore.getState().syncToFirebase();

@@ -12,6 +12,9 @@ export default defineConfig(({ mode }) => {
       allowedHosts: [
         'unmodulative-jeremy-alpinely.ngrok-free.dev'
       ],
+      proxy: {
+        '/.netlify/functions': 'http://localhost:8888'
+      },
     },
     plugins: [react()],
     resolve: {
