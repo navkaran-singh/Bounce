@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Shield, Calendar, Brain, Zap, ArrowRight, Star } from 'lucide-react';
+import { Sparkles, Shield, Calendar, Brain, Zap, ArrowRight, Star, Info } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Particles } from '../components/Particles';
 
 export const LandingPage: React.FC = () => {
+    const [showInfoTooltip, setShowInfoTooltip] = useState(false);
+
     return (
         <div className="min-h-screen bg-[#0F0F10] text-white overflow-x-hidden relative">
             <Particles />
@@ -211,6 +214,41 @@ export const LandingPage: React.FC = () => {
 
                         <p className="text-xs text-gray-400 text-center mt-3">
                             (tax included) • cancel anytime
+                        </p>
+
+                        {/* 🇮🇳 Info Icon for Indian Users */}
+                        <div className="flex items-center justify-center mt-4 relative">
+                            <button
+                                onClick={() => setShowInfoTooltip(!showInfoTooltip)}
+                                className="flex items-center gap-1.5 text-white/40 hover:text-white/60 transition-colors text-xs"
+                            >
+                                <Info size={14} />
+                                <span>Payment info for Indian users</span>
+                            </button>
+
+                            <AnimatePresence>
+                                {showInfoTooltip && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -5 }}
+                                        className="absolute top-8 left-0 right-0 p-3 rounded-xl bg-slate-900 border border-blue-400/40 z-10 shadow-lg"
+                                    >
+                                        <p className="text-xs text-blue-300 leading-relaxed">
+                                            <span className="font-bold">🇮🇳 For Indian Users (UPI/Cards):</span><br />
+                                            RBI requires a 'Recurring Mandate' limit (usually ₹15,000) for auto-payments.
+                                            <span className="font-bold text-white"> Don't panic</span> — this is just a safety cap.
+                                            You'll <span className="font-bold text-green-400">only be charged $8/month</span>.
+                                        </p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* Merchant of Record Footer */}
+                        <p className="text-center text-white/30 text-[10px] mt-3 leading-relaxed">
+                            Secure payments processed by <span className="font-semibold">Dodo Payments</span>.<br />
+                            The charge will appear as "Dodo Payments" or "Bounce" on your statement.
                         </p>
                     </div>
                 </div>
