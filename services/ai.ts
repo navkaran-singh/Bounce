@@ -13,7 +13,8 @@ const MODEL_FALLBACK_ORDER = [
 
 /**
  * Centralized safe AI request helper
- * Retries each model with specific delays for rate limits (429) and overload (503)
+ * 🛡️ CIRCUIT BREAKER: Max 3 total attempts across all models
+ * Prevents "Retry Storm" that could cause 8+ API calls on failure
  */
 async function safeAIRequest(
   prompt: string,
@@ -22,36 +23,39 @@ async function safeAIRequest(
   if (!API_KEY) throw new Error("Missing API key");
 
   const genAI = new GoogleGenerativeAI(API_KEY);
-  const modelsToTry = [...preferredModels];
 
-  for (const modelName of modelsToTry) {
-    // Retry each model only TWICE
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        console.log(`🤖 [AI] Trying ${modelName}, attempt ${attempt}...`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
-        console.log(`🤖 [AI] ✅ Success with ${modelName}`);
-        return text;
-      } catch (err: any) {
-        const errorMsg = err?.message || String(err);
-        const isRateLimit = errorMsg.includes("429");
-        const isOverload = errorMsg.includes("503");
+  // 🛡️ COST SAFETY: Hard limit of 3 total API calls (not 8)
+  const MAX_TOTAL_ATTEMPTS = 3;
+  const BACKOFF_MS = 1000;
 
-        console.warn(`🤖 [AI ERROR] Model ${modelName}, attempt ${attempt}:`, errorMsg);
+  for (let attempt = 0; attempt < MAX_TOTAL_ATTEMPTS; attempt++) {
+    // Rotate through models: attempt 0 -> model 0, attempt 1 -> model 1, etc.
+    const modelName = preferredModels[attempt % preferredModels.length];
 
-        if (attempt === 2) break; // Move to next model
+    try {
+      console.log(`🤖 [AI] Attempt ${attempt + 1}/${MAX_TOTAL_ATTEMPTS} using ${modelName}...`);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      console.log(`🤖 [AI] ✅ Success with ${modelName} on attempt ${attempt + 1}`);
+      return text;
+    } catch (err: any) {
+      const errorMsg = err?.message || String(err);
+      console.warn(`🤖 [AI ERROR] Attempt ${attempt + 1}/${MAX_TOTAL_ATTEMPTS} (${modelName}):`, errorMsg);
 
-        // Specific delays for different error types
-        if (isRateLimit) await new Promise(r => setTimeout(r, 1500));
-        else if (isOverload) await new Promise(r => setTimeout(r, 800));
-        else await new Promise(r => setTimeout(r, 500));
+      // 🛡️ CIRCUIT BREAKER: Don't retry on last attempt
+      if (attempt === MAX_TOTAL_ATTEMPTS - 1) {
+        console.error(`🤖 [AI] ❌ Circuit breaker tripped after ${MAX_TOTAL_ATTEMPTS} attempts`);
+        break;
       }
+
+      // Backoff before next attempt
+      console.log(`🤖 [AI] Waiting ${BACKOFF_MS}ms before retry...`);
+      await new Promise(r => setTimeout(r, BACKOFF_MS));
     }
   }
 
-  throw new Error("AI request failed after retries.");
+  throw new Error(`AI request failed after ${MAX_TOTAL_ATTEMPTS} attempts (circuit breaker).`);
 }
 
 

@@ -34,6 +34,7 @@ interface ExtendedUserState extends UserState {
   lastUpdated: number;
   lastSync: number;
   initialLoadComplete: boolean; // 🛡️ SAFETY LOCK: True after cloud sync is done
+  isGeneratingReview: boolean; // 🛡️ COST SAFETY: Prevents duplicate weekly review AI calls
   _hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
   completeHabit: (habitIndex: number) => void;
@@ -121,6 +122,9 @@ export const useStore = create<ExtendedUserState>()(
       // Novelty Injection (weekly-count-based system)
       weeklyReviewCount: 0,
       lastNoveltyReviewIndex: null as number | null,
+
+      // 🛡️ COST SAFETY: Prevent duplicate AI calls during weekly review
+      isGeneratingReview: false,
 
       logout: async () => {
         await auth.signOut();
@@ -225,11 +229,13 @@ export const useStore = create<ExtendedUserState>()(
           : [...existingNames, habitName];
 
         // Update history with both indices and names
+        // 🛡️ COST SAFETY: Mark as dirty for incremental sync
         newHistory[dateKey] = {
           ...existingLog,
           date: dateKey,
           completedIndices: newIndices,
-          completedHabitNames: newHabitNames
+          completedHabitNames: newHabitNames,
+          _dirty: true
         };
 
         console.log("[HABIT] Snapshotted habit:", habitName, "for date:", dateKey);
@@ -288,13 +294,15 @@ export const useStore = create<ExtendedUserState>()(
       logReflection: (dateIso, energy, note) => set((state) => {
         const dateKey = dateIso.split('T')[0];
         const newHistory = { ...state.history };
-        newHistory[dateKey] = { ...newHistory[dateKey] || { date: dateKey, completedIndices: [] }, energy, note };
+        // 🛡️ COST SAFETY: Mark as dirty for incremental sync
+        newHistory[dateKey] = { ...newHistory[dateKey] || { date: dateKey, completedIndices: [] }, energy, note, _dirty: true };
         return { history: newHistory, lastUpdated: Date.now() };
       }),
       setDailyIntention: (dateIso, intention) => set((state) => {
         const dateKey = dateIso.split('T')[0];
         const newHistory = { ...state.history };
-        newHistory[dateKey] = { ...newHistory[dateKey] || { date: dateKey, completedIndices: [] }, intention };
+        // 🛡️ COST SAFETY: Mark as dirty for incremental sync
+        newHistory[dateKey] = { ...newHistory[dateKey] || { date: dateKey, completedIndices: [] }, intention, _dirty: true };
         return { history: newHistory, lastUpdated: Date.now() };
       }),
 
@@ -1150,6 +1158,25 @@ export const useStore = create<ExtendedUserState>()(
         const state = get();
         if (!state._hasHydrated) return;
 
+        // 🛡️ COST SAFETY: Prevent duplicate AI calls if button is mashed
+        if (state.isGeneratingReview) {
+          console.log("📅 [WEEKLY REVIEW] ⏳ Already generating - blocked duplicate call");
+          return;
+        }
+
+        // 🛡️ COST SAFETY: Check if we already have a review for this week
+        const getWeekKey = (date: Date) => {
+          const startOfWeek = new Date(date);
+          startOfWeek.setDate(date.getDate() - date.getDay()); // Start of week (Sunday)
+          return startOfWeek.toISOString().split('T')[0];
+        };
+
+        const currentWeekKey = getWeekKey(new Date());
+        if (state.weeklyReview?.weekKey === currentWeekKey) {
+          console.log("📅 [WEEKLY REVIEW] ⏭️ Already have review for week", currentWeekKey);
+          return;
+        }
+
         const now = new Date();
         const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday
 
@@ -1180,6 +1207,9 @@ export const useStore = create<ExtendedUserState>()(
         }
 
         console.log("📅 [WEEKLY REVIEW] ✅ Generating weekly review...");
+
+        // 🛡️ COST SAFETY: Set lock to prevent duplicate AI calls
+        set({ isGeneratingReview: true });
 
         // 3. THE 7-DAY LOOP: Calculate Momentum Score (OPTIMIZED - uses persisted dailyScore)
         const DAYS_TO_ANALYZE = 7;
@@ -1591,6 +1621,7 @@ export const useStore = create<ExtendedUserState>()(
           weeklyReview: {
             // Preserve all existing core fields
             available: true,
+            weekKey: getWeekKey(new Date()), // 🛡️ COST SAFETY: Tracks which week this review belongs to
             startDate: startDate.toISOString().split('T')[0],
             endDate: endDate.toISOString().split('T')[0],
             totalCompletions,
@@ -2007,16 +2038,41 @@ export const useStore = create<ExtendedUserState>()(
           };
           batch.set(userRef, userProfile, { merge: true });
 
-          // Sync daily logs (anchors, notes, completions)
-          for (const dateKey in state.history) {
-            const logRef = doc(db, 'users', state.user.uid, 'logs', dateKey);
-            batch.set(logRef, state.history[dateKey], { merge: true });
+          // 🛡️ COST SAFETY: Only sync DIRTY logs (not entire history)
+          // This prevents the "Write Explosion" bug where 365 days = 365 writes per sync
+          const dirtyDates = Object.keys(state.history).filter(
+            dateKey => state.history[dateKey]._dirty === true
+          );
+
+          if (dirtyDates.length === 0) {
+            console.log("[SYNC] 🛡️ No dirty logs - skipping log sync (0 writes)");
+          } else {
+            console.log("[SYNC] 🛡️ Syncing only", dirtyDates.length, "dirty logs (not", Object.keys(state.history).length, "total)");
+
+            for (const dateKey of dirtyDates) {
+              const logRef = doc(db, 'users', state.user.uid, 'logs', dateKey);
+              // Strip _dirty before saving to Firebase (it's a local-only field)
+              const { _dirty, ...cleanLog } = state.history[dateKey];
+              batch.set(logRef, cleanLog, { merge: true });
+            }
           }
 
-          console.log("[SYNC] Syncing", Object.keys(state.history).length, "daily logs");
-
           await batch.commit();
-          set({ lastSync: Date.now() });
+
+          // 🛡️ COST SAFETY: Clear dirty flags AFTER successful commit
+          if (dirtyDates.length > 0) {
+            const clearedHistory = { ...state.history };
+            for (const dateKey of dirtyDates) {
+              if (clearedHistory[dateKey]) {
+                clearedHistory[dateKey] = { ...clearedHistory[dateKey], _dirty: false };
+              }
+            }
+            set({ history: clearedHistory, lastSync: Date.now() });
+            console.log("[SYNC] ✅ Cleared dirty flags for", dirtyDates.length, "logs");
+          } else {
+            set({ lastSync: Date.now() });
+          }
+
           console.log("[SYNC] Uploaded to Firebase, lastUpdated:", state.lastUpdated);
         } catch (error) {
           console.error("Firebase Sync Error:", error);

@@ -72,6 +72,7 @@ export interface DailyLog {
   energy?: EnergyLevel;
   note?: string;
   intention?: string;
+  _dirty?: boolean; // 🛡️ COST SAFETY: Marks log for sync - NOT persisted to Firebase
 }
 
 export interface Badge {
@@ -142,6 +143,7 @@ export interface WeeklyReviewState {
   available: boolean;
   startDate: string;
   endDate: string;
+  weekKey?: string; // 🛡️ COST SAFETY: Tracks which week this review belongs to (YYYY-MM-DD of Sunday)
   totalCompletions: number;
   weeklyMomentumScore: number; // 0.0 to 21.0 (7 days * 3.0 max per day)
   persona: WeeklyPersona;
