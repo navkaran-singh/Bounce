@@ -24,10 +24,10 @@ export const Contact: React.FC = () => {
                                     For general inquiries, technical support, or billing questions.
                                 </p>
                                 <a
-                                    href="mailto:navkaransingh3110@gmail.com"
+                                    href="mailto:hello.bouncelife@gmail.com"
                                     className="text-cyan-400 hover:text-cyan-300 transition-colors text-lg font-medium"
                                 >
-                                    navkaransingh3110@gmail.com
+                                    hello.bouncelife@gmail.com
                                 </a>
                                 <p className="text-gray-500 text-sm mt-2">
                                     We typically respond within 24-48 hours.
