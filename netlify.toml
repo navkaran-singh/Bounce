@@ -19,3 +19,9 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+
+# 👇 ADD THIS SECTION
+[dev]
+  framework = "#auto"
+  targetPort = 3000  # Tells Netlify: "My app is on 3000, listen there."
+  port = 8888        # Netlify Dev itself will run on 8888.

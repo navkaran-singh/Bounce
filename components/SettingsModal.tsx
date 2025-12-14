@@ -173,7 +173,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         </div>
 
                         {/* Premium Banner - Show if not premium */}
-                        {!useStore.getState().isPremium && user && (
+                        {!isPremium && user && (
                             <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 relative h-32 overflow-hidden group cursor-pointer" onClick={() => {
                                 onClose();
                                 // Open premium modal - we'll need to pass this as a prop or use a global state
@@ -367,7 +367,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                             Your next billing date is {new Date(premiumExpiryDate || Date.now()).toLocaleDateString()}.
                                         </p>
                                         <a
-                                            href="mailto:navkaransingh3110@gmail.com?subject=Cancel Subscription"
+                                            href="mailto:hello.bouncelife@gmail.com?subject=Cancel Subscription"
                                             className="text-xs text-white/50 hover:text-white underline decoration-dotted"
                                         >
                                             Manage / Cancel Subscription

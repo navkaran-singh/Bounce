@@ -27,3 +27,5 @@ dist-ssr
 *.sw?
 # services/firebase.ts
 android/app/google-services.json
+# Local Netlify folder
+.netlify

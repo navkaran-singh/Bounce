@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
+      allowedHosts: [
+        'unmodulative-jeremy-alpinely.ngrok-free.dev'
+      ],
     },
     plugins: [react()],
     resolve: {
