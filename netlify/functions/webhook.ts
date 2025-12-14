@@ -172,6 +172,29 @@ export const handler: Handler = async (event: HandlerEvent) => {
                 break;
             }
 
+            case 'subscription.expired':
+            case 'subscription.payment_failed': {
+                // ❌ THIS is the Kill Switch - Full downgrade
+                console.log(`📉 [WEBHOOK] Subscription expired/failed: ${paymentId}`);
+
+                if (userId) {
+                    await db.collection('users').doc(userId).set(
+                        {
+                            isPremium: false,
+                            premiumExpiryDate: null,
+                            subscriptionStatus: 'expired',
+                            subscriptionExpiredAt: Date.now(),
+                            lastPaymentId: paymentId,
+                            paymentSource: 'webhook_expiry',
+                            lastUpdated: Date.now(),
+                        },
+                        { merge: true }
+                    );
+                    console.log(`📉 [WEBHOOK] User ${userId} fully downgraded to free.`);
+                }
+                break;
+            }
+
             case 'subscription.cancelled':
             case 'subscription.canceled': {
                 console.log(`⚠️ [WEBHOOK] Subscription cancelled: ${paymentId}`);
