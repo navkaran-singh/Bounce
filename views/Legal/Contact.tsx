@@ -58,28 +58,7 @@ export const Contact: React.FC = () => {
                     </div>
 
                     {/* Physical Address */}
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-                        <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                                <MapPin className="w-6 h-6 text-pink-400" />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-semibold text-white mb-2">Business Address</h3>
-                                <p className="text-gray-400 mb-3">
-                                    For official correspondence:
-                                </p>
-                                <address className="text-gray-300 not-italic">
-                                    Bounce (Operated by Navkaran Singh)<br />
-                                    House No 2890, Sector 38C, 160036<br />
-                                    Chandigarh, India<br />
-                                    {/* India */}
-                                </address>
-                                <p className="text-gray-500 text-sm mt-3">
-                                    Please note: For faster support, we recommend contacting us via email.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+
                 </div>
             </section>
 

@@ -1419,6 +1419,45 @@ export const useStore = create<ExtendedUserState>()(
         } else if (identityType) {
           console.log("🧬 [IDENTITY] ⚠️ Skipping evolution - missing identity or habits");
           stageReason = "Set up your habits to unlock evolution insights.";
+          // Provide fallback options so Step 3 isn't empty
+          evolutionOptions = [
+            {
+              id: 'MAINTAIN' as any,
+              label: '⚖️ Keep Going',
+              description: 'Continue with your current approach.',
+              impact: { difficultyAdjustment: 0 }
+            },
+            {
+              id: 'SOFTER_HABIT' as any,
+              label: '🌿 Take It Easy',
+              description: 'Reduce the intensity this week.',
+              impact: { difficultyAdjustment: -1 }
+            }
+          ];
+          console.log("🧬 [IDENTITY] Using fallback evolution options");
+        } else {
+          // No identityType at all - generate minimal fallback
+          console.log("🧬 [IDENTITY] ⚠️ No identity type detected - using minimal fallback options");
+          evolutionOptions = [
+            {
+              id: 'MAINTAIN' as any,
+              label: '⚖️ Keep Going',
+              description: 'Continue with your current approach.',
+              impact: { difficultyAdjustment: 0 }
+            },
+            {
+              id: 'SOFTER_HABIT' as any,
+              label: '🌿 Take It Easy',
+              description: 'Reduce the intensity this week.',
+              impact: { difficultyAdjustment: -1 }
+            },
+            {
+              id: 'FRESH_START' as any,
+              label: '🔄 Fresh Start',
+              description: 'Reset and begin again with clarity.',
+              impact: { difficultyAdjustment: -2, stageChange: 'INITIATION', isFreshStart: true }
+            }
+          ];
         }
 
 

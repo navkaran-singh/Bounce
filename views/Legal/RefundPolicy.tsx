@@ -53,7 +53,7 @@ export const RefundPolicy: React.FC = () => {
                 </p>
                 <ul className="list-disc list-inside text-gray-300 mb-4 space-y-2">
                     <li>Your account settings within the app</li>
-                    <li>Contacting our support team at <a href="mailto:navkaransingh3110@gmail.com" className="text-cyan-400 hover:underline">navkaransingh3110@gmail.com</a></li>
+                    <li>Contacting our support team at <a href="mailto:hello.bouncelife@gmail.com" className="text-cyan-400 hover:underline">hello.bouncelife@gmail.com</a></li>
                 </ul>
                 <p className="text-gray-300">
                     Cancellation requests are processed immediately, and you will receive a confirmation email.
@@ -91,7 +91,7 @@ export const RefundPolicy: React.FC = () => {
                     If you have any questions about this Refund Policy, please contact us:
                 </p>
                 <p className="text-cyan-400 text-lg">
-                    <a href="mailto:navkaransingh3110@gmail.com">navkaransingh3110@gmail.com</a>
+                    <a href="mailto:hello.bouncelife@gmail.com">hello.bouncelife@gmail.com</a>
                 </p>
             </section>
         </LegalLayout>

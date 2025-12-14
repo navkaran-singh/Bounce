@@ -99,7 +99,7 @@ export const PrivacyPolicy: React.FC = () => {
                     If you have questions about this Privacy Policy, please contact us at:
                 </p>
                 <p className="text-cyan-400">
-                    <a href="mailto:navkaransingh3110@gmail.com">navkaransingh3110@gmail.com</a>
+                    <a href="mailto:hello.bouncelife@gmail.com">hello.bouncelife@gmail.com</a>
                 </p>
             </section>
         </LegalLayout>

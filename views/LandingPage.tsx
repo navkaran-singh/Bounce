@@ -135,76 +135,87 @@ export const LandingPage: React.FC = () => {
             {/* Pricing Section */}
             <section className="relative z-10 px-6 py-20 max-w-4xl mx-auto">
                 <h2 className="text-3xl font-bold text-center mb-4">
-                    Simple, Transparent Pricing
+                    Simple, Honest Pricing
                 </h2>
                 <p className="text-gray-400 text-center mb-12 max-w-xl mx-auto">
-                    Start free, upgrade when you're ready for AI superpowers.
+                    Start free. Upgrade when you want clarity, not just tracking.
                 </p>
 
                 <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+
                     {/* Free Plan */}
                     <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
                         <h3 className="text-xl font-semibold mb-2">Free</h3>
-                        <div className="text-3xl font-bold mb-4">$0<span className="text-lg text-gray-400 font-normal">/month</span></div>
+                        <div className="text-3xl font-bold mb-4">
+                            $0<span className="text-lg text-gray-400 font-normal">/month</span>
+                        </div>
+
                         <ul className="space-y-3 text-gray-300 mb-6">
                             <li className="flex items-center gap-2">
-                                <span className="text-green-400">✓</span> Basic habit tracking
+                                <span className="text-green-400">✓</span> Core habit tracking
                             </li>
                             <li className="flex items-center gap-2">
-                                <span className="text-green-400">✓</span> Recovery Mode
+                                <span className="text-green-400">✓</span> Energy-based habit modes
                             </li>
                             <li className="flex items-center gap-2">
-                                <span className="text-green-400">✓</span> Energy level selection
+                                <span className="text-green-400">✓</span> Recovery & reset weeks
                             </li>
                             <li className="flex items-center gap-2">
-                                <span className="text-green-400">✓</span> Progress stats
+                                <span className="text-green-400">✓</span> Progress & streak insights
                             </li>
                         </ul>
+
                         <Link
                             to="/app"
                             className="block w-full py-3 text-center border border-white/20 rounded-full font-medium hover:bg-white/10 transition-colors"
                         >
-                            Get Started
+                            Get Started Free
                         </Link>
                     </div>
 
                     {/* Premium Plan */}
                     <div className="p-6 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 rounded-2xl relative">
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full text-xs font-semibold">
-                            RECOMMENDED
+                            MOST PEOPLE UPGRADE
                         </div>
+
                         <h3 className="text-xl font-semibold mb-2">Premium</h3>
-                        <div className="text-3xl font-bold mb-4">$5<span className="text-lg text-gray-400 font-normal">/month</span></div>
+                        <div className="text-3xl font-bold mb-4">
+                            $8<span className="text-lg text-gray-400 font-normal">/month</span>
+                        </div>
+
                         <ul className="space-y-3 text-gray-300 mb-6">
                             <li className="flex items-center gap-2">
                                 <span className="text-cyan-400">✓</span> Everything in Free
                             </li>
                             <li className="flex items-center gap-2">
-                                <span className="text-cyan-400">✓</span> <strong>AI Daily Adjustments</strong>
+                                <span className="text-cyan-400">✓</span> <strong>AI daily adjustments</strong>
                             </li>
                             <li className="flex items-center gap-2">
-                                <span className="text-cyan-400">✓</span> <strong>Sunday Ritual Review</strong>
+                                <span className="text-cyan-400">✓</span> <strong>Weekly identity review</strong>
                             </li>
                             <li className="flex items-center gap-2">
-                                <span className="text-cyan-400">✓</span> Smart habit generation
+                                <span className="text-cyan-400">✓</span> Smart habit evolution
                             </li>
                             <li className="flex items-center gap-2">
                                 <span className="text-cyan-400">✓</span> Priority support
                             </li>
                         </ul>
+
                         <Link
                             to="/app"
                             className="block w-full py-3 text-center bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full font-semibold hover:opacity-90 transition-opacity"
                         >
-                            Start Now
+                            Upgrade to Premium
                         </Link>
+
+                        <p className="text-xs text-gray-400 text-center mt-3">
+                            (tax included) • cancel anytime
+                        </p>
                     </div>
                 </div>
-
-                <p className="text-center text-gray-500 text-sm mt-6">
-                    Cancel anytime. No questions asked.
-                </p>
             </section>
+
 
             {/* Final CTA */}
             <section className="relative z-10 px-6 py-20 max-w-4xl mx-auto text-center">
@@ -253,9 +264,9 @@ export const LandingPage: React.FC = () => {
                     </div>
                 </div>
             </footer>
-            <div className="text-center text-sm text-gray-500 mb-4">
+            {/* <div className="text-center text-sm text-gray-500 mb-4">
                 Bounce is operated by Navkaran Singh as an individual business.
-            </div>
+            </div> */}
         </div>
     );
 };

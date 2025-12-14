@@ -137,11 +137,14 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({ isOpen, onClose }) =
               className="w-full h-16 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-black font-bold text-lg shadow-[0_0_30px_rgba(251,191,36,0.3)] hover:shadow-[0_0_40px_rgba(251,191,36,0.5)] transition-all duration-300 active:scale-95 flex items-center justify-center gap-2"
             >
               <Crown size={20} fill="currentColor" />
-              <span>Start 7-Day Free Trial</span>
+              <span>Activate AI Coaching</span>
             </button>
 
             <p className="text-center text-white/40 text-xs mt-4">
-              Then $5/month • Cancel anytime
+              $8/month • Cancel anytime
+            </p>
+            <p className="text-center text-white/40 text-xs mt-4">
+              Early access may be granted to selected users
             </p>
           </div>
         </motion.div>
