@@ -213,7 +213,8 @@ export const generateDailyAdaptation = async (
   identityType: 'SKILL' | 'CHARACTER' | 'RECOVERY' | 'MIXED',
   identityStage: 'INITIATION' | 'INTEGRATION' | 'EXPANSION' | 'MAINTENANCE',
   performanceMode: 'GROWTH' | 'STEADY' | 'RECOVERY',
-  currentRepository: { high: string[], medium: string[], low: string[] }
+  currentRepository: { high: string[], medium: string[], low: string[] },
+  intention?: string  // Optional: User's daily anchor/intention
 ): Promise<{ high: string[], medium: string[], low: string[], toastMessage: string }> => {
   console.log("🤖 [AI SERVICE] Generating FULL SPECTRUM for mode:", performanceMode);
   console.log("🤖 [AI SERVICE] Current Repository:", currentRepository);
@@ -296,6 +297,10 @@ export const generateDailyAdaptation = async (
     Identity: "${identity}" (${identityType})
     Identity Stage: ${identityStage}
     Yesterday's Mode: ${performanceMode}
+    ${intention ? `
+    📍 TODAY'S ANCHOR: "${intention}"
+    - If relevant, subtly reference this anchor in the toastMessage (e.g., "Your anchor: ${intention.slice(0, 30)}... guides today's habits.").
+    - Don't force it. Only mention if it naturally fits.` : ''}
     
     === STAGE CONTEXT (Long-term: How experienced is this user?) ===
     ${macroInstruction}
@@ -411,6 +416,7 @@ interface WeeklyReviewParams {
   isNoveltyWeek?: boolean;  // 🌀 Novelty Injection: true if due for novelty
   stageProgress?: { label: string; weeks: number; totalWeeks: number }; // 📊 Stage progress info
   suggestedStage?: 'EXPANSION' | 'MAINTENANCE' | null; // 🚪 v8 Gatekeeper: Stage user can upgrade to
+  weeklyIntentions?: string[];  // 📍 User's daily anchors from this week
 }
 
 interface WeeklyReviewContent {
@@ -509,6 +515,11 @@ USER CONTEXT:
 - Evolution needed: ${params.suggestionType}
 - Difficulty adjustment: ${params.difficultyLevel || 'same'}
 - Novelty week: ${params.isNoveltyWeek ? 'YES' : 'NO'}
+${params.weeklyIntentions && params.weeklyIntentions.length > 0 ? `
+📍 WEEKLY ANCHORS (User's stated intentions this week):
+${params.weeklyIntentions.map((i, idx) => `  ${idx + 1}. "${i}"`).join('\n')}
+- In your reflection, briefly mention whether their habits aligned with these anchors.
+- This shows the user you "see" their deeper goals beyond just habit completion.` : ''}
 
 ${evolutionContext[params.suggestionType] || 'Maintain current habits.'}
 

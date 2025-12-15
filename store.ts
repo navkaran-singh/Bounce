@@ -491,7 +491,8 @@ export const useStore = create<ExtendedUserState>()(
               state.identityProfile?.type || 'SKILL',      // Identity type for context
               state.identityProfile?.stage || 'INITIATION', // Stage for difficulty scaling
               mode,
-              state.habitRepository
+              state.habitRepository,
+              state.history[today]?.intention  // Pass today's intention/anchor if set
             );
 
             // Validate the returned repository
@@ -893,7 +894,19 @@ export const useStore = create<ExtendedUserState>()(
                 label: weeklyReview.stageProgress.label,
                 weeks: weeklyReview.stageProgress.weeks,
                 totalWeeks: weeklyReview.stageProgress.totalWeeks
-              } : undefined
+              } : undefined,
+              // 📍 Pass last 7 days' intentions/anchors (for weekly review)
+              weeklyIntentions: (() => {
+                const today = new Date();
+                const sevenDaysAgo = new Date(today);
+                sevenDaysAgo.setDate(today.getDate() - 6); // Last 7 days including today
+                sevenDaysAgo.setHours(0, 0, 0, 0);
+
+                return Object.entries(history)
+                  .filter(([date]) => new Date(date) >= sevenDaysAgo)
+                  .map(([, log]) => log.intention)
+                  .filter((i): i is string => !!i);
+              })()
             });
 
             // 🔥 CRITICAL: Apply the new habits to habitRepository AND set today's microHabits
@@ -1170,7 +1183,10 @@ export const useStore = create<ExtendedUserState>()(
         // 🛡️ COST SAFETY: Check if we already have a review for this week
         const getWeekKey = (date: Date) => {
           const startOfWeek = new Date(date);
-          startOfWeek.setDate(date.getDate() - date.getDay()); // Start of week (Sunday)
+          let day = startOfWeek.getDay();
+          // Treat Sunday (0) as day 7 for Monday-Sunday week
+          if (day === 0) day = 7;
+          startOfWeek.setDate(date.getDate() - (day - 1)); // Go back to Monday
           return startOfWeek.toISOString().split('T')[0];
         };
 
@@ -1559,7 +1575,19 @@ export const useStore = create<ExtendedUserState>()(
               suggestionType: evolutionSuggestion.type,
               currentRepository: state.habitRepository,
               // 🚪 v8 Gatekeeper: Pass suggestedStage for AI resonance (null for GHOST users)
-              suggestedStage: persona === 'GHOST' ? null : suggestedStage as 'EXPANSION' | 'MAINTENANCE' | null
+              suggestedStage: persona === 'GHOST' ? null : suggestedStage as 'EXPANSION' | 'MAINTENANCE' | null,
+              // 📍 Pass last 7 days' intentions/anchors (for weekly review)
+              weeklyIntentions: (() => {
+                const today = new Date();
+                const sevenDaysAgo = new Date(today);
+                sevenDaysAgo.setDate(today.getDate() - 6); // Last 7 days including today
+                sevenDaysAgo.setHours(0, 0, 0, 0);
+
+                return Object.entries(state.history)
+                  .filter(([date]) => new Date(date) >= sevenDaysAgo)
+                  .map(([, log]) => log.intention)
+                  .filter((i): i is string => !!i);
+              })()
             });
 
             // Extract all fields from unified response
@@ -1780,7 +1808,8 @@ export const useStore = create<ExtendedUserState>()(
             state.identityProfile?.type || 'SKILL', // Add type
             state.identityProfile?.stage || 'INITIATION', // Add stage
             mode,
-            state.habitRepository
+            state.habitRepository,
+            state.history[new Date().toISOString().split('T')[0]]?.intention  // Pass today's intention
           );
 
           // Validate the returned repository
