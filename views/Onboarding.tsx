@@ -4,6 +4,7 @@ import { ArrowRight, Sparkles, Plus, Info, X, Loader2 } from 'lucide-react';
 import { useStore } from '../store';
 import { Message, IdentityType, InitialFamiliarity } from '../types';
 import { generateHabits, GenerateHabitsResult } from '../services/ai';
+import { getHabitsFromTemplate } from '../services/habitTemplateService';
 
 // Familiarity options for v8 behavior-based stage initialization
 const FAMILIARITY_OPTIONS: { label: string; value: InitialFamiliarity; emoji: string }[] = [
@@ -232,12 +233,19 @@ export const Onboarding: React.FC = () => {
           low: validHabits[2] && validHabits[2] !== generatedHabits.low[0]
             ? [validHabits[2], ...generatedHabits.low.slice(1)]
             : generatedHabits.low
-        } : {
-          // Manual entry without AI: each input is the only habit for that energy level
-          high: [validHabits[0] || 'Complete one task'],
-          medium: [validHabits[1] || validHabits[0] || 'Do something small'],
-          low: [validHabits[2] || validHabits[1] || validHabits[0] || 'Show up']
-        };
+        } : (() => {
+          // Manual entry: populate remaining habits from templates (no AI call)
+          const identity = useStore.getState().identity || '';
+          const templateHabits = getHabitsFromTemplate(identity);
+          console.log('📋 [ONBOARDING] Manual entry - using template fillins:', templateHabits.isTemplateMatch ? 'matched' : 'fallback');
+
+          return {
+            // User's habit first, then fill with 2 more from template/fallback
+            high: [validHabits[0] || templateHabits.high[0], ...templateHabits.high.slice(0, 2)].slice(0, 3),
+            medium: [validHabits[1] || templateHabits.medium[0], ...templateHabits.medium.slice(0, 2)].slice(0, 3),
+            low: [validHabits[2] || templateHabits.low[0], ...templateHabits.low.slice(0, 2)].slice(0, 3)
+          };
+        })();
 
         setHabitsWithLevels(finalHabits);
 

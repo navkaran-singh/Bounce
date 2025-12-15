@@ -69,55 +69,91 @@ export interface GenerateHabitsResult {
 }
 
 export const generateHabits = async (identity: string): Promise<GenerateHabitsResult> => {
-  if (!API_KEY) {
-    console.warn("Missing GEMINI_API_KEY");
-    // Fallback data so the app doesn't crash without API
+  // 🛡️ COST SAFETY: Try templates first before AI
+  const { getHabitsFromTemplate, hasTemplateMatch } = await import('./habitTemplateService');
+
+  if (hasTemplateMatch(identity)) {
+    console.log("📋 [HABITS] Using template-based generation (no AI call)");
+    const templateResult = getHabitsFromTemplate(identity);
     return {
-      high: ["Do the full task"],
-      medium: ["Do half the task"],
-      low: ["Just show up"],
+      high: templateResult.high,
+      medium: templateResult.medium,
+      low: templateResult.low,
+      identityType: templateResult.identityType,
+      identityReason: templateResult.identityReason
+    };
+  }
+
+  // No template match - fall back to AI
+  console.log("🤖 [HABITS] No template match - using AI generation");
+
+  if (!API_KEY) {
+    console.warn("Missing GEMINI_API_KEY - using fallback habits");
+    const fallbackResult = getHabitsFromTemplate(identity);
+    return {
+      high: fallbackResult.high,
+      medium: fallbackResult.medium,
+      low: fallbackResult.low,
       identityType: null,
-      identityReason: "API key missing"
+      identityReason: "API key missing - using fallback"
     };
   }
 
   const genAI = new GoogleGenerativeAI(API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-  // THE SCIENCE-BACKED PROMPT WITH IDENTITY CLASSIFICATION
+  // THE ADHD-OPTIMIZED PROMPT WITH IDENTITY CLASSIFICATION
   const prompt = `
-    Role: You are an expert Behavioral Psychologist specializing in ADHD and BJ Fogg's "Tiny Habits" method.
+    Role: You are an expert Behavioral Psychologist specializing in ADHD and BJ Fogg's "Tiny Habits".
     
-    Goal: Convert the user's desired identity: "${identity}" into actionable habits for 3 distinct energy levels.
+    Goal: Convert the user's desired identity: "${identity}" into actionable, dopamine-friendly habits for 3 energy levels.
     
     FIRST: Classify this identity into one of 3 types:
     - "SKILL": User wants to GET BETTER at something (run faster, write better, learn coding, etc.)
     - "CHARACTER": User wants to BECOME a type of person (be calm, be disciplined, be confident, etc.)
     - "RECOVERY": User wants to STOP/REDUCE/FIX something (stop procrastinating, quit smoking, fix sleep, etc.)
 
-    STRICT CONSTRAINTS FOR "LOW" ENERGY HABITS (The "Bad Day" Protocol):
-    1. Time Constraint: Must take LESS than 2 minutes (The "Two-Minute Rule").
-    2. Cognitive Load: Must require ZERO planning or decision making.
-    3. Physical Friction: Must be the "Initiation Step" only (e.g., "Put on shoes", not "Run").
+    CRITICAL RULES FOR HABIT DESIGN (Anti-Churn Protocols):
     
-    CRITICAL INSTRUCTION: 
-    For "Low" energy, do NOT output "Volunteer", "Research", or "Plan". Those are projects.
-    Output only the stupidly small physical action that starts the momentum.
+    1. 🛑 NO "PASSIVE PREP": Never generate habits like "Open the app," "Put on shoes," or "Get ready." 
+       - Why: ADHD brains hate transitions. "Getting ready" feels like a chore, not a win.
+       - Fix: The habit must be the *first tiny action of value*.
+    
+    2. ⚡ LOW HABITS = "DOPAMINE PRIMERS":
+       - Must take < 2 minutes.
+       - Must produce an IMMEDIATE result (a sentence written, a dish washed, a rep done).
+       - Must require ZERO planning or decision making.
+       - Goal: Trick the brain into starting by offering a "micro-win."
+       
+    3. 🎯 HIGH HABITS = "DEFINITION OF DONE":
+       - Must be 15-30 mins, challenging but doable.
+       - Must have a clear endpoint to prevent hyperfocus burnout.
+       - Use "Time-Boxing" or specific "Unit Counts".
+
+    4. ⚙️ MEDIUM HABITS = "STANDARD DAY":
+       - 5-10 mins, sustainable baseline.
+       - The fallback for "I don't want to think" days.
+
+    EXAMPLES OF "BAD" VS "GOOD" HABITS:
+    ❌ Bad Low: "Open code editor" (Passive) -> ✅ Good Low: "Write one comment explaining next step" (Active)
+    ❌ Bad Low: "Research gyms" (Vague) -> ✅ Good Low: "Do 5 air squats right now" (Immediate)
+    ❌ Bad High: "Write book" (Scary) -> ✅ Good High: "Write 500 words of 'ugly' first draft" (Low pressure)
+    ❌ Bad Low: "Plan workout" (Project) -> ✅ Good Low: "Put on workout shoes and step outside" (Action)
 
     Generate JSON with:
     - "identityType": "SKILL" | "CHARACTER" | "RECOVERY"
     - "identityReason": Brief 1-sentence explanation of why you chose this type
-    - "high": (The Ideal Day) 3 habits, ~15-30 mins. challenging but doable.
-    - "medium": (The Standard Day) 3 habits, ~5-10 mins.
-    - "low": (The "2-Minute" Tiny Habit) 3 habits.
+    - "high": 3 specific habits (The Ideal Day, ~15-30 mins)
+    - "medium": 3 specific habits (The Standard Day, ~5-10 mins)
+    - "low": 3 specific habits (Survival Mode Dopamine Primers, <2 mins)
 
     Example Output Structure:
     {
       "identityType": "SKILL",
       "identityReason": "User wants to improve writing ability, which is a learnable skill.",
-      "high": ["Write 500 words", "Edit 1 chapter", "Outline next scene"],
-      "medium": ["Write 1 paragraph", "Read 1 page of notes", "Write 3 headlines"],
-      "low": ["Open the document", "Write one bad sentence", "Read the last sentence written"]
+      "high": ["Write 500 words of ugly first draft", "Edit 1 chapter for flow", "Outline next 3 scenes"],
+      "medium": ["Write 1 paragraph on current scene", "Read 1 page of notes aloud", "Rewrite 3 weak sentences"],
+      "low": ["Write one bad sentence", "Read last paragraph you wrote", "Type the next word"]
     }
     
     Return ONLY raw JSON. No markdown formatting.
@@ -154,7 +190,15 @@ export const generateHabits = async (identity: string): Promise<GenerateHabitsRe
     return finalResult;
   } catch (error) {
     console.error("Error generating habits:", error);
-    return { high: [], medium: [], low: [], identityType: null };
+    // Fall back to template on AI error
+    const fallbackResult = getHabitsFromTemplate(identity);
+    return {
+      high: fallbackResult.high,
+      medium: fallbackResult.medium,
+      low: fallbackResult.low,
+      identityType: fallbackResult.identityType,
+      identityReason: "AI error - using fallback template"
+    };
   }
 };
 
@@ -174,11 +218,11 @@ export const generateDailyAdaptation = async (
   console.log("🤖 [AI SERVICE] Generating FULL SPECTRUM for mode:", performanceMode);
   console.log("🤖 [AI SERVICE] Current Repository:", currentRepository);
 
-  // Fallback toast messages
+  // Fallback toast messages (no emojis - toast UI has built-in emoji)
   const fallbackToasts = {
-    GROWTH: `🔥 You're on fire! Your "${identity}" habits got a boost today.`,
-    STEADY: `⚡ Solid progress! Keeping your "${identity}" routine consistent.`,
-    RECOVERY: `🌱 Taking it easy today. Small wins for your "${identity}" journey.`
+    GROWTH: `You're on fire! Your "${identity}" habits got a boost today.`,
+    STEADY: `Solid progress! Keeping your "${identity}" routine consistent.`,
+    RECOVERY: `Taking it easy today. Small wins for your "${identity}" journey.`
   };
 
   if (!API_KEY) {
@@ -246,13 +290,12 @@ export const generateDailyAdaptation = async (
   const typeInstruction = typeContext[identityType];
 
   const prompt = `
-    Role: You are a Behavioral Psychologist focused on Identity-Based Habits and Progressive Adaptation.
+    Role: You are a compassionate Behavioral Coach for an ADHD brain.
     
     === USER CONTEXT ===
-    Identity: "${identity}"
-    Identity Type: ${identityType}
+    Identity: "${identity}" (${identityType})
     Identity Stage: ${identityStage}
-    Yesterday's Performance: ${performanceMode}
+    Yesterday's Mode: ${performanceMode}
     
     === STAGE CONTEXT (Long-term: How experienced is this user?) ===
     ${macroInstruction}
@@ -267,47 +310,48 @@ export const generateDailyAdaptation = async (
     Current Habit Repository:
     ${JSON.stringify(currentRepository, null, 2)}
 
-    Task: Generate a FULL SPECTRUM habit repository (High, Medium, Low) that respects ALL three contexts above.
+    Task: Adapt the habit repository for TODAY.
 
-    SCIENCE-BACKED RULES:
-
-    1. RECOVERY MODE (Slump/Struggle):
-       - LOW (Default): Atomic, friction-free initiation steps (<2 mins, zero planning)
-       - MEDIUM: Standard baseline (5-10 mins)
-       - HIGH: Do NOT overload; keep it standard (15-30 mins)
+    PSYCHOLOGICAL RULES FOR ADHD RETENTION:
     
-    2. GROWTH MODE (Flow State):
-       - HIGH (Default): Apply PROGRESSIVE OVERLOAD (+10-20% duration/intensity)
-       - MEDIUM: Maintenance level (5-10 mins)
-       - LOW: Active recovery initiation steps (<2 mins)
+    1. IF RECOVERY MODE (Yesterday was hard):
+       - 🎯 Goal: "SHAME REDUCTION" - Make it impossible to fail.
+       - LOW Habit: Must be a "0-Friction Win" (e.g., "Write 1 sentence", NOT "Plan chapter").
+       - HIGH Habit: Do NOT increase difficulty. Keep it standard or slightly easier.
+       - Toast Message: Must validate that *resting/surviving* is part of the process.
+    
+    2. IF GROWTH MODE (Flow State):
+       - 🎯 Goal: "SURFING THE DOPAMINE" - Ride the momentum.
+       - HIGH Habit: Apply PROGRESSIVE OVERLOAD (+10-20%) or add a "Constraint" challenge.
+       - MEDIUM Habit: Add novelty (e.g., "Do it in a new location" or "Try with music").
+       - Toast Message: Celebrate the streak but gently warn against burnout.
        - ⚠️ EXCEPTION: For RECOVERY identity type, do NOT apply progressive overload. Keep gentle.
     
-    3. STEADY MODE (Consistency):
-       - HIGH: Keep challenging (15-30 mins)
-       - MEDIUM (Default): Refresh for novelty, maintain difficulty (5-10 mins)
-       - LOW: Keep atomic safety net (<2 mins)
+    3. IF STEADY MODE (Consistency):
+       - 🎯 Goal: "BOREDOM PREVENTION" - Keep it fresh.
+       - Rewrite at least one habit to feel slightly different, even if difficulty stays same.
+       - Toast Message: Acknowledge the grind. Consistency IS the win.
 
     4. STAGE MODIFIERS:
-       - INITIATION: Keep ALL levels simple. User is building the habit loop, not intensity.
+       - INITIATION: Keep ALL levels simple. User is building the loop, not intensity.
        - INTEGRATION: Moderate challenge. Focus on rhythm, not breakthroughs.
        - EXPANSION: Push harder on HIGH. User can handle progressive overload.
        - MAINTENANCE: Efficiency focus. Avoid burnout. Sustainable habits only.
 
     CRITICAL CONSTRAINTS:
     - Output EXACTLY 3 habits per energy level (9 total)
-    - Keep them aligned with the identity: "${identity}"
-    - LOW habits MUST be completable in under 2 minutes (initiation steps only)
-    - HIGH habits should be challenging but achievable (15-30 mins)
+    - LOW habits MUST be < 2 minutes AND produce an immediate result (no "prep" habits)
+    - HIGH habits should be 15-30 mins with clear endpoint
     - MEDIUM habits are the daily baseline (5-10 mins)
-    - toastMessage MUST be under 100 characters, personal, and encouraging
+    - toastMessage MUST be under 100 characters, validating, NO EMOJIS (UI adds emoji)
 
     Format: Return ONLY a JSON object with keys "high", "medium", "low", "toastMessage".
-    Example Output Structure:
+    Example:
     {
       "high": ["Run 12 mins", "Write 600 words", "Read 15 pages"],
       "medium": ["Run 8 mins", "Write 300 words", "Read 5 pages"],
-      "low": ["Put on running shoes", "Open writing app", "Pick up book"],
-      "toastMessage": "🔥 Yesterday was strong! I've nudged your habits up a notch."
+      "low": ["Do 3 jumping jacks", "Write one sentence", "Read one paragraph"],
+      "toastMessage": "Yesterday was strong! I've nudged your habits up a notch."
     }
     
     Return ONLY raw JSON. No markdown formatting.
@@ -454,13 +498,13 @@ export const generateWeeklyReviewContent = async (
   const prompt = `
 You are Bounce, an identity-based behavior coach.
 
-Generate a COMPLETE weekly review package for the user in ONE response.
+Goal: Prove to the user that they ARE becoming their desired identity: "${params.identity}".
 
 USER CONTEXT:
 - Identity: "${params.identity}"
 - Type: ${params.identityType}
 - Stage: ${params.identityStage}
-- Persona this week: ${params.persona}
+- Persona this week: ${params.persona} (TITAN=Crushed it, GRINDER=Consistent, SURVIVOR=Struggled, GHOST=Absent)
 - Streak: ${params.streak} days
 - Evolution needed: ${params.suggestionType}
 - Difficulty adjustment: ${params.difficultyLevel || 'same'}
@@ -490,24 +534,30 @@ Include 1 sentence of stage insight in the reflection about what this progress m
 Current Habits:
 ${JSON.stringify(params.currentRepository, null, 2)}
 
-Return a JSON object with ALL these fields:
+TASK: Generate a JSON object with these fields:
 
-{
-  "reflection": "2 sentences only. Speak directly to user. What this stage means for who they're becoming + what small shift is emerging.",
-  "archetype": "A personalized 2-3 word title like 'The Emerging Writer' or 'The Grounded Self' based on their identity",
-  "high": ["habit1", "habit2", "habit3"],
-  "medium": ["habit1", "habit2", "habit3"],
-  "low": ["habit1", "habit2", "habit3"],
-  "narrative": "20-30 words. Direct, trusting tone. What to focus on this week.",
-  "habitAdjustments": ["short tip 1", "short tip 2"],
-  "stageAdvice": "10 words max",
-  "summary": "1 short sentence"
-}
+1. "reflection": 2 sentences. USE "IDENTITY PROOF" technique.
+   - Bad: "You did a good job writing." (Generic cheerleading)
+   - Good: "You showed up 4 times this week even when tired. That proves you are a Writer, not just someone who likes to write."
+   - Speak directly to user. What this stage means + what internal shift is emerging.
+
+2. "archetype": A personalized 2-3 word RPG-style title.
+   - e.g. "The Relentless Writer", "The Grounded Self", "The Architect of Calm"
+
+3. "high", "medium", "low": The adjusted habit lists (3 items each).
+   - If Novelty Week: Add a constraint to at least one habit text.
+   - If SURVIVOR/GHOST: Make the "Low" habits laughably easy to restart the engine.
+   - LOW habits must produce an immediate result, not just "prep".
+
+4. "narrative": 20 words max. A directive for next week.
+5. "habitAdjustments": 2 short actionable tips.
+6. "stageAdvice": 10 words max motto.
+7. "summary": 1 short sentence.
 
 TONE RULES:
 - Speak directly to user ("you", "your")
 - No academic language, no metaphors
-- Sound like a trusted coach
+- Sound like a trusted coach, not a motivational poster
 - Keep everything concise
 
 ${params.identityStage === 'MAINTENANCE' ? `

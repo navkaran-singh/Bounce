@@ -71,6 +71,7 @@ export const useStore = create<ExtendedUserState>()(
       energyTime: '',
       currentEnergyLevel: null,
       dailyPlanMessage: null,
+      dailyPlanMode: null,
       goal: { type: 'weekly', target: 3 },
       dismissedTooltips: [],
       resilienceScore: 50,
@@ -167,7 +168,7 @@ export const useStore = create<ExtendedUserState>()(
         get().syncToFirebase();
       },
       dismissTooltip: (id) => set((state) => state.dismissedTooltips.includes(id) ? state : { dismissedTooltips: [...state.dismissedTooltips, id] }),
-      dismissDailyPlanMessage: () => set({ dailyPlanMessage: null }),
+      dismissDailyPlanMessage: () => set({ dailyPlanMessage: null, dailyPlanMode: null }),
       setMicroHabits: (microHabits) => set({ microHabits, currentHabitIndex: 0, lastUpdated: Date.now() }),
       setHabitsWithLevels: (habitRepository) => set({ habitRepository, microHabits: habitRepository.high, currentEnergyLevel: 'high', currentHabitIndex: 0, lastUpdated: Date.now() }),
       addMicroHabit: (habit) => {
@@ -533,6 +534,7 @@ export const useStore = create<ExtendedUserState>()(
                 currentEnergyLevel: defaultEnergyLevel,
                 currentHabitIndex: 0,
                 dailyPlanMessage: planMessage,
+                dailyPlanMode: mode,
                 lastDailyPlanDate: today, // 🔥 CRITICAL: Mark that we generated a plan today
                 history: historyUpdate, // 🔥 PERSIST: Save the daily score to history
                 lastUpdated: Date.now()
@@ -582,6 +584,7 @@ export const useStore = create<ExtendedUserState>()(
 
                 set({
                   dailyPlanMessage: emotionMessage,
+                  dailyPlanMode: completionPercent >= 80 ? 'GROWTH' : completionPercent >= 30 ? 'STEADY' : 'RECOVERY',
                   lastDailyPlanDate: today,
                   lastUpdated: Date.now()
                 });
@@ -1774,6 +1777,8 @@ export const useStore = create<ExtendedUserState>()(
 
           const newRepository = await generateDailyAdaptation(
             state.identity,
+            state.identityProfile?.type || 'SKILL', // Add type
+            state.identityProfile?.stage || 'INITIATION', // Add stage
             mode,
             state.habitRepository
           );
@@ -1810,6 +1815,7 @@ export const useStore = create<ExtendedUserState>()(
               currentEnergyLevel: defaultEnergyLevel,
               currentHabitIndex: 0,
               dailyPlanMessage: message,
+              dailyPlanMode: mode,
               lastUpdated: Date.now()
             });
 
@@ -2156,6 +2162,7 @@ export const useStore = create<ExtendedUserState>()(
         habitRepository: state.habitRepository,
         currentEnergyLevel: state.currentEnergyLevel,
         dailyPlanMessage: state.dailyPlanMessage,
+        dailyPlanMode: state.dailyPlanMode,
         history: state.history,
         resilienceScore: state.resilienceScore,
         resilienceStatus: state.resilienceStatus,

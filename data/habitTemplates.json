@@ -1,0 +1,771 @@
+{
+    "version": "3.0",
+    "note": "ADHD-Optimized. Mechanics: Body Doubling, Timers, Novelty, Micro-Steps. Goal: Immediate Identity Validation.",
+    "templates": {
+        "SKILL": {
+            "the-builder": {
+                "identityType": "SKILL",
+                "displayName": "A Builder",
+                "keywords": [
+                    "developer",
+                    "programmer",
+                    "software engineer",
+                    "coder",
+                    "web developer",
+                    "app developer",
+                    "backend",
+                    "frontend",
+                    "full-stack",
+                    "engineer",
+                    "hacker",
+                    "game dev",
+                    "unity",
+                    "unreal",
+                    "data scientist",
+                    "tech",
+                    "devops",
+                    "sysadmin",
+                    "architect",
+                    "qa engineer",
+                    "technical"
+                ],
+                "habits": {
+                    "high": [
+                        "Commit code that closes a ticket (Definition of Done)",
+                        "Refactor one messy component to be 'beautiful' (aesthetic dopamine)",
+                        "Build a working prototype feature in a 45-min sprint"
+                    ],
+                    "medium": [
+                        "Rubber Duck debugging: Explain the problem aloud to an object",
+                        "Review your own code from yesterday and find one improvement",
+                        "Write out the logic flow (pseudocode) before touching the keyboard"
+                    ],
+                    "low": [
+                        "Write one comment in the code explaining exactly what to do next",
+                        "Fix one tiny, visible UI bug for an instant win",
+                        "Close all browser tabs not related to the current task"
+                    ]
+                }
+            },
+            "the-storyteller": {
+                "identityType": "SKILL",
+                "displayName": "A Writer",
+                "keywords": [
+                    "writer",
+                    "author",
+                    "blogger",
+                    "journalist",
+                    "copywriter",
+                    "poet",
+                    "novelist",
+                    "screenwriter",
+                    "editor",
+                    "content creator",
+                    "newsletter",
+                    "essayist",
+                    "scriptwriter",
+                    "technical writer"
+                ],
+                "habits": {
+                    "high": [
+                        "Publish or Submit a draft (overcome the fear of 'not ready')",
+                        "Write 500 words of 'garbage' draft without hitting backspace",
+                        "Edit a full section until it sounds like 'you'"
+                    ],
+                    "medium": [
+                        "Outline the 3 key beats for the next section (don't write, just structure)",
+                        "Rewrite 3 sentences to be shorter and punchier",
+                        "Read one piece of writing you envy to analyze how they did it"
+                    ],
+                    "low": [
+                        "Write 3 potential headlines or opening hooks",
+                        "Open the document and leave the cursor at the end of the last sentence",
+                        "Write down one sensory detail (smell, sound) in your notes"
+                    ]
+                }
+            },
+            "the-visual-creator": {
+                "identityType": "SKILL",
+                "displayName": "A Visual Creator",
+                "keywords": [
+                    "designer",
+                    "artist",
+                    "illustrator",
+                    "painter",
+                    "ui designer",
+                    "ux designer",
+                    "graphic designer",
+                    "animator",
+                    "photographer",
+                    "video editor",
+                    "creative",
+                    "architect",
+                    "fashion designer"
+                ],
+                "habits": {
+                    "high": [
+                        "Finish one asset to 'Portfolio Quality' (no endless tweaking)",
+                        "Do 30 minutes of rapid iteration sketches (speed > perfection)",
+                        "Export the current version and look at it on a different screen"
+                    ],
+                    "medium": [
+                        "Organize your layers/files so 'Future You' doesn't hate 'Present You'",
+                        "Find 3 distinct references that clash, and combine them",
+                        "Critique your own work: List 3 things to fix, then stop looking"
+                    ],
+                    "low": [
+                        "Draw one 'bad' shape on the canvas to break the blank page fear",
+                        "Rename and save your current project file properly",
+                        "Change the color of one element to see if it pops"
+                    ]
+                }
+            },
+            "the-visionary": {
+                "identityType": "SKILL",
+                "displayName": "A Visionary (Founder)",
+                "keywords": [
+                    "entrepreneur",
+                    "founder",
+                    "business owner",
+                    "startup",
+                    "ceo",
+                    "executive",
+                    "indie hacker",
+                    "solopreneur",
+                    "product manager",
+                    "strategist",
+                    "visionary",
+                    "creator economy"
+                ],
+                "habits": {
+                    "high": [
+                        "Do the 'Scary Ask' (sales call, pitch, or negotiation) first",
+                        "Draft a spec that unblocks your team (remove yourself as the bottleneck)",
+                        "Review metrics and make one decision based on data, not gut"
+                    ],
+                    "medium": [
+                        "Send 3 updates to people waiting on you (close open loops)",
+                        "Block out 'Deep Work' time on tomorrow's calendar",
+                        "Write down the single biggest risk to the business right now"
+                    ],
+                    "low": [
+                        "Send one genuine 'thank you' to a user or team member",
+                        "Review your top 3 priorities for the week",
+                        "Write down one assumption you are currently making"
+                    ]
+                }
+            },
+            "the-finisher": {
+                "identityType": "SKILL",
+                "displayName": "A Finisher",
+                "keywords": [
+                    "procrastinator",
+                    "starter",
+                    "finishing",
+                    "closing",
+                    "shipping",
+                    "project manager",
+                    "completionist",
+                    "done",
+                    "execution"
+                ],
+                "habits": {
+                    "high": [
+                        "Ship/Submit a project that is 80% perfect (Kill perfectionism)",
+                        "Delete a project from your list that you know you won't finish",
+                        "Do the final 10% of a task (the polishing) in one sitting"
+                    ],
+                    "medium": [
+                        "Define exactly what 'Done' looks like for one task",
+                        "Identify the one bottleneck stopping you and remove it",
+                        "Tell one person you will finish X by 5 PM (Social pressure)"
+                    ],
+                    "low": [
+                        "Open the project file of an unfinished task",
+                        "Write down the very next physical step (e.g., 'Open email')",
+                        "Close 3 browser tabs related to 'research' for new projects"
+                    ]
+                }
+            },
+            "the-investor": {
+                "identityType": "SKILL",
+                "displayName": "An Investor",
+                "keywords": [
+                    "investor",
+                    "trader",
+                    "financial",
+                    "wealth builder",
+                    "saver",
+                    "crypto",
+                    "stocks",
+                    "real estate",
+                    "finance",
+                    "budget"
+                ],
+                "habits": {
+                    "high": [
+                        "Execute a strategy-based trade/transfer (no emotion)",
+                        "Deep dive research into one asset (read the boring docs)",
+                        "Rebalance your portfolio percentages"
+                    ],
+                    "medium": [
+                        "Read one article that disagrees with your investment thesis",
+                        "Update your net worth tracker",
+                        "Review your automated payment settings"
+                    ],
+                    "low": [
+                        "Log one transaction from today",
+                        "Check your balance without judging yourself",
+                        "Read one financial headline"
+                    ]
+                }
+            },
+            "the-artisan": {
+                "identityType": "SKILL",
+                "displayName": "An Artisan (Crafts)",
+                "keywords": [
+                    "cook",
+                    "chef",
+                    "baker",
+                    "woodworker",
+                    "knitter",
+                    "seamstress",
+                    "maker",
+                    "gardener",
+                    "potter",
+                    "crafter",
+                    "diy",
+                    "hobbyist"
+                ],
+                "habits": {
+                    "high": [
+                        "Complete one stage of the build (e.g., sanding, assembly)",
+                        "Practice a specific technique for 30 minutes (drills)",
+                        "Finish a small piece and take a photo of it"
+                    ],
+                    "medium": [
+                        "Mise-en-place: Set out all tools/materials for tomorrow",
+                        "Clean and maintain your primary tool",
+                        "Sketch the dimensions/plan for the next piece"
+                    ],
+                    "low": [
+                        "Touch your project or materials for 30 seconds",
+                        "Tidy one small corner of your workspace",
+                        "Write down the next single step required"
+                    ]
+                }
+            },
+            "the-scholar": {
+                "identityType": "SKILL",
+                "displayName": "A Scholar",
+                "keywords": [
+                    "student",
+                    "researcher",
+                    "academic",
+                    "learner",
+                    "scientist",
+                    "phd",
+                    "grad student",
+                    "undergrad",
+                    "self-taught",
+                    "polyglot"
+                ],
+                "habits": {
+                    "high": [
+                        "Explain a complex concept simply (Feynman Technique)",
+                        "Do a practice test/problem set with a timer running",
+                        "Write the first draft of a section (ugly draft)"
+                    ],
+                    "medium": [
+                        "Turn raw notes into questions (Active Recall prep)",
+                        "Review the 3 hardest concepts from yesterday",
+                        "Find one primary source for your current topic"
+                    ],
+                    "low": [
+                        "Read just the abstract or summary of the text",
+                        "Write down one question you want to answer today",
+                        "Organize your digital workspace for 5 minutes"
+                    ]
+                }
+            },
+            "the-performer": {
+                "identityType": "SKILL",
+                "displayName": "A Performer",
+                "keywords": [
+                    "musician",
+                    "speaker",
+                    "actor",
+                    "presenter",
+                    "teacher",
+                    "guitarist",
+                    "pianist",
+                    "singer",
+                    "podcaster",
+                    "youtuber"
+                ],
+                "habits": {
+                    "high": [
+                        "Record a full take and listen to it critically",
+                        "Practice the hardest 10 seconds of the piece 10 times",
+                        "Perform for a real audience (even just one friend)"
+                    ],
+                    "medium": [
+                        "Analyze a pro's performance for one specific technique",
+                        "Warm up your voice/instrument/body for 10 minutes",
+                        "Edit the script or score markings"
+                    ],
+                    "low": [
+                        "Stand in your performance posture for 1 minute",
+                        "Play/Speak the very first line",
+                        "Check your equipment cables/batteries"
+                    ]
+                }
+            }
+        },
+        "CHARACTER": {
+            "the-focus-master": {
+                "identityType": "CHARACTER",
+                "displayName": "A Focus Master",
+                "keywords": [
+                    "focused",
+                    "disciplined",
+                    "organized",
+                    "minimalist",
+                    "productive",
+                    "time-managed",
+                    "efficient",
+                    "intentional",
+                    "distraction-free",
+                    "adhd",
+                    "distracted",
+                    "scatterbrained"
+                ],
+                "habits": {
+                    "high": [
+                        "Work on the 'One Thing' for 45 mins (Timer ON, Phone OFF)",
+                        "Say 'No' to a request that steals your time",
+                        "Complete the hardest task first (Eat the Frog)"
+                    ],
+                    "medium": [
+                        "Clear your physical desk of everything but the current task",
+                        "Use a website blocker for 2 hours",
+                        "Plan tomorrow's schedule with 30% buffer time"
+                    ],
+                    "low": [
+                        "Put your phone in a drawer or another room",
+                        "Write down the single most important task on a sticky note",
+                        "Close one tab or app you aren't using"
+                    ]
+                }
+            },
+            "the-chaos-tamer": {
+                "identityType": "CHARACTER",
+                "displayName": "A Chaos Tamer",
+                "keywords": [
+                    "clean",
+                    "tidy",
+                    "messy",
+                    "cluttered",
+                    "hoarder",
+                    "organized",
+                    "cleaning",
+                    "home",
+                    "chore",
+                    "housework"
+                ],
+                "habits": {
+                    "high": [
+                        "Clear one entire surface (desk, table, counter) completely",
+                        "Set a timer for 15 minutes and 'speed clean' one room",
+                        "Process a 'doom pile' of papers/clothes until it's gone"
+                    ],
+                    "medium": [
+                        "Put 5 things back in their actual home",
+                        "Do the dishes/laundry immediately (don't let it sit)",
+                        "Make the bed (sets the tone for the day)"
+                    ],
+                    "low": [
+                        "Throw away 3 pieces of obvious trash",
+                        "Take one cup/plate to the kitchen",
+                        "Straighten one item (e.g., a rug or picture frame)"
+                    ]
+                }
+            },
+            "the-grounded-self": {
+                "identityType": "CHARACTER",
+                "displayName": "A Grounded Self",
+                "keywords": [
+                    "calm",
+                    "stoic",
+                    "resilient",
+                    "anxious",
+                    "stressed",
+                    "peaceful",
+                    "mindful",
+                    "meditator",
+                    "stable",
+                    "grounded",
+                    "rsd"
+                ],
+                "habits": {
+                    "high": [
+                        "Do the 'scary' thing for 10 minutes (Exposure Therapy)",
+                        "Journal a 'Reality Check' on a negative thought",
+                        "Sit with an uncomfortable emotion for 5 mins (don't fix it)"
+                    ],
+                    "medium": [
+                        "Write down the 'Worst Case Scenario' and a plan for it",
+                        "Walk outside for 10 minutes without headphones",
+                        "Do 3 cycles of Box Breathing (4-4-4-4)"
+                    ],
+                    "low": [
+                        "Touch 3 textured objects (Grounding technique)",
+                        "Name your current emotion (e.g., 'I feel overwhelmed')",
+                        "Drink a glass of cold water slowly"
+                    ]
+                }
+            },
+            "the-connector": {
+                "identityType": "CHARACTER",
+                "displayName": "A Connector",
+                "keywords": [
+                    "communicator",
+                    "social",
+                    "friend",
+                    "partner",
+                    "socialite",
+                    "networker",
+                    "extrovert",
+                    "community builder"
+                ],
+                "habits": {
+                    "high": [
+                        "Have the difficult conversation you're avoiding",
+                        "Host a gathering or initiate a specific plan",
+                        "Listen for 10 mins without interrupting or advising"
+                    ],
+                    "medium": [
+                        "Send a thoughtful text to someone you miss",
+                        "Write a thank-you note (physical or digital)",
+                        "Ask a question instead of talking about yourself"
+                    ],
+                    "low": [
+                        "Make eye contact and smile at someone",
+                        "Send a quick 'thinking of you' emoji",
+                        "Put your phone away during a meal"
+                    ]
+                }
+            },
+            "the-nurturer": {
+                "identityType": "CHARACTER",
+                "displayName": "A Nurturer (Parent)",
+                "keywords": [
+                    "parent",
+                    "mom",
+                    "dad",
+                    "mother",
+                    "father",
+                    "spouse",
+                    "partner",
+                    "caregiver",
+                    "family",
+                    "husband",
+                    "wife"
+                ],
+                "habits": {
+                    "high": [
+                        "Execute a special outing or 'date' (plan + do)",
+                        "Play/Talk for 20 mins with phone in another room",
+                        "Repair a conflict immediately (apologize/discuss)"
+                    ],
+                    "medium": [
+                        "Tell them one specific thing you appreciate",
+                        "Prepare a comfort meal or environment for them",
+                        "Practice active listening (repeat back what they said)"
+                    ],
+                    "low": [
+                        "Hug for 20 seconds (oxytocin boost)",
+                        "Put phone face down when they enter the room",
+                        "Send a photo or update to them"
+                    ]
+                }
+            },
+            "the-guide": {
+                "identityType": "CHARACTER",
+                "displayName": "A Guide (Leader)",
+                "keywords": [
+                    "leader",
+                    "manager",
+                    "boss",
+                    "coach",
+                    "mentor",
+                    "supervisor",
+                    "team lead",
+                    "director"
+                ],
+                "habits": {
+                    "high": [
+                        "Give specific, actionable feedback (hard but necessary)",
+                        "Delegate a task you usually hoard",
+                        "Run a 1-on-1 focused purely on their career growth"
+                    ],
+                    "medium": [
+                        "Ask 'What is blocking you?' and remove the obstacle",
+                        "Publicly credit a team member for a win",
+                        "Write down the team's goal for the week clearly"
+                    ],
+                    "low": [
+                        "Send one encouraging message to the team",
+                        "Listen for 2 minutes in a meeting without speaking",
+                        "Check in on a team member's energy (not work)"
+                    ]
+                }
+            },
+            "the-explorer": {
+                "identityType": "CHARACTER",
+                "displayName": "An Explorer",
+                "keywords": [
+                    "curious",
+                    "learner",
+                    "growth-oriented",
+                    "adventurous",
+                    "open-minded",
+                    "creative",
+                    "polymath",
+                    "traveler",
+                    "nomad"
+                ],
+                "habits": {
+                    "high": [
+                        "Try something new where you will likely fail",
+                        "Deep dive a topic you disagree with (Steel Man argument)",
+                        "Create something 'bad' just to see what happens"
+                    ],
+                    "medium": [
+                        "Take a different route home or walk a new street",
+                        "Read an article from a completely new field",
+                        "Ask 'Why?' three times about a normal assumption"
+                    ],
+                    "low": [
+                        "Google a term you didn't understand",
+                        "Stop and look at the sky/environment for 1 minute",
+                        "Write down one question you have about the world"
+                    ]
+                }
+            }
+        },
+        "RECOVERY": {
+            "the-athlete": {
+                "identityType": "RECOVERY",
+                "displayName": "An Athlete",
+                "keywords": [
+                    "runner",
+                    "lifter",
+                    "gym-goer",
+                    "crossfit",
+                    "athlete",
+                    "sprinter",
+                    "marathoner",
+                    "cyclist",
+                    "swimmer",
+                    "training",
+                    "fitness"
+                ],
+                "habits": {
+                    "high": [
+                        "Complete the workout even if it's 'ugly'",
+                        "Push to 90% effort on one set/interval",
+                        "Prep healthy meals for 3 days"
+                    ],
+                    "medium": [
+                        "Do a 10-minute mobility/stretch routine",
+                        "Log your workout stats (don't ignore the data)",
+                        "Pack your gym bag for tomorrow"
+                    ],
+                    "low": [
+                        "Put on your workout shoes (The Threshold Rule)",
+                        "Fill your water bottle",
+                        "Do 5 air squats right now"
+                    ]
+                }
+            },
+            "the-competitor": {
+                "identityType": "RECOVERY",
+                "displayName": "A Competitor (Gamer)",
+                "keywords": [
+                    "gamer",
+                    "esports",
+                    "competitive",
+                    "streamer",
+                    "player",
+                    "fps",
+                    "moba",
+                    "strategy gamer"
+                ],
+                "habits": {
+                    "high": [
+                        "Play 3 ranked matches with full focus (stop if tilted)",
+                        "Review a replay of a loss to find 3 mistakes",
+                        "Practice one mechanic in training mode for 20 mins"
+                    ],
+                    "medium": [
+                        "Take a 5-minute eye/stretch break between matches",
+                        "Clean your mousepad/desk setup",
+                        "Read patch notes to understand the meta"
+                    ],
+                    "low": [
+                        "Do a 30-second hand/wrist stretch",
+                        "Drink water instead of soda/energy drink",
+                        "Stop playing immediately after 2 losses"
+                    ]
+                }
+            },
+            "the-yogi": {
+                "identityType": "RECOVERY",
+                "displayName": "A Body-Mind Practitioner",
+                "keywords": [
+                    "yogi",
+                    "pilates",
+                    "flexibility",
+                    "mobility",
+                    "posture",
+                    "rehab",
+                    "healing",
+                    "stretching",
+                    "mindful mover"
+                ],
+                "habits": {
+                    "high": [
+                        "Complete a 30-minute flow/routine",
+                        "Hold a pose for 60 seconds longer than you want to",
+                        "Meditate for 15 minutes after moving"
+                    ],
+                    "medium": [
+                        "Do 3 Sun Salutations or basic stretches",
+                        "Lie down and focus on breath for 5 minutes",
+                        "Roll out your mat (even if you don't start)"
+                    ],
+                    "low": [
+                        "Stand up and try to touch your toes",
+                        "Sit on the floor instead of the couch",
+                        "Take 3 deep belly breaths"
+                    ]
+                }
+            },
+            "the-monk": {
+                "identityType": "RECOVERY",
+                "displayName": "A Monk (Digital Detox)",
+                "keywords": [
+                    "digital minimalist",
+                    "unplugged",
+                    "offline",
+                    "nature lover",
+                    "detox",
+                    "simple living",
+                    "tech free"
+                ],
+                "habits": {
+                    "high": [
+                        "Leave the house for 1 hour without a phone",
+                        "No screens from 8 PM until bed",
+                        "Delete a scrolling app for 24 hours"
+                    ],
+                    "medium": [
+                        "Turn screen to Grayscale mode",
+                        "Walk without headphones/podcasts",
+                        "Read a physical book for 15 minutes"
+                    ],
+                    "low": [
+                        "Leave phone in another room for 5 minutes",
+                        "Turn off one specific notification type",
+                        "Look out a window instead of your phone"
+                    ]
+                }
+            },
+            "the-sleeper": {
+                "identityType": "RECOVERY",
+                "displayName": "A Well-Rested Person",
+                "keywords": [
+                    "sleeper",
+                    "rested",
+                    "insomniac",
+                    "night owl",
+                    "early riser",
+                    "recovery",
+                    "energy",
+                    "health",
+                    "vitality",
+                    "bedtime"
+                ],
+                "habits": {
+                    "high": [
+                        "Get in bed 8 hours before wake-up time (Phone away)",
+                        "Wake up at first alarm (No Snooze)",
+                        "Get 10 minutes of morning sunlight"
+                    ],
+                    "medium": [
+                        "Turn off overhead lights 1 hour before bed",
+                        "Write a 'Brain Dump' list to clear thoughts",
+                        "Make the bedroom cool and dark"
+                    ],
+                    "low": [
+                        "Set your alarm for tomorrow",
+                        "Drink a glass of water upon waking",
+                        "Put phone charger across the room"
+                    ]
+                }
+            },
+            "the-nourished": {
+                "identityType": "RECOVERY",
+                "displayName": "A Nourished Person",
+                "keywords": [
+                    "healthy eater",
+                    "diet",
+                    "nutrition",
+                    "weight loss",
+                    "fat loss",
+                    "muscle gain",
+                    "vegan",
+                    "vegetarian",
+                    "keto",
+                    "paleo",
+                    "clean eating"
+                ],
+                "habits": {
+                    "high": [
+                        "Cook a meal from scratch with whole foods",
+                        "Zero added sugar or processed snacks today",
+                        "Hit your protein/macro target exactly"
+                    ],
+                    "medium": [
+                        "Drink water instead of a calorie drink",
+                        "Add one vegetable to your next meal",
+                        "Stop eating when 80% full"
+                    ],
+                    "low": [
+                        "Drink a glass of water before eating",
+                        "Put a healthy snack on your desk",
+                        "Read the ingredient label of one item"
+                    ]
+                }
+            }
+        }
+    },
+    "fallback": {
+        "high": [
+            "Set a timer for 20 mins and race against it",
+            "Do the task you are dreading most first",
+            "Produce one tangible result (draft, rep, cleaned item)"
+        ],
+        "medium": [
+            "Prepare your environment for tomorrow (Mise-en-place)",
+            "Review your progress and adjust the plan",
+            "Spend 10 minutes learning something related to your goal"
+        ],
+        "low": [
+            "Do the habit for just 2 minutes (Two Minute Rule)",
+            "Write down your intention for the day",
+            "Remove one distraction from your desk"
+        ]
+    }
+}

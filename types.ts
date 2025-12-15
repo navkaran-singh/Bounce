@@ -218,6 +218,7 @@ export interface UserState {
   energyTime: string;
   currentEnergyLevel: EnergyLevel | null;
   dailyPlanMessage: string | null;
+  dailyPlanMode: 'GROWTH' | 'STEADY' | 'RECOVERY' | null;
 
   // Goals
   goal: Goal;
