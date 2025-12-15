@@ -2,7 +2,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { usePlatform } from '../hooks/usePlatform';
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, BarChart3, List, Zap, ThermometerSnowflake, Dices, Check, Wind, Volume2, VolumeX, Eye, EyeOff, Hammer, Shield, Timer, Undo2, CloudRain, Trees, Waves, Flame, X, Calendar, PenLine, Sprout, Anchor, Battery, Mic } from 'lucide-react';
+import { Settings, BarChart3, List, Zap, ThermometerSnowflake, Dices, Check, Wind, Volume2, VolumeX, Eye, EyeOff, Hammer, Shield, Timer, Undo2, CloudRain, Trees, Waves, Flame, X, Calendar, PenLine, Sprout, Anchor, Battery, Mic, Pencil } from 'lucide-react';
 import { useStore } from '../store';
 import { useResilienceEngine } from '../hooks/useResilienceEngine';
 import { Orb } from '../components/Orb';
@@ -113,11 +113,138 @@ const DailyPlanToast: React.FC<{ message: string; mode: 'GROWTH' | 'STEADY' | 'R
     );
 };
 
+// Edit Habit Modal Component
+const EditHabitModal: React.FC<{
+    isOpen: boolean;
+    habitText: string;
+    identity: string;
+    onSave: (newText: string) => void;
+    onClose: () => void;
+}> = ({ isOpen, habitText, identity, onSave, onClose }) => {
+    const [text, setText] = useState(habitText);
+    const maxLength = 100;
+
+    useEffect(() => {
+        setText(habitText);
+    }, [habitText]);
+
+    if (!isOpen) return null;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-4"
+            onClick={onClose}
+        >
+            <motion.div
+                initial={{ y: 50, opacity: 0, scale: 0.95 }}
+                animate={{
+                    y: 0,
+                    opacity: 1,
+                    scale: 1,
+                    boxShadow: [
+                        '0 0 40px rgba(6, 182, 212, 0.15), 0 0 80px rgba(59, 130, 246, 0.1)',
+                        '0 0 60px rgba(6, 182, 212, 0.25), 0 0 100px rgba(59, 130, 246, 0.15)',
+                        '0 0 40px rgba(6, 182, 212, 0.15), 0 0 80px rgba(59, 130, 246, 0.1)'
+                    ]
+                }}
+                exit={{ y: 50, opacity: 0, scale: 0.95 }}
+                transition={{
+                    type: "spring",
+                    damping: 25,
+                    stiffness: 300,
+                    boxShadow: { duration: 3, repeat: Infinity, ease: "easeInOut" }
+                }}
+                className="relative bg-gradient-to-br from-white/95 via-white/90 to-gray-100/95 dark:from-gray-900/95 dark:via-gray-800/90 dark:to-gray-900/95 rounded-3xl p-6 max-w-md w-full border border-primary-cyan/20 dark:border-primary-cyan/10 overflow-hidden"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Gradient accent line */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-cyan via-blue-500 to-purple-500" />
+
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-cyan/20 to-blue-500/20 flex items-center justify-center">
+                        <Pencil size={20} className="text-primary-cyan" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                            Customize Habit
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-white/50">
+                            Make it work for you
+                        </p>
+                    </div>
+                </div>
+
+                {/* Textarea */}
+                <div className="mb-4">
+                    <textarea
+                        value={text}
+                        onChange={e => setText(e.target.value.slice(0, maxLength))}
+                        className="w-full p-4 rounded-2xl bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-primary-cyan/50 text-gray-900 dark:text-white resize-none focus:outline-none transition-all text-base leading-relaxed placeholder:text-gray-400 dark:placeholder:text-white/30"
+                        rows={3}
+                        placeholder="Enter your habit..."
+                        autoFocus
+                    />
+                    <div className="flex justify-end mt-2">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${text.length > 80
+                            ? 'bg-orange-500/10 text-orange-500'
+                            : 'bg-gray-200/50 dark:bg-white/10 text-gray-400 dark:text-white/40'
+                            }`}>
+                            {text.length}/{maxLength}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Identity reminder */}
+                <div className="bg-gradient-to-r from-primary-cyan/5 to-blue-500/5 dark:from-primary-cyan/10 dark:to-blue-500/10 rounded-xl p-3 mb-4 border border-primary-cyan/10">
+                    <p className="text-xs text-gray-600 dark:text-white/70 flex items-start gap-2">
+                        <span className="text-base">✨</span>
+                        <span>
+                            Keep it aligned with your identity as <strong className="text-primary-cyan">"{identity}"</strong>
+                        </span>
+                    </p>
+                </div>
+
+                {/* Expiry info */}
+                <p className="text-[11px] text-gray-400 dark:text-white/40 mb-5 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-gray-200/50 dark:bg-white/10 flex items-center justify-center text-[10px]">📅</span>
+                    Resets on your next Weekly Review
+                </p>
+
+                {/* Buttons */}
+                <div className="flex gap-3">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-3 rounded-xl bg-gray-200/50 dark:bg-white/5 text-gray-600 dark:text-white/60 font-semibold hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-[0.98]"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (text.trim()) {
+                                onSave(text.trim());
+                                onClose();
+                            }
+                        }}
+                        disabled={!text.trim() || text.trim() === habitText}
+                        className="flex-1 py-3 rounded-xl bg-gradient-to-r from-primary-cyan to-blue-500 text-white font-semibold shadow-lg shadow-primary-cyan/25 hover:shadow-xl hover:shadow-primary-cyan/30 transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed"
+                    >
+                        Save Changes
+                    </button>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+};
+
 export const Dashboard: React.FC = () => {
     const { state: engineState, actions: engineActions } = useResilienceEngine();
 
     // 👇 GET 'dailyCompletedIndices' DIRECTLY
-    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak, dailyPlanMessage, dailyPlanMode, dismissDailyPlanMessage, isPremium, user } = useStore();
+    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak, dailyPlanMessage, dailyPlanMode, dismissDailyPlanMessage, isPremium, user, editHabit, userModifiedHabits } = useStore();
 
     const [showCelebration, setShowCelebration] = useState(false);
     const [milestoneReached, setMilestoneReached] = useState<number | null>(null);
@@ -131,6 +258,9 @@ export const Dashboard: React.FC = () => {
     const [isVoiceOpen, setIsVoiceOpen] = useState(false);
     const [isPremiumOpen, setIsPremiumOpen] = useState(false);
     const [zenMode, setZenMode] = useState(false);
+
+    // Edit Habit Modal State
+    const [isEditHabitOpen, setIsEditHabitOpen] = useState(false);
 
     const [showPostCompletionActions, setShowPostCompletionActions] = useState(false);
     const [showSoundControls, setShowSoundControls] = useState(false);
@@ -226,9 +356,16 @@ export const Dashboard: React.FC = () => {
         }
     }, [engineState.shouldShowNeverMissTwice]);
 
-    const currentHabit = microHabits && microHabits.length > 0
+    const rawHabit = (microHabits && microHabits.length > 0)
         ? microHabits[currentHabitIndex]
-        : "Check in";
+        : null;
+    // Handle both string and old Habit object format (for cached storage compatibility)
+    const currentHabitText = typeof rawHabit === 'string'
+        ? rawHabit
+        : ((rawHabit as any)?.text || "Check in");
+    const isUserModified = currentEnergyLevel
+        ? Boolean(userModifiedHabits?.[`${currentEnergyLevel}_${currentHabitIndex}`])
+        : false;
 
     // 🛑 CRITICAL FIX: Source of Truth is the STORE, not the Engine
     const isCurrentHabitDone = dailyCompletedIndices.includes(currentHabitIndex);
@@ -445,6 +582,23 @@ export const Dashboard: React.FC = () => {
 
             {/* Premium Modal */}
             <PremiumModal isOpen={isPremiumOpen} onClose={() => setIsPremiumOpen(false)} />
+
+            {/* Edit Habit Modal */}
+            <AnimatePresence>
+                {isEditHabitOpen && (
+                    <EditHabitModal
+                        isOpen={isEditHabitOpen}
+                        habitText={currentHabitText}
+                        identity={identity}
+                        onSave={(newText) => {
+                            if (currentEnergyLevel) {
+                                editHabit(currentEnergyLevel, currentHabitIndex, newText);
+                            }
+                        }}
+                        onClose={() => setIsEditHabitOpen(false)}
+                    />
+                )}
+            </AnimatePresence>
 
             <AnimatePresence>
                 {!zenMode && (
@@ -762,15 +916,28 @@ export const Dashboard: React.FC = () => {
                                                 <p className="text-xs text-gray-500 dark:text-white/40 uppercase tracking-wider">
                                                     Micro-Habit {currentHabitIndex + 1}/{microHabits.length}
                                                 </p>
-                                                {currentHabit.includes("Mode") && (
+                                                {currentHabitText.includes("Mode") && (
                                                     <span className="text-[9px] bg-primary-cyan/10 text-primary-cyan px-1.5 py-0.5 rounded uppercase font-bold flex items-center gap-1">
                                                         <Zap size={8} /> AI Adaptive
                                                     </span>
                                                 )}
                                             </div>
                                         )}
-                                        <h3 className={`text-lg font-bold text-gray-800 dark:text-white leading-tight flex items-center gap-2 ${zenMode ? 'justify-center text-2xl' : ''}`}>
-                                            {currentHabit}
+                                        <h3
+                                            className={`text-lg font-bold text-gray-800 dark:text-white leading-tight flex items-center gap-2 cursor-pointer select-none ${zenMode ? 'justify-center text-2xl' : ''}`}
+                                            onTouchStart={() => {
+                                                const timer = setTimeout(() => setIsEditHabitOpen(true), 500);
+                                                (window as any).__editHabitTimer = timer;
+                                            }}
+                                            onTouchEnd={() => clearTimeout((window as any).__editHabitTimer)}
+                                            onMouseDown={() => {
+                                                const timer = setTimeout(() => setIsEditHabitOpen(true), 500);
+                                                (window as any).__editHabitTimer = timer;
+                                            }}
+                                            onMouseUp={() => clearTimeout((window as any).__editHabitTimer)}
+                                            onMouseLeave={() => clearTimeout((window as any).__editHabitTimer)}
+                                        >
+                                            {currentHabitText}
                                             {isCurrentHabitDone && (
                                                 <span className="text-green-500 inline-flex items-center justify-center bg-green-500/10 rounded-full p-0.5">
                                                     <Check size={14} strokeWidth={3} />
@@ -779,13 +946,15 @@ export const Dashboard: React.FC = () => {
                                         </h3>
                                     </div>
                                     {!zenMode && (
-                                        <button
-                                            onClick={handleShuffle}
-                                            disabled={engineState.isFrozen}
-                                            className="p-2 rounded-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-primary-cyan transition-colors disabled:opacity-30"
-                                        >
-                                            <Dices size={20} />
-                                        </button>
+                                        <div className="flex gap-1">
+                                            <button
+                                                onClick={handleShuffle}
+                                                disabled={engineState.isFrozen}
+                                                className="p-2 rounded-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-primary-cyan transition-colors disabled:opacity-30"
+                                            >
+                                                <Dices size={20} />
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             </motion.div>
@@ -907,7 +1076,7 @@ export const Dashboard: React.FC = () => {
                     // setIsEnergyOpen(true);
                     // Scroll to orb or trigger focus on habit
                 }}
-                currentHabit={currentHabit}
+                currentHabit={currentHabitText}
             />
         </div>
     );

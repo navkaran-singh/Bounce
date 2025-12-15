@@ -67,6 +67,7 @@ export const useStore = create<ExtendedUserState>()(
       identity: '',
       microHabits: [],
       habitRepository: { high: [], medium: [], low: [] },
+      userModifiedHabits: {},  // Key: "level_index" (e.g. "high_0"), Value: user's custom text
       currentHabitIndex: 0,
       energyTime: '',
       currentEnergyLevel: null,
@@ -169,6 +170,54 @@ export const useStore = create<ExtendedUserState>()(
       },
       dismissTooltip: (id) => set((state) => state.dismissedTooltips.includes(id) ? state : { dismissedTooltips: [...state.dismissedTooltips, id] }),
       dismissDailyPlanMessage: () => set({ dailyPlanMessage: null, dailyPlanMode: null }),
+
+      // Edit Habit: Track user modification in Map (AI will never overwrite)
+      editHabit: (level, index, newText) => {
+        const state = get();
+
+        // Edge case validation (silent failure detection)
+        if (!['high', 'medium', 'low'].includes(level)) {
+          console.warn(`[EDIT HABIT] ⚠️ Invalid tier: ${level}`);
+          return;
+        }
+        if (!state.habitRepository[level] || index < 0 || index >= state.habitRepository[level].length) {
+          console.warn(`[EDIT HABIT] ⚠️ Out-of-bounds index: ${level}[${index}]`);
+          return;
+        }
+        if (state.habitRepository[level].length !== 3) {
+          console.warn(`[EDIT HABIT] ⚠️ Habit count mismatch: ${level} has ${state.habitRepository[level].length} habits (expected 3)`);
+        }
+
+        const key = `${level}_${index}`;
+        const trimmedText = newText.slice(0, 100).trim(); // Enforce 100 char limit
+
+        // Update habitRepository with new text
+        const newRepo = { ...state.habitRepository };
+        const newHabits = [...newRepo[level]];
+        newHabits[index] = trimmedText;
+        newRepo[level] = newHabits;
+
+        // Track as user-modified
+        const newUserModified = { ...state.userModifiedHabits, [key]: trimmedText };
+
+        // Also update microHabits if current energy level matches
+        let newMicroHabits = state.microHabits;
+        if (state.currentEnergyLevel === level) {
+          newMicroHabits = [...newHabits];
+        }
+
+        set({
+          habitRepository: newRepo,
+          microHabits: newMicroHabits,
+          userModifiedHabits: newUserModified,
+          lastUpdated: Date.now()
+        });
+
+        // Sync to Firebase
+        get().syncToFirebase();
+        console.log(`[EDIT HABIT] Updated ${key} to "${trimmedText.slice(0, 30)}..." (user-modified)`);
+      },
+
       setMicroHabits: (microHabits) => set({ microHabits, currentHabitIndex: 0, lastUpdated: Date.now() }),
       setHabitsWithLevels: (habitRepository) => set({ habitRepository, microHabits: habitRepository.high, currentEnergyLevel: 'high', currentHabitIndex: 0, lastUpdated: Date.now() }),
       addMicroHabit: (habit) => {
@@ -492,7 +541,8 @@ export const useStore = create<ExtendedUserState>()(
               state.identityProfile?.stage || 'INITIATION', // Stage for difficulty scaling
               mode,
               state.habitRepository,
-              state.history[today]?.intention  // Pass today's intention/anchor if set
+              state.history[today]?.intention,  // Pass today's intention/anchor if set
+              state.userModifiedHabits  // Pass user-modified habits for protection
             );
 
             // Validate the returned repository
@@ -1737,6 +1787,7 @@ export const useStore = create<ExtendedUserState>()(
         set({
           weeklyReview: null, // Clear the review completely
           lastWeeklyReviewDate: today, // Lock with today's date
+          userModifiedHabits: {}, // 📅 Clear user edits - they expire each week
           lastUpdated: Date.now()
         });
 
@@ -1809,7 +1860,8 @@ export const useStore = create<ExtendedUserState>()(
             state.identityProfile?.stage || 'INITIATION', // Add stage
             mode,
             state.habitRepository,
-            state.history[new Date().toISOString().split('T')[0]]?.intention  // Pass today's intention
+            state.history[new Date().toISOString().split('T')[0]]?.intention,  // Pass today's intention
+            state.userModifiedHabits  // Pass user-modified habits for protection
           );
 
           // Validate the returned repository
@@ -2189,6 +2241,7 @@ export const useStore = create<ExtendedUserState>()(
         soundEnabled: state.soundEnabled,
         microHabits: state.microHabits,
         habitRepository: state.habitRepository,
+        userModifiedHabits: state.userModifiedHabits,
         currentEnergyLevel: state.currentEnergyLevel,
         dailyPlanMessage: state.dailyPlanMessage,
         dailyPlanMode: state.dailyPlanMode,
@@ -2237,6 +2290,7 @@ export const useStore = create<ExtendedUserState>()(
               useStore.setState({ totalCompletions: calculatedTotal, lastUpdated: Date.now() });
             }
           }
+
 
           state.setHasHydrated(true);
           // After rehydration, initialize auth listener

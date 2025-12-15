@@ -214,6 +214,7 @@ export interface UserState {
   identity: string;
   microHabits: string[];
   habitRepository: Record<EnergyLevel, string[]>;
+  userModifiedHabits: Record<string, string>;  // Key: "level_index" (e.g. "high_0"), Value: user's custom text
   currentHabitIndex: number;
   energyTime: string;
   currentEnergyLevel: EnergyLevel | null;
@@ -228,6 +229,7 @@ export interface UserState {
   dismissedTooltips: string[];
   dismissTooltip: (id: string) => void;
   dismissDailyPlanMessage: () => void;
+  editHabit: (level: EnergyLevel, index: number, newText: string) => void;
 
   // Progress
   resilienceScore: number;

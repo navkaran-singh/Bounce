@@ -214,10 +214,25 @@ export const generateDailyAdaptation = async (
   identityStage: 'INITIATION' | 'INTEGRATION' | 'EXPANSION' | 'MAINTENANCE',
   performanceMode: 'GROWTH' | 'STEADY' | 'RECOVERY',
   currentRepository: { high: string[], medium: string[], low: string[] },
-  intention?: string  // Optional: User's daily anchor/intention
+  intention?: string,  // Optional: User's daily anchor/intention
+  userModifiedHabits?: Record<string, string>  // Optional: Map of user-modified habits (key: "level_index")
 ): Promise<{ high: string[], medium: string[], low: string[], toastMessage: string }> => {
   console.log("🤖 [AI SERVICE] Generating FULL SPECTRUM for mode:", performanceMode);
   console.log("🤖 [AI SERVICE] Current Repository:", currentRepository);
+
+  // Helper: Merge AI output with user-modified habits (preserve user edits)
+  const mergeHabits = (level: 'high' | 'medium' | 'low', aiHabits: string[], existingHabits: string[]): string[] => {
+    return existingHabits.map((existing, i) => {
+      const key = `${level}_${i}`;
+      if (userModifiedHabits && userModifiedHabits[key]) {
+        // 🛡️ NEVER overwrite user-modified habits
+        console.log(`🛡️ [AI SERVICE] Preserving user-modified habit: "${userModifiedHabits[key].slice(0, 30)}..."`);
+        return userModifiedHabits[key];
+      }
+      // Use AI-generated habit
+      return aiHabits[i] || existing;
+    });
+  };
 
   // Fallback toast messages (no emojis - toast UI has built-in emoji)
   const fallbackToasts = {
@@ -382,9 +397,15 @@ export const generateDailyAdaptation = async (
     ) {
       // Ensure toastMessage exists, fallback if not
       const toastMessage = parsed.toastMessage || fallbackToasts[performanceMode];
-      console.log(`🤖 [AI SERVICE] ✅ Generated ${performanceMode} mode repository:`, parsed);
-      console.log(`🤖 [AI SERVICE] 💬 Toast message:`, toastMessage);
-      return { ...parsed, toastMessage };
+      // Merge AI habits with user-modified habits (protect user edits)
+      const mergedResult = {
+        high: mergeHabits('high', parsed.high, currentRepository.high),
+        medium: mergeHabits('medium', parsed.medium, currentRepository.medium),
+        low: mergeHabits('low', parsed.low, currentRepository.low),
+        toastMessage
+      };
+      console.log(`🤖 [AI SERVICE] ✅ Generated ${performanceMode} mode repository (with user-edit protection):`, mergedResult);
+      return mergedResult;
     } else {
       console.warn("🤖 [AI SERVICE] ⚠️ Invalid response format, returning current repository");
       return { ...currentRepository, toastMessage: fallbackToasts[performanceMode] };

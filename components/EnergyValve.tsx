@@ -19,7 +19,11 @@ export const EnergyValve = () => {
     const isCrisisActive = currentEnergyLevel === 'low';
 
     // Logic to simulate the "Easy Mode" text
-    const currentHabitText = microHabits[currentHabitIndex] || "Current Task";
+    // Handle both string and old Habit object format (for cached storage compatibility)
+    const rawHabit = microHabits[currentHabitIndex];
+    const currentHabitText = typeof rawHabit === 'string'
+        ? (rawHabit || "Current Task")
+        : ((rawHabit as any)?.text || "Current Task");
     const easyHabitText = currentHabitText.includes("Tiny Version")
         ? currentHabitText
         : "Tiny Version: " + currentHabitText.split(" ").slice(0, 3).join(" ") + "...";

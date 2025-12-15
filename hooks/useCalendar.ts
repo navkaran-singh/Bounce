@@ -61,7 +61,11 @@ export const useCalendar = () => {
 
             // Safety: If time passed today, just use today (calendars handle past events fine)
 
-            const currentHabit = microHabits[currentHabitIndex] || "Bounce Habit";
+            // Handle both string and old Habit object format (for cached storage compatibility)
+            const rawHabit = microHabits[currentHabitIndex];
+            const currentHabit = typeof rawHabit === 'string'
+                ? (rawHabit || "Bounce Habit")
+                : ((rawHabit as any)?.text || "Bounce Habit");
             const cleanIdentity = identity || "Bounce User";
 
             // 5. Construct ICS Content
