@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Calendar, Shuffle, Crown, Info } from 'lucide-react';
+import { X, Sparkles, Calendar, Shuffle, Crown, Info, Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useStore } from '../store';
 
 interface PremiumModalProps {
@@ -11,8 +12,16 @@ interface PremiumModalProps {
 export const PremiumModal: React.FC<PremiumModalProps> = ({ isOpen, onClose }) => {
   const { user } = useStore();
   const [showInfoTooltip, setShowInfoTooltip] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showConsentHint, setShowConsentHint] = useState(false);
 
   const handleUpgrade = () => {
+    // Check consent first
+    if (!agreedToTerms) {
+      setShowConsentHint(true);
+      return;
+    }
+
     // Get payment link from environment variable
     const baseLink = import.meta.env.VITE_DODO_PAYMENT_LINK;
 
@@ -57,7 +66,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({ isOpen, onClose }) =
           animate={{ scale: 1, y: 0 }}
           exit={{ scale: 0.9, y: 20 }}
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-md bg-[#0F0F10] rounded-3xl border border-amber-500/20 overflow-hidden shadow-2xl"
+          className="relative w-full max-w-md bg-[#0F0F10] rounded-3xl border border-amber-500/20 overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto"
         >
           {/* Gold Glow */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 bg-amber-500/20 blur-[80px] opacity-50 pointer-events-none" />
@@ -94,7 +103,7 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({ isOpen, onClose }) =
             </p>
 
             {/* Features */}
-            <div className="space-y-4 mb-8">
+            <div className="space-y-4 mb-6">
               <div className="flex items-start gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center flex-shrink-0">
                   <Sparkles size={20} className="text-black" />
@@ -161,18 +170,86 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({ isOpen, onClose }) =
               </AnimatePresence>
             </div>
 
+            {/* Pricing Disclosure */}
+            <div className="text-center mb-4">
+              <p className="text-white/70 text-sm font-medium">Billed monthly. Cancel anytime from Settings.</p>
+              <p className="text-white/40 text-xs mt-1">You'll be charged $8 each month until you cancel.</p>
+            </div>
+
+            {/* Terms Consent Checkbox */}
+            <div className="mb-4">
+              <label
+                className="flex items-start gap-3 cursor-pointer group"
+                onClick={() => {
+                  setAgreedToTerms(!agreedToTerms);
+                  if (!agreedToTerms) setShowConsentHint(false);
+                }}
+              >
+                <div className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center transition-colors mt-0.5 ${agreedToTerms
+                  ? 'bg-amber-500 border-amber-500'
+                  : 'border-white/30 group-hover:border-white/50'
+                  }`}>
+                  {agreedToTerms && <Check size={14} className="text-black" />}
+                </div>
+                <span className="text-xs text-white/60 leading-relaxed">
+                  I agree to the{' '}
+                  <Link
+                    to="/terms"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-amber-400 hover:text-amber-300 underline"
+                  >
+                    Terms of Service
+                  </Link>
+                  {' '}and{' '}
+                  <Link
+                    to="/refund"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-amber-400 hover:text-amber-300 underline"
+                  >
+                    Refund Policy
+                  </Link>
+                </span>
+              </label>
+
+              {/* Calm inline hint */}
+              <AnimatePresence>
+                {showConsentHint && !agreedToTerms && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="text-xs text-amber-400/80 mt-2 ml-8"
+                  >
+                    Please confirm before continuing
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* CTA Button */}
             <button
               onClick={handleUpgrade}
-              className="w-full h-16 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-black font-bold text-lg shadow-[0_0_30px_rgba(251,191,36,0.3)] hover:shadow-[0_0_40px_rgba(251,191,36,0.5)] transition-all duration-300 active:scale-95 flex items-center justify-center gap-2"
+              disabled={!agreedToTerms}
+              className={`w-full h-16 rounded-2xl font-bold text-lg transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 ${agreedToTerms
+                ? 'bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-black shadow-[0_0_30px_rgba(251,191,36,0.3)] hover:shadow-[0_0_40px_rgba(251,191,36,0.5)]'
+                : 'bg-white/10 text-white/40 cursor-not-allowed'
+                }`}
             >
               <Crown size={20} fill="currentColor" />
               <span>Activate AI Coaching</span>
             </button>
 
+            {/* 7-Day Refund Reassurance */}
             <p className="text-center text-white/40 text-xs mt-4">
-              $8/month • Cancel anytime
+              <Link to="/refund" className="hover:text-white/60 transition-colors">
+                7-day refund for first-time subscribers
+              </Link>
             </p>
+
+            {/* Cancellation Reassurance */}
+            {/* <p className="text-center text-white/30 text-[10px] mt-2">
+              Cancel anytime from your account settings.
+            </p> */}
 
             {/* Merchant of Record Footer */}
             <p className="text-center text-white/30 text-[10px] mt-3 leading-relaxed">

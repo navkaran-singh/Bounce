@@ -18,13 +18,10 @@ export const RefundPolicy: React.FC = () => {
                 <h2 className="text-xl font-semibold mb-4 text-white">1. Digital Goods Policy</h2>
                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4">
                     <p className="text-red-300 font-medium">
-                        All sales are final. No refunds for digital access.
-                    </p>
+                        If you are not satisfied with Bounce Premium within the first 7 days of your initial subscription, contact us for a full refund. After 7 days, all sales are final.                    </p>
                 </div>
                 <p className="text-gray-300 mb-4">
-                    Due to the nature of digital goods and services, once you subscribe to Bounce Premium,
-                    you immediately receive access to all premium features. This instant delivery of digital
-                    content means that we cannot offer refunds for completed transactions.
+                    If you are not satisfied with Bounce Premium within the first 7 days of your initial subscription, contact us for a full refund. No questions asked.
                 </p>
             </section>
 

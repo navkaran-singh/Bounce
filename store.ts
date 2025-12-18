@@ -55,6 +55,9 @@ export const useStore = create<ExtendedUserState>()(
       currentView: 'onboarding',
       isPremium: false,
       premiumExpiryDate: null,
+      subscriptionId: null,
+      subscriptionStatus: null,
+      paymentType: null,
       user: null,
       lastUpdated: 0,
       lastSync: 0,
@@ -1797,6 +1800,80 @@ export const useStore = create<ExtendedUserState>()(
         console.log("☁️ [WEEKLY REVIEW] ✅ Review locked and synced.");
       },
 
+
+      // Premium & Subscription Actions (checkSubscriptionStatus is defined later in file)
+      cancelSubscription: async () => {
+        const state = get();
+        const { user } = state;
+
+        if (!user) {
+          throw new Error("You must be logged in to cancel.");
+        }
+
+        // GUARD: Prevent double cancellation (if we have local state)
+        if (state.subscriptionStatus === 'cancelled') {
+          console.warn("⚠️ [CANCEL] Subscription already cancelled");
+          return;
+        }
+
+        try {
+          // Fetch subscriptionId directly from Firebase (source of truth)
+          const { doc, getDoc } = await import('firebase/firestore');
+          const { db } = await import('./services/firebase');
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+
+          if (!userDoc.exists()) {
+            throw new Error("User data not found.");
+          }
+
+          const cloudData = userDoc.data();
+          const subscriptionId = cloudData.lastPaymentId;
+
+          if (!subscriptionId) {
+            throw new Error("No subscription ID found. Contact support.");
+          }
+
+          console.log(`🛑 [CANCEL] Attempting to cancel subscription: ${subscriptionId}`);
+
+          // Call secure backend function
+          const response = await fetch('/.netlify/functions/cancel-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.uid,
+              subscriptionId: subscriptionId
+            })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Cancellation failed');
+          }
+
+          console.log("✅ [CANCEL] API success:", data);
+
+          // 2. Optimistic Update
+          set({
+            subscriptionStatus: 'cancelled',
+            lastUpdated: Date.now()
+          });
+
+          // 3. Force Sync to Firestore
+          await get().syncToFirebase(true);
+
+          console.log("✅ [CANCEL] State updated and synced to cloud");
+
+        } catch (error) {
+          console.error("❌ [CANCEL] Action failed:", error);
+          throw error; // Re-throw so UI can show error toast
+        }
+      },
+
+
+
+
+
       // v8 GATEKEEPER: Accept suggested stage promotion
       acceptStagePromotion: () => {
         const state = get();
@@ -2059,6 +2136,10 @@ export const useStore = create<ExtendedUserState>()(
             lastWeeklyReviewDate: profile.lastWeeklyReviewDate || null,
             // Identity Evolution Engine
             identityProfile: profile.identityProfile || state.identityProfile,
+            // Subscription Fields (map cloud field names to local)
+            subscriptionId: profile.lastPaymentId || null, // Cloud uses lastPaymentId
+            subscriptionStatus: profile.subscriptionStatus || null,
+            paymentType: profile.paymentType || null,
             theme: settings?.theme || state.theme,
             soundEnabled: settings?.soundEnabled ?? state.soundEnabled,
             goal: settings?.goal || state.goal,
@@ -2203,6 +2284,10 @@ export const useStore = create<ExtendedUserState>()(
                 set({
                   isPremium: true,
                   premiumExpiryDate: cloudExpiry,
+                  // Also restore subscription management fields
+                  subscriptionId: cloudData.lastPaymentId || null,
+                  subscriptionStatus: cloudData.subscriptionStatus || null,
+                  paymentType: cloudData.paymentType || null,
                   dailyPlanMessage: "💎 Premium restored from cloud sync.",
                   lastUpdated: Date.now() // Update local timestamp to be the winner
                 });
@@ -2261,6 +2346,9 @@ export const useStore = create<ExtendedUserState>()(
         totalCompletions: state.totalCompletions,
         isPremium: state.isPremium,
         premiumExpiryDate: state.premiumExpiryDate,
+        subscriptionId: state.subscriptionId,
+        subscriptionStatus: state.subscriptionStatus,
+        paymentType: state.paymentType,
         // Recovery Mode fields
         recoveryMode: state.recoveryMode,
         consecutiveMisses: state.consecutiveMisses,

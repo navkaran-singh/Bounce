@@ -179,7 +179,7 @@ export const LandingPage: React.FC = () => {
                     {/* Premium Plan */}
                     <div className="p-6 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 rounded-2xl relative">
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full text-xs font-semibold">
-                            MOST PEOPLE UPGRADE
+                            RECOMMENDED
                         </div>
 
                         <h3 className="text-xl font-semibold mb-2">Premium</h3>

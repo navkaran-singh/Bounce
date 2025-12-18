@@ -190,6 +190,9 @@ export interface UserState {
   // Premium Status
   isPremium: boolean;
   premiumExpiryDate: number | null;
+  subscriptionId?: string | null; // For Dodo subscription management
+  subscriptionStatus?: 'active' | 'cancelled' | 'expired' | null;
+  paymentType?: 'subscription' | 'one_time' | null; // Matches webhook field
   user: AppUser | null;
 
   setUser: (user: AppUser | null) => void;
@@ -338,4 +341,5 @@ export interface UserState {
   // Premium Actions
   // NOTE: upgradeToPremium was REMOVED for security - handled by /api/verify-payment
   checkSubscriptionStatus: () => void;
+  cancelSubscription: () => Promise<void>;
 }

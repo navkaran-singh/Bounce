@@ -16,7 +16,17 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-    const { theme, setTheme, soundType, setSoundType, identity, setIdentity, microHabits, setMicroHabits, habitRepository, user, logout, getExportData, importData, isPremium, premiumExpiryDate } = useStore();
+    const {
+        theme, setTheme,
+        soundType, setSoundType,
+        identity, setIdentity,
+        microHabits, setMicroHabits,
+        habitRepository,
+        user, logout,
+        getExportData, importData,
+        isPremium, premiumExpiryDate,
+        subscriptionStatus, cancelSubscription // Simplified
+    } = useStore();
 
     console.log("Current Store User:", user);
 
@@ -24,6 +34,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const [localHabits, setLocalHabits] = useState([...microHabits]);
     const [hasChanges, setHasChanges] = useState(false);
     const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [cancellationConfirmed, setCancellationConfirmed] = useState(false);
+    const [cancellationError, setCancellationError] = useState<string | null>(null);
     const [isAuthOpen, setIsAuthOpen] = useState(false);
     const { isWeb, isIOS, isAndroid, isNative } = usePlatform();
 
@@ -354,7 +366,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                     {importStatus === 'success' && <p className="text-green-500 text-[10px] mt-2 text-center">Data imported successfully!</p>}
                                     {importStatus === 'error' && <p className="text-red-500 text-[10px] mt-2 text-center">Invalid file format.</p>}
                                 </div>
-                                {/* Subscription Management (Placeholder for Approval) */}
+                                {/* Subscription Management */}
                                 {user && isPremium && (
                                     <div className="w-full p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 mb-4">
                                         <div className="flex items-center justify-between mb-2">
@@ -364,14 +376,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                             </span>
                                         </div>
                                         <p className="text-xs text-gray-400 mb-3">
-                                            Your next billing date is {new Date(premiumExpiryDate || Date.now()).toLocaleDateString()}.
+                                            {subscriptionStatus === 'cancelled' || cancellationConfirmed
+                                                ? `Plan cancels on ${premiumExpiryDate ? new Date(premiumExpiryDate).toLocaleDateString() : 'expiry'}`
+                                                : `Active until ${new Date(premiumExpiryDate || Date.now()).toLocaleDateString()}`
+                                            }
                                         </p>
-                                        <a
-                                            href="mailto:hello.bouncelife@gmail.com?subject=Cancel Subscription"
-                                            className="text-xs text-white/50 hover:text-white underline decoration-dotted"
-                                        >
-                                            Manage / Cancel Subscription
-                                        </a>
+
+                                        {/* Cancellation Confirmation (inline, calm) */}
+                                        {cancellationConfirmed && (
+                                            <div className="bg-white/5 rounded-lg p-3 mb-2">
+                                                <p className="text-xs text-white/70 font-medium">Subscription cancelled</p>
+                                                <p className="text-[10px] text-white/40 mt-1">
+                                                    You'll keep premium access until {premiumExpiryDate ? new Date(premiumExpiryDate).toLocaleDateString() : 'your billing period ends'}.
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {/* Cancellation Error */}
+                                        {cancellationError && (
+                                            <p className="text-xs text-red-400 mb-2">{cancellationError}</p>
+                                        )}
+
+                                        {subscriptionStatus !== 'cancelled' && !cancellationConfirmed ? (
+                                            <button
+                                                onClick={async () => {
+                                                    if (confirm("Are you sure? You'll keep access until your billing period ends, but it won't renew.")) {
+                                                        try {
+                                                            setCancellationError(null);
+                                                            await cancelSubscription();
+                                                            setCancellationConfirmed(true);
+                                                        } catch (e: any) {
+                                                            setCancellationError(e.message || "Failed to cancel. Please try again or contact support.");
+                                                        }
+                                                    }
+                                                }}
+                                                className="text-xs text-white/50 hover:text-red-400 underline decoration-dotted transition-colors"
+                                            >
+                                                Cancel Subscription
+                                            </button>
+                                        ) : (subscriptionStatus === 'cancelled' || cancellationConfirmed) ? (
+                                            <span className="text-xs text-white/40 italic">
+                                                Subscription Cancelled
+                                            </span>
+                                        ) : null}
                                     </div>
                                 )}
                             </div>
@@ -408,6 +455,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                     </div>
                                 </div>
                             </div>
+
+
 
                             {/* Footer */}
                             <div className="text-center mt-8">
