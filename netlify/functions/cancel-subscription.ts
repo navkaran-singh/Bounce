@@ -35,7 +35,9 @@ if (!admin.apps?.length) {
 const db = admin.firestore ? admin.firestore() : admin.app().firestore();
 
 // Dodo Payments API configuration
-const DODO_API_BASE = 'https://live.dodopayments.com';
+// const DODO_API_BASE = 'https://live.dodopayments.com';
+const DODO_API_BASE = 'https://test.dodopayments.com'; // Change to https://api.dodopayments.com for production
+
 
 interface CancelRequest {
     userId: string;

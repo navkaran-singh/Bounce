@@ -13,16 +13,17 @@ export const Orb: React.FC<OrbProps> = ({ state, size = 280, isFractured = false
   const getColors = () => {
     switch (state) {
       case 'frozen':
-        return ['#4B5563', '#1F2937', '#111827']; // Grey/Cold
+        return ['#a5f3fc', '#67e8f9', '#0e7490']; // Icy blue-white
       case 'healing':
-        // return ['#FFD700', '#FFA500', '#FF4500']; // Gold/Healing
-        return ['#6366f1', '#8b5cf6'];
+        return ['#6366f1', '#8b5cf6', '#4f46e5']; // Purple/Indigo (3 values)
       case 'active':
-        return ['#00FFFF', '#00BFFF', '#7F00FF']; // Bright Cyan/Blue
+        // return ['#00FFFF', '#00BFFF', '#0099cc']; // Bright Cyan/Blue
+        return ['#00FFFF', '#00BFFF', '#7F00FF'];
       case 'success':
-        return ['#E0F2FE', '#0EA5E9', '#0284C7']; // White/Bright Blue (High Energy)
+        return ['#E0F2FE', '#0EA5E9', '#0284C7']; // White/Bright Blue
       default: // Breathing/Idle
-        return ['#0dccf2', '#00BFFF', '#7F00FF']; // Default Teal/Purple
+        // return ['#0dccf2', '#00BFFF', '#0088aa']; // Teal/Cyan (no purple in shadow)
+        return ['#0dccf2', '#00BFFF', '#7F00FF'];
     }
   };
 
@@ -43,14 +44,15 @@ export const Orb: React.FC<OrbProps> = ({ state, size = 280, isFractured = false
       transition: { duration: 0.3 }
     },
     frozen: {
-      scale: 0.95,
-      filter: "grayscale(1)",
-      transition: { duration: 1 }
+      scale: [1, 0.98, 1],
+      filter: "brightness(0.8) saturate(0.5)",
+      opacity: [0.7, 0.9, 0.7],
+      transition: { duration: 4, repeat: Infinity, ease: "easeInOut" }
     },
     healing: {
-      scale: [0.9, 1.2, 1],
-      filter: ["brightness(1)", "brightness(2)", "brightness(1)"],
-      transition: { duration: 1.5, ease: "circOut" }
+      scale: [1, 1.03, 1],
+      filter: ["brightness(1)", "brightness(1.2)", "brightness(1)"],
+      transition: { duration: 3, repeat: Infinity, ease: "easeInOut" }
     },
     success: {
       scale: [1, 1.05, 1],
@@ -79,6 +81,48 @@ export const Orb: React.FC<OrbProps> = ({ state, size = 280, isFractured = false
             transition={{
               rotate: { duration: 2, repeat: Infinity, ease: "linear" },
               opacity: { duration: 0.3 }
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Healing/Recovery Circumferential Glow Ring - Purple/Indigo */}
+      <AnimatePresence>
+        {state === 'healing' && (
+          <motion.div
+            className="absolute rounded-full z-0"
+            style={{
+              inset: -4,
+              background: `conic-gradient(from 0deg, transparent 0%, #8b5cf6 15%, #6366f1 35%, #a855f7 55%, transparent 85%)`,
+              filter: 'blur(8px)',
+              opacity: 0.7
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.5, 0.8, 0.5] }}
+            exit={{ opacity: 0, transition: { duration: 0.5 } }}
+            transition={{
+              duration: 3, repeat: Infinity, ease: "easeInOut"
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Frozen/Ice Circumferential Glow Ring - Icy Blue */}
+      <AnimatePresence>
+        {state === 'frozen' && (
+          <motion.div
+            className="absolute rounded-full z-0"
+            style={{
+              inset: -4,
+              background: `conic-gradient(from 0deg, transparent 0%, #67e8f9 20%, #a5f3fc 40%, #e0f2fe 60%, transparent 80%)`,
+              filter: 'blur(10px)',
+              opacity: 0.6
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.4, 0.7, 0.4] }}
+            exit={{ opacity: 0, transition: { duration: 0.5 } }}
+            transition={{
+              duration: 4, repeat: Infinity, ease: "easeInOut"
             }}
           />
         )}

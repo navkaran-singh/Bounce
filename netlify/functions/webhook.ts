@@ -55,6 +55,10 @@ interface DodoWebhookEvent {
             user_id?: string;
         };
         status?: string;
+        // Billing period fields from Dodo
+        next_billing_date?: string;
+        current_period_end?: string;
+        billing_interval_count?: number;
     };
 }
 
@@ -153,13 +157,28 @@ export const handler: Handler = async (event: HandlerEvent) => {
                 console.log(`✅ [WEBHOOK] Subscription active: ${paymentId}`);
 
                 if (userId) {
-                    const premiumExpiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days
+                    // Use Dodo's billing dates, not hardcoded!
+                    let premiumExpiryDate: number;
+                    if (data.next_billing_date) {
+                        premiumExpiryDate = new Date(data.next_billing_date).getTime();
+                        console.log(`📅 [WEBHOOK] Using next_billing_date: ${data.next_billing_date}`);
+                    } else if (data.current_period_end) {
+                        premiumExpiryDate = new Date(data.current_period_end).getTime();
+                        console.log(`📅 [WEBHOOK] Using current_period_end: ${data.current_period_end}`);
+                    } else {
+                        // Fallback: use billing interval or 30 days
+                        const intervalDays = data.billing_interval_count || 30;
+                        premiumExpiryDate = Date.now() + (intervalDays * 24 * 60 * 60 * 1000);
+                        console.warn(`⚠️ [WEBHOOK] No billing date from Dodo, fallback: ${intervalDays} days`);
+                    }
 
                     await db.collection('users').doc(userId).set(
                         {
                             isPremium: true,
                             premiumExpiryDate,
                             lastPaymentId: paymentId,
+                            subscriptionId: paymentId, // Track subscription ID
+                            subscriptionStatus: 'active', // Set proper status
                             paymentType: 'subscription',
                             paymentSource: 'webhook',
                             lastUpdated: Date.now(),

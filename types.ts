@@ -184,6 +184,7 @@ export interface WeeklyReviewState {
 export interface AppUser {
   uid: string;
   email?: string | null;
+  photoURL?: string | null;
 }
 
 export interface UserState {
@@ -199,6 +200,7 @@ export interface UserState {
   logout: () => Promise<void>;
   getExportData: () => string;
   setWeeklyReview: (update: Partial<WeeklyReviewState>) => void;
+  updateProfilePhoto: (url: string | null) => void;
 
   // Navigation
   currentView: AppView;
@@ -265,6 +267,8 @@ export interface UserState {
   // Freeze Protocol
   isFrozen: boolean;
   freezeExpiry: number | null;
+  preFreezeStatus: ResilienceStatus | null;
+  lastSubscriptionCheck: number | null;
 
   // Recovery Mode (Resilience Engine 2.0)
   recoveryMode: boolean;
@@ -300,6 +304,7 @@ export interface UserState {
   logReflection: (date: string, energy: EnergyLevel, note: string) => void;
   setDailyIntention: (date: string, intention: string) => void;
   toggleFreeze: (active: boolean) => void;
+  cancelFreeze: () => void;
   setView: (view: AppView) => void;
 
   // Recovery Mode Actions
@@ -315,7 +320,7 @@ export interface UserState {
   importData: (data: string) => boolean;
   generateWeeklyReview: () => void;
   markReviewViewed: (id: string) => void;
-  handleVoiceLog: (text: string, type: 'note' | 'habit' | 'intention') => void;
+  handleVoiceLog: (text: string, type: 'note' | 'reflection' | 'intention') => void;
   addMicroHabit: (habit: string) => void;
 
   // Identity Evolution Engine Actions

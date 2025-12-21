@@ -22,7 +22,7 @@ export const BADGES: Badge[] = [
  */
 export const useResilienceEngine = () => {
   const store = useStore();
-  
+
   const {
     resilienceScore,
     resilienceStatus,
@@ -43,7 +43,7 @@ export const useResilienceEngine = () => {
 
   // Derived: Is today completed?
   const isCompletedToday = !!(
-    lastCompletedDate && 
+    lastCompletedDate &&
     new Date(lastCompletedDate).toDateString() === new Date().toDateString()
   );
 
@@ -67,7 +67,8 @@ export const useResilienceEngine = () => {
   // Derived: Get difficulty adjustment message
   const getDifficultyMessage = () => {
     if (recoveryMode) return "Difficulty adjusted — healing in progress.";
-    if (resilienceStatus === 'BOUNCED') return "You bounced back! Momentum restored.";
+    if (resilienceStatus === 'BOUNCED') return "🎉 You bounced back! +15 Resilience Bonus";
+    if (resilienceStatus === 'RECOVERING') return "Complete one habit to bounce back.";
     if (resilienceStatus === 'CRACKED') return "Time to bounce back. You've got this.";
     return null;
   };

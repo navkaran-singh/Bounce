@@ -1,29 +1,46 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Zap, Shield, RefreshCw, X, Activity, Lock } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowDown, ArrowRight, RefreshCw, X, Activity, Lock, AlertTriangle } from 'lucide-react';
 import { useStore } from '../store';
-import { useResilienceEngine } from '../hooks/useResilienceEngine';
 
 interface RecoveryCardProps {
   onDismiss?: () => void;
 }
 
 export const RecoveryCard: React.FC<RecoveryCardProps> = ({ onDismiss }) => {
-  const { shields, applyRecoveryOption, dismissRecoveryMode, consecutiveMisses, isPremium } = useStore();
+  const { applyRecoveryOption, dismissRecoveryMode, consecutiveMisses, isPremium } = useStore();
+  const [showRestartConfirm, setShowRestartConfirm] = useState(false);
 
-  const handleOption = (option: 'one-minute-reset' | 'use-shield' | 'gentle-restart') => {
-    applyRecoveryOption(option);
+  const handleLowerBar = () => {
+    applyRecoveryOption('one-minute-reset');
+    dismissRecoveryMode(); // Close the card (orb stays cracked via resilienceStatus)
     onDismiss?.();
   };
+
+  const handleContinue = () => {
+    dismissRecoveryMode();
+    onDismiss?.();
+  };
+
+  const handleRestart = () => {
+    if (showRestartConfirm) {
+      applyRecoveryOption('gentle-restart');
+      onDismiss?.();
+    } else {
+      setShowRestartConfirm(true);
+    }
+  };
+
+  const showRestartOption = consecutiveMisses >= 5;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: -20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -20, scale: 0.95 }}
-      className="relative w-full overflow-hidden rounded-3xl p-[1px] mb-6 group"
+      className="relative w-full overflow-hidden rounded-3xl p-[1px] mb-6"
     >
-      {/* Electric Blue Gradient Border */}
+      {/* Gradient Border */}
       <div className="absolute inset-0 bg-gradient-to-r from-blue-600/60 via-cyan-400/40 to-blue-600/60 opacity-80 blur-sm" />
 
       <div className="relative bg-[#0F0F10] rounded-[23px] p-5 overflow-hidden">
@@ -31,127 +48,125 @@ export const RecoveryCard: React.FC<RecoveryCardProps> = ({ onDismiss }) => {
         {/* Header */}
         <div className="relative flex items-start justify-between mb-4 z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+            <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
               <Activity className="w-5 h-5 text-blue-400" />
             </div>
             <div>
               <h3 className="text-white font-bold text-lg tracking-tight">Recovery Mode</h3>
-              {/* 🛑 FIX: Restore the dynamic counter logic */}
               <p className="text-blue-200/60 text-xs font-medium tracking-wider">
-                {consecutiveMisses > 1
-                  ? `${consecutiveMisses - 1} Days Missed`
-                  : "A small break detected — let's re-enter gently."
+                {consecutiveMisses >= 5
+                  ? `${consecutiveMisses} days away — welcome back`
+                  : consecutiveMisses > 1
+                    ? `${consecutiveMisses} days missed`
+                    : "A small break detected"
                 }
               </p>
             </div>
           </div>
           <button
-            onClick={() => dismissRecoveryMode()}
+            onClick={handleContinue}
             className="p-2 rounded-full hover:bg-white/5 transition-colors text-white/20 hover:text-white"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Keyword #17: Bounce gets better when you get worse */}
+        {/* Message */}
         <p className="text-white/80 text-sm mb-6 leading-relaxed font-medium">
-          Bounce gets better when you get worse.
+          {consecutiveMisses >= 5
+            ? "You've been away a while. No judgment."
+            : "Bounce gets better when you get worse."
+          }
           <span className="text-white/40 font-normal ml-1">
-            {/* Keyword #1: Gentle */}
-            Let's re-enter gently.
+            Let's make today easier.
           </span>
         </p>
 
-        {/* Options Grid */}
+        {/* Options */}
         <div className="relative space-y-3 z-10">
 
-          {/* ⚡ Option 1: One-Minute Reset */}
+          {/* PRIMARY: Lower today's bar */}
           <button
-            onClick={() => handleOption('one-minute-reset')}
-            className="w-full flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-blue-400/40 transition-all active:scale-[0.98]"
+            onClick={handleLowerBar}
+            className="w-full flex items-center gap-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:border-blue-400/50 transition-all active:scale-[0.98]"
           >
-            <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-              <Zap className="w-5 h-5 text-blue-400" />
+            <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+              <ArrowDown className="w-5 h-5 text-blue-400" />
             </div>
             <div className="text-left">
-              <span className="text-white font-semibold block text-sm">One-Minute Reset</span>
-              {/* Keyword #11: Let's make today easier */}
-              <span className="text-white/40 text-xs">Lowers difficulty to rebuild momentum</span>
+              <span className="text-white font-semibold block text-sm">Lower today's bar</span>
+              <span className="text-white/50 text-xs">Switch to low-energy habits. No pressure to finish.</span>
             </div>
           </button>
 
-          {/* 🛡️ Option 2: Use Shield */}
+          {/* SECONDARY: Continue as is */}
           <button
-            onClick={() => handleOption('use-shield')}
-            disabled={shields === 0}
-            className={`w-full flex items-center gap-4 p-3 rounded-xl border transition-all relative
-              ${shields > 0
-                ? 'bg-white/5 border-white/5 hover:border-blue-400/40 cursor-pointer active:scale-[0.98]'
-                : 'bg-black/20 border-white/5 opacity-50 cursor-not-allowed'
-              }`}
+            onClick={handleContinue}
+            className="w-full flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/20 transition-all active:scale-[0.98]"
           >
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${shields > 0 ? 'bg-blue-500/10' : 'bg-white/5'}`}>
-              <Shield className={`w-5 h-5 ${shields > 0 ? 'text-blue-400' : 'text-white/20'}`} />
+            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
+              <ArrowRight className="w-5 h-5 text-white/40" />
             </div>
-            <div className="text-left w-full pr-2">
-              <div className="flex items-center justify-between mb-0.5">
-                <span className="text-white font-semibold text-sm">Use Shield</span>
-                {shields > 0 ? (
-                  <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/20 font-bold uppercase tracking-wide">
-                    {shields} Available
-                  </span>
-                ) : (
-                  <span className="text-[9px] bg-white/5 text-white/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
-                    Empty
-                  </span>
-                )}
-              </div>
-              <span className="text-xs block text-white/40">
-                {shields > 0
-                  ? (isPremium ? "Momentum isn't lost. It's restored." : "Use your free shield!")
-                  : (isPremium ? "Earn shields with 7-day streaks" : "Bounce protects your identity when life gets heavy. Upgrade for shields.")
-                }
-              </span>
+            <div className="text-left">
+              <span className="text-white/70 font-medium block text-sm">Continue as is</span>
+              <span className="text-white/30 text-xs">Dismiss and keep current habits</span>
             </div>
           </button>
 
-
-          {/* 🔄 Option 3: Gentle Restart (Premium Only) */}
-          <button
-            onClick={() => handleOption('gentle-restart')}
-            disabled={!isPremium}
-            className={`w-full flex items-center gap-4 p-3 rounded-xl border transition-all relative
-              ${isPremium
-                ? 'bg-white/5 border-white/5 hover:border-emerald-500/40 cursor-pointer active:scale-[0.98]'
-                : 'bg-black/20 border-white/5 opacity-50 cursor-not-allowed'
-              }`}
-          >
-            {!isPremium && (
-              <div className="absolute top-2 right-2">
-                <Lock className="w-3 h-3 text-white/30" />
-              </div>
+          {/* RARE: Restart identity (5+ days, premium) */}
+          <AnimatePresence>
+            {showRestartOption && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <button
+                  onClick={handleRestart}
+                  disabled={!isPremium}
+                  className={`w-full flex items-center gap-4 p-3 rounded-xl border transition-all relative
+                    ${isPremium
+                      ? 'bg-red-500/5 border-red-500/20 hover:border-red-400/40 cursor-pointer active:scale-[0.98]'
+                      : 'bg-black/20 border-white/5 opacity-50 cursor-not-allowed'
+                    }`}
+                >
+                  {!isPremium && (
+                    <div className="absolute top-2 right-2">
+                      <Lock className="w-3 h-3 text-white/30" />
+                    </div>
+                  )}
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isPremium ? 'bg-red-500/10' : 'bg-white/5'}`}>
+                    {showRestartConfirm ? (
+                      <AlertTriangle className={`w-5 h-5 ${isPremium ? 'text-red-400' : 'text-white/20'}`} />
+                    ) : (
+                      <RefreshCw className={`w-5 h-5 ${isPremium ? 'text-red-400' : 'text-white/20'}`} />
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className={`font-semibold text-sm ${isPremium ? 'text-red-400' : 'text-white/40'}`}>
+                        {showRestartConfirm ? 'Confirm restart?' : 'Restart this identity'}
+                      </span>
+                      {!isPremium && (
+                        <span className="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/20 font-bold uppercase tracking-wide">
+                          Premium
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-white/40 text-xs">
+                      {showRestartConfirm
+                        ? 'Resets: streak, score, stage → 0. Keeps: badges, completions.'
+                        : 'Fresh start. Stage resets to Initiation.'}
+                    </span>
+                  </div>
+                </button>
+              </motion.div>
             )}
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isPremium ? 'bg-emerald-500/10' : 'bg-white/5'}`}>
-              <RefreshCw className={`w-5 h-5 ${isPremium ? 'text-emerald-400' : 'text-white/20'}`} />
-            </div>
-            <div className="text-left">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-white font-semibold text-sm">Gentle Restart</span>
-                {!isPremium && (
-                  <span className="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/20 font-bold uppercase tracking-wide">
-                    Premium
-                  </span>
-                )}
-              </div>
-              <span className="text-white/40 text-xs">
-                {isPremium ? "Recovery is progress. Reset streak, keep badges." : "Fresh start without losing badges"}
-              </span>
-            </div>
-          </button>
+          </AnimatePresence>
 
         </div>
 
-        {/* Footer - Keyword #6 */}
+        {/* Footer */}
         <p className="text-center text-white/30 text-[10px] mt-4 uppercase tracking-widest font-medium">
           You don't start over — you bounce back
         </p>

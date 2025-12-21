@@ -23,6 +23,7 @@ import { WeeklyReviewModal } from '../components/WeeklyReviewModal';
 import { PremiumModal } from '../components/PremiumModal';
 import { Preferences } from '@capacitor/preferences';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { ProfileEditorModal } from '../components/ProfileEditorModal';
 
 // Daily Plan Toast Component - Floating Glass Pill Design
 const DailyPlanToast: React.FC<{ message: string; mode: 'GROWTH' | 'STEADY' | 'RECOVERY' | null; onDismiss: () => void }> = ({ message, mode, onDismiss }) => {
@@ -257,6 +258,7 @@ export const Dashboard: React.FC = () => {
     const [isEnergyOpen, setIsEnergyOpen] = useState(false);
     const [isVoiceOpen, setIsVoiceOpen] = useState(false);
     const [isPremiumOpen, setIsPremiumOpen] = useState(false);
+    const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
     const [zenMode, setZenMode] = useState(false);
 
     // Edit Habit Modal State
@@ -499,12 +501,7 @@ export const Dashboard: React.FC = () => {
             <WeeklyStory />
             <VoiceMode
                 isOpen={isVoiceOpen}
-                onClose={(transcript) => {
-                    setIsVoiceOpen(false);
-                    if (transcript && typeof transcript === 'string') {
-                        addMicroHabit(transcript);
-                    }
-                }}
+                onClose={() => setIsVoiceOpen(false)}
             />
             <AnimatePresence>
                 {milestoneReached && (
@@ -562,6 +559,7 @@ export const Dashboard: React.FC = () => {
             </AnimatePresence>
 
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+            <ProfileEditorModal isOpen={isProfileEditorOpen} onClose={() => setIsProfileEditorOpen(false)} />
             <BreathingModal isOpen={isBreathingOpen} onClose={() => setIsBreathingOpen(false)} />
             <FocusTimerModal isOpen={isFocusOpen} onClose={() => setIsFocusOpen(false)} />
             <GoalsModal isOpen={isGoalsOpen} onClose={() => setIsGoalsOpen(false)} />
@@ -608,9 +606,16 @@ export const Dashboard: React.FC = () => {
                     >
                         <div className="flex justify-between items-start mb-4">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden border border-gray-300 dark:border-white/20">
-                                    <img src={`https://api.dicebear.com/9.x/micah/svg?seed=${identity}`} alt="User" className="w-full h-full object-cover" />
-                                </div>
+                                <button
+                                    onClick={() => setIsProfileEditorOpen(true)}
+                                    className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden border border-gray-300 dark:border-white/20 hover:border-primary-cyan transition-colors"
+                                >
+                                    <img
+                                        src={user?.photoURL || `https://api.dicebear.com/9.x/micah/svg?seed=${identity}`}
+                                        alt="User"
+                                        className="w-full h-full object-cover"
+                                    />
+                                </button>
                                 <div>
                                     <h2 className="text-sm font-semibold text-gray-800 dark:text-white">{getGreeting()}</h2>
                                     <p className="text-xs text-primary-cyan font-medium">{identity}</p>
@@ -877,7 +882,7 @@ export const Dashboard: React.FC = () => {
                     <Orb
                         state={orbState}
                         size={300}
-                        isFractured={engineState.status === 'CRACKED'}
+                        isFractured={engineState.recoveryMode || engineState.status === 'CRACKED' || engineState.status === 'RECOVERING'}
                         streak={streak}
                     />
                 </motion.div>

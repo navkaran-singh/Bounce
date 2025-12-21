@@ -63,6 +63,9 @@ export const useStore = create<ExtendedUserState>()(
       lastSync: 0,
       initialLoadComplete: false, // 🛡️ SAFETY LOCK: Prevents sync before cloud data is loaded
       setUser: (user) => set({ user }),
+      updateProfilePhoto: (url) => set((state) => ({
+        user: state.user ? { ...state.user, photoURL: url } : null
+      })),
       theme: 'dark',
       soundEnabled: false,
       soundType: 'rain',
@@ -92,6 +95,8 @@ export const useStore = create<ExtendedUserState>()(
       undoState: null,
       isFrozen: false,
       freezeExpiry: null,
+      preFreezeStatus: null,
+      lastSubscriptionCheck: null,
 
       // Recovery Mode (Resilience Engine 2.0)
       recoveryMode: false,
@@ -359,7 +364,39 @@ export const useStore = create<ExtendedUserState>()(
         return { history: newHistory, lastUpdated: Date.now() };
       }),
 
-      toggleFreeze: (active) => set({ isFrozen: active, freezeExpiry: active ? Date.now() + 86400000 : null, resilienceStatus: active ? 'FROZEN' : 'ACTIVE', lastUpdated: Date.now() }),
+      // Freeze saves pre-freeze state, Cancel restores it
+      toggleFreeze: (active) => {
+        const state = get();
+        if (active) {
+          // Save pre-freeze state before freezing
+          set({
+            isFrozen: true,
+            freezeExpiry: Date.now() + 86400000,
+            preFreezeStatus: state.resilienceStatus, // Save for cancel
+            resilienceStatus: 'FROZEN',
+            lastUpdated: Date.now()
+          });
+        } else {
+          // Normal unfreeze (Return to Bounce)
+          set({
+            isFrozen: false,
+            freezeExpiry: null,
+            resilienceStatus: 'ACTIVE',
+            lastUpdated: Date.now()
+          });
+        }
+      },
+
+      cancelFreeze: () => {
+        // Cancel freeze and reset to normal ACTIVE state (blue orb)
+        set({
+          isFrozen: false,
+          freezeExpiry: null,
+          resilienceStatus: 'ACTIVE',
+          preFreezeStatus: null,
+          lastUpdated: Date.now()
+        });
+      },
 
       // Recovery Mode Actions (Resilience Engine 2.0)
       // Recovery Mode Actions (Resilience Engine 2.0)
@@ -391,12 +428,12 @@ export const useStore = create<ExtendedUserState>()(
 
           set({
             recoveryMode: true,
-            consecutiveMisses: state.consecutiveMisses + 1,
+            consecutiveMisses: actualMisses,  // 🔥 FIX: Use actual days missed, not +1
             lastMissedDate: today, // Mark today as "handled"
             missedYesterday: true,
             resilienceStatus: 'RECOVERING',
             // Don't punish score too hard, just nudge it
-            resilienceScore: Math.max(0, state.resilienceScore - (actualMisses > state.consecutiveMisses ? 5 : 0)),
+            resilienceScore: Math.max(0, state.resilienceScore - Math.min(actualMisses, 5) * 2),
             lastUpdated: Date.now()
           });
         }
@@ -423,6 +460,10 @@ export const useStore = create<ExtendedUserState>()(
         if (hasStaleHabits || isStuckBounced) {
           console.log("🌅 [CHECK NEW DAY] Cleaning up stale state...");
 
+          // 🔄 DAILY HABIT ROTATION: Different lead habit each day (free users get variety)
+          const dayOfWeek = now.getDay(); // 0-6
+          const rotatedIndex = dayOfWeek % 3; // Cycles through 0, 1, 2
+
           set({
             // Clear habits if they are from yesterday
             dailyCompletedIndices: hasStaleHabits ? [] : state.dailyCompletedIndices,
@@ -431,8 +472,13 @@ export const useStore = create<ExtendedUserState>()(
             // But KEEP 'RECOVERING' or 'CRACKED' because those need action!
             resilienceStatus: isStuckBounced ? 'ACTIVE' : state.resilienceStatus,
 
+            // Rotate which habit shows first based on day of week
+            currentHabitIndex: rotatedIndex,
+
             lastUpdated: Date.now()
           });
+
+          console.log("🔄 [HABIT ROTATION] Today's lead habit index:", rotatedIndex);
         }
 
         // 2. SMART DAILY PLANNER (Premium Only)
@@ -537,6 +583,16 @@ export const useStore = create<ExtendedUserState>()(
           // CALL AI TO GENERATE NEW HABITS (FULL SPECTRUM)
           try {
             console.log("📊 [SMART PLANNER] Calling AI service for full spectrum...");
+
+            // 🔥 CALCULATE DAYS MISSED: For accurate messaging (e.g., "welcome back" vs "yesterday was tough")
+            let daysMissed = 0;
+            if (lastCompleted) {
+              const lastDate = new Date(lastCompleted);
+              const todayDate = new Date(today);
+              daysMissed = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+              console.log("📊 [SMART PLANNER] Days since last activity:", daysMissed);
+            }
+
             const { generateDailyAdaptation } = await import('./services/ai');
             const newRepository = await generateDailyAdaptation(
               state.identity,
@@ -545,7 +601,8 @@ export const useStore = create<ExtendedUserState>()(
               mode,
               state.habitRepository,
               state.history[today]?.intention,  // Pass today's intention/anchor if set
-              state.userModifiedHabits  // Pass user-modified habits for protection
+              state.userModifiedHabits,  // Pass user-modified habits for protection
+              daysMissed  // 🔥 PASS DAYS MISSED: For accurate recovery messaging
             );
 
             // Validate the returned repository
@@ -1121,19 +1178,20 @@ export const useStore = create<ExtendedUserState>()(
 
         switch (option) {
           case 'one-minute-reset':
-            // Set energy to low, filter for easiest habits
+            // ONLY set energy to low - do NOT exit recovery mode
+            // User must complete a habit to exit recovery
             const lowHabits = state.habitRepository?.low?.length > 0
               ? state.habitRepository.low
               : state.microHabits;
             set({
-              recoveryMode: false,
+              // Keep recoveryMode: true - orb stays cracked
               currentEnergyLevel: 'low',
               microHabits: lowHabits,
               currentHabitIndex: 0,
-              resilienceStatus: 'ACTIVE',
+              // Keep resilienceStatus as is (RECOVERING)
               lastUpdated: Date.now()
             });
-            console.log("[RECOVERY] One-minute reset applied - switched to low energy habits");
+            console.log("[RECOVERY] Lower bar applied - switched to low energy habits, still in recovery");
             break;
 
           case 'use-shield':
@@ -1153,16 +1211,26 @@ export const useStore = create<ExtendedUserState>()(
             break;
 
           case 'gentle-restart':
+            // True restart: reset streak, score, and identity progress
+            // BUT keep: totalCompletions, badges, history, habits
+            const newStageDate = new Date().toISOString().split('T')[0];
             set({
               recoveryMode: false,
               streak: 0,
               consecutiveMisses: 0,
               missedYesterday: false,
-              resilienceStatus: 'BOUNCED',
+              resilienceStatus: 'ACTIVE', // Not BOUNCED - no bonus message
               resilienceScore: 50, // Reset to baseline
+              // Reset identity progress to INITIATION
+              identityProfile: {
+                ...get().identityProfile,
+                stage: 'INITIATION',
+                weeksInStage: 0,
+                stageEnteredAt: newStageDate
+              },
               lastUpdated: Date.now()
             });
-            console.log("[RECOVERY] Gentle restart - streak reset, badges preserved");
+            console.log("[RECOVERY] Restart identity - streak, score, stage reset. Badges/completions preserved.");
             break;
         }
 
@@ -1995,40 +2063,152 @@ export const useStore = create<ExtendedUserState>()(
       // at /api/verify-payment.ts after verifying payment with Dodo Payments API.
       // This prevents users from setting isPremium:true via browser console.
 
-      checkSubscriptionStatus: () => {
+      checkSubscriptionStatus: async () => {
         const state = get();
 
-        if (!state._hasHydrated) return;
+        // Wait for Firebase load AND hydration before checking
+        // Prevents race condition where lastSubscriptionCheck is still null
+        if (!state._hasHydrated || !state.user || !state.initialLoadComplete) {
+          console.log("💎 [PREMIUM] ⏳ Waiting for initial load to complete...");
+          return;
+        }
 
-        // Only check if user is marked as premium
-        if (state.isPremium && state.premiumExpiryDate) {
-          const now = Date.now();
+        // Only check if user has a subscription
+        if (!state.isPremium || !state.subscriptionId) {
+          console.log("💎 [PREMIUM] No active subscription to check");
+          return;
+        }
 
-          console.log("💎 [PREMIUM] Checking subscription status...");
-          console.log("💎 [PREMIUM] Expiry date:", new Date(state.premiumExpiryDate).toISOString());
-          console.log("💎 [PREMIUM] Current time:", new Date(now).toISOString());
+        // Guard: Only check subscriptions, not one-time payments
+        if (!state.subscriptionId.startsWith('sub_')) {
+          console.log("💎 [PREMIUM] One-time payment - no renewal check needed");
+          return;
+        }
 
-          // Check if subscription has expired
-          if (now > state.premiumExpiryDate) {
-            console.log("💎 [PREMIUM] ⚠️ Subscription expired!");
+        // ✅ FIX #3: COOLDOWN - Only check once every 6 hours
+        const SIX_HOURS = 6 * 60 * 60 * 1000;
+        console.log("💎 [PREMIUM] 🕐 Cooldown check:", {
+          lastCheck: state.lastSubscriptionCheck,
+          timeSinceCheck: state.lastSubscriptionCheck ? Date.now() - state.lastSubscriptionCheck : 'N/A',
+          sixHours: SIX_HOURS,
+          shouldSkip: state.lastSubscriptionCheck && (Date.now() - state.lastSubscriptionCheck < SIX_HOURS)
+        });
+        if (state.lastSubscriptionCheck && Date.now() - state.lastSubscriptionCheck < SIX_HOURS) {
+          console.log("💎 [PREMIUM] ⏭️ Skipping check - cooldown active");
+          return;
+        }
 
+        console.log("💎 [PREMIUM] Checking subscription status with Dodo...");
+
+        try {
+          // Call secure backend to verify subscription with Dodo API
+          const response = await fetch('/.netlify/functions/check-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: state.user.uid,
+              subscriptionId: state.subscriptionId
+            })
+          });
+
+          const data = await response.json();
+
+          // ✅ FIX #2: CLIENT ONLY READS, NEVER WRITES EXPIRY
+          // Server is the only authority for premiumExpiryDate
+          // Client mirrors by reloading from Firebase
+
+          if (!data.success) {
+            console.warn("💎 [PREMIUM] ⚠️ Could not verify subscription:", data.error);
+            // Update cooldown timestamp even on failure
+            set({ lastSubscriptionCheck: Date.now(), lastUpdated: Date.now() });
+
+            // Fall back to local expiry check only
+            if (state.premiumExpiryDate && Date.now() > state.premiumExpiryDate) {
+              console.log("💎 [PREMIUM] ⚠️ Local expiry passed, marking as expired");
+              set({
+                isPremium: false,
+                subscriptionStatus: 'expired',
+                dailyPlanMessage: "⏰ Subscription Expired. Renew to keep your AI Brain active.",
+                lastUpdated: Date.now()
+              });
+            }
+            return;
+          }
+
+          // Handle response from Dodo check
+          if (data.isActive) {
+            // 🔥 Server already updated Firebase with correct status
+            console.log("💎 [PREMIUM] ✅ Subscription ACTIVE - server updated Firebase");
+
+            // ✅ FIX: Only update local tracking fields, NOT subscriptionStatus
+            // Server is the ONLY authority for both premiumExpiryDate AND subscriptionStatus
+            // (Server may have set status to 'cancelled' if scheduled for cancellation)
             set({
-              isPremium: false,
-              premiumExpiryDate: null,
-              dailyPlanMessage: "⏰ Subscription Expired. Renew to keep your AI Brain active.",
+              isPremium: true,
+              lastSubscriptionCheck: Date.now(),
               lastUpdated: Date.now()
             });
 
-            // Force sync to Firebase
-            get().syncToFirebase(true);
-          } else {
-            const daysRemaining = Math.ceil((state.premiumExpiryDate - now) / (1000 * 60 * 60 * 24));
-            console.log("💎 [PREMIUM] ✅ Active -", daysRemaining, "days remaining");
+            // Fetch fresh subscriptionStatus directly from Firebase
+            // Server just updated it, so we read it directly
+            const { doc, getDoc } = await import('firebase/firestore');
+            const { db } = await import('./services/firebase');
+            const state = get();
+            if (state.user?.uid) {
+              const userRef = doc(db, 'users', state.user.uid);
+              const userSnap = await getDoc(userRef);
+              if (userSnap.exists()) {
+                const freshData = userSnap.data();
+                console.log("💎 [PREMIUM] 🔄 Fresh Firebase data:", {
+                  subscriptionStatus: freshData.subscriptionStatus,
+                  premiumExpiryDate: freshData.premiumExpiryDate
+                });
+                set({
+                  subscriptionStatus: freshData.subscriptionStatus || null,
+                  premiumExpiryDate: freshData.premiumExpiryDate || null
+                });
+              }
+            }
+            console.log("💎 [PREMIUM] ✅ Synced from Firebase, status:", get().subscriptionStatus);
+          } else if (data.status === 'cancelled' || data.status === 'expired') {
+            console.log("💎 [PREMIUM] ⚠️ Subscription", data.status);
+
+            // Update status only (let server handle expiry)
+            set({
+              subscriptionStatus: data.status,
+              lastSubscriptionCheck: Date.now(),
+              lastUpdated: Date.now()
+            });
+
+            // Reload from Firebase to get authoritative expiry
+            await get().loadFromFirebase();
+
+            // Check if local expiry has passed (display only, not flipping)
+            const currentState = get();
+            if (currentState.premiumExpiryDate && Date.now() > currentState.premiumExpiryDate) {
+              set({
+                isPremium: false,
+                dailyPlanMessage: "⏰ Subscription Expired. Renew to keep your AI Brain active."
+              });
+            } else if (currentState.premiumExpiryDate) {
+              const daysRemaining = Math.ceil((currentState.premiumExpiryDate - Date.now()) / (1000 * 60 * 60 * 24));
+              console.log("💎 [PREMIUM] ⏳", daysRemaining, "days remaining on current period");
+            }
           }
+        } catch (error) {
+          console.error("💎 [PREMIUM] ❌ Subscription check failed:", error);
+          // Update cooldown even on error to prevent hammering
+          set({ lastSubscriptionCheck: Date.now() });
         }
       },
 
-      handleVoiceLog: (text, type) => { const state = get(); if (type === 'intention') state.setDailyIntention(new Date().toISOString(), text); else if (type === 'habit') state.addMicroHabit(text); },
+      // Voice logging - stores all entries as notes in history
+      handleVoiceLog: (text, _type) => {
+        const state = get();
+        // Store as a reflection note in history - visible in stats and used by AI
+        state.logReflection(new Date().toISOString(), null, text);
+        console.log("[VOICE] 📝 Note stored:", text);
+      },
 
       // Auth listener - called on sign in/out
       initializeAuth: () => {
@@ -2125,6 +2305,8 @@ export const useStore = create<ExtendedUserState>()(
             totalCompletions: profile.totalCompletions ?? 0,
             isPremium: profile.isPremium ?? false,
             premiumExpiryDate: profile.premiumExpiryDate || null,
+            // Profile Picture - load from cloud
+            user: state.user ? { ...state.user, photoURL: profile.photoURL || null } : null,
             // Recovery Mode
             recoveryMode: profile.recoveryMode ?? false,
             consecutiveMisses: profile.consecutiveMisses ?? 0,
@@ -2140,6 +2322,7 @@ export const useStore = create<ExtendedUserState>()(
             subscriptionId: profile.lastPaymentId || null, // Cloud uses lastPaymentId
             subscriptionStatus: profile.subscriptionStatus || null,
             paymentType: profile.paymentType || null,
+            lastSubscriptionCheck: profile.lastSubscriptionCheck || null,
             theme: settings?.theme || state.theme,
             soundEnabled: settings?.soundEnabled ?? state.soundEnabled,
             goal: settings?.goal || state.goal,
@@ -2185,6 +2368,10 @@ export const useStore = create<ExtendedUserState>()(
             totalCompletions: state.totalCompletions,
             isPremium: state.isPremium,
             premiumExpiryDate: state.premiumExpiryDate,
+            // Profile Picture - synced to cloud for cross-device support
+            photoURL: state.user?.photoURL || null,
+            // Subscription check cooldown
+            lastSubscriptionCheck: state.lastSubscriptionCheck,
             // Recovery Mode
             recoveryMode: state.recoveryMode,
             consecutiveMisses: state.consecutiveMisses,
@@ -2309,6 +2496,10 @@ export const useStore = create<ExtendedUserState>()(
           // 🛡️ SAFETY LOCK: Mark initial load as complete - safe to sync now
           set({ initialLoadComplete: true });
           console.log("🛡️ [LOAD] Initial load complete - sync unlocked");
+
+          // Now that Firebase data is loaded, check subscription status
+          // Cooldown will work correctly since lastSubscriptionCheck is loaded
+          get().checkSubscriptionStatus();
         } catch (error) {
           console.error("[LOAD] Error checking sync:", error);
           // Still mark as complete on error to avoid blocking forever
@@ -2347,8 +2538,11 @@ export const useStore = create<ExtendedUserState>()(
         isPremium: state.isPremium,
         premiumExpiryDate: state.premiumExpiryDate,
         subscriptionId: state.subscriptionId,
+        // subscriptionStatus persisted for UI display, but server is still authority
+        // Server will overwrite this when check-subscription runs
         subscriptionStatus: state.subscriptionStatus,
         paymentType: state.paymentType,
+        lastSubscriptionCheck: state.lastSubscriptionCheck,
         // Recovery Mode fields
         recoveryMode: state.recoveryMode,
         consecutiveMisses: state.consecutiveMisses,

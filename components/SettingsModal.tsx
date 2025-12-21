@@ -29,6 +29,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     } = useStore();
 
     console.log("Current Store User:", user);
+    console.log("🔍 [SETTINGS] subscriptionStatus from store:", subscriptionStatus);
 
     const [localIdentity, setLocalIdentity] = useState(identity);
     const [localHabits, setLocalHabits] = useState([...microHabits]);
@@ -36,6 +37,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [cancellationConfirmed, setCancellationConfirmed] = useState(false);
     const [cancellationError, setCancellationError] = useState<string | null>(null);
+    const [isCancelling, setIsCancelling] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const [isAuthOpen, setIsAuthOpen] = useState(false);
     const { isWeb, isIOS, isAndroid, isNative } = usePlatform();
 
@@ -398,22 +401,55 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         )}
 
                                         {subscriptionStatus !== 'cancelled' && !cancellationConfirmed ? (
-                                            <button
-                                                onClick={async () => {
-                                                    if (confirm("Are you sure? You'll keep access until your billing period ends, but it won't renew.")) {
-                                                        try {
-                                                            setCancellationError(null);
-                                                            await cancelSubscription();
-                                                            setCancellationConfirmed(true);
-                                                        } catch (e: any) {
-                                                            setCancellationError(e.message || "Failed to cancel. Please try again or contact support.");
-                                                        }
-                                                    }
-                                                }}
-                                                className="text-xs text-white/50 hover:text-red-400 underline decoration-dotted transition-colors"
-                                            >
-                                                Cancel Subscription
-                                            </button>
+                                            !showCancelConfirm ? (
+                                                <button
+                                                    onClick={() => setShowCancelConfirm(true)}
+                                                    className="text-xs text-white/50 hover:text-red-400 underline decoration-dotted transition-colors"
+                                                >
+                                                    Cancel Subscription
+                                                </button>
+                                            ) : (
+                                                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 space-y-3">
+                                                    <p className="text-xs text-white/80">
+                                                        Are you sure? You'll keep access until your billing period ends, but it won't renew.
+                                                    </p>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => setShowCancelConfirm(false)}
+                                                            className="flex-1 px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 rounded-md transition-colors"
+                                                        >
+                                                            Keep Subscription
+                                                        </button>
+                                                        <button
+                                                            onClick={async () => {
+                                                                try {
+                                                                    setIsCancelling(true);
+                                                                    setCancellationError(null);
+                                                                    await cancelSubscription();
+                                                                    setCancellationConfirmed(true);
+                                                                    setShowCancelConfirm(false);
+                                                                } catch (e: any) {
+                                                                    setCancellationError(e.message || "Failed to cancel. Please try again or contact support.");
+                                                                } finally {
+                                                                    setIsCancelling(false);
+                                                                }
+                                                            }}
+                                                            disabled={isCancelling}
+                                                            className={`flex-1 px-3 py-1.5 text-xs rounded-md transition-colors ${isCancelling ? 'bg-red-500/30 text-white/50 cursor-wait' : 'bg-red-500/80 hover:bg-red-500 text-white'}`}
+                                                        >
+                                                            {isCancelling ? (
+                                                                <span className="flex items-center justify-center gap-2">
+                                                                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                                    </svg>
+                                                                    Cancelling...
+                                                                </span>
+                                                            ) : 'Yes, Cancel'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )
                                         ) : (subscriptionStatus === 'cancelled' || cancellationConfirmed) ? (
                                             <span className="text-xs text-white/40 italic">
                                                 Subscription Cancelled

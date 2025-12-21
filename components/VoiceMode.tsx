@@ -10,13 +10,6 @@ interface VoiceModeProps {
     microHabits?: string[]; // Added this since you passed it in Dashboard
 }
 
-const analyzeIntent = (text: string): 'intention' | 'habit' | 'note' => {
-    const lower = text.toLowerCase();
-    if (lower.includes('intention') || lower.includes('want to')) return 'intention';
-    if (lower.includes('habit') || lower.includes('every day') || lower.includes('always')) return 'habit';
-    return 'note';
-};
-
 export const VoiceMode: React.FC<VoiceModeProps> = ({ isOpen, onClose, microHabits }) => {
     const { handleVoiceLog } = useStore();
     const { isListening, transcript, error, startListening, stopListening, resetTranscript } = useVoiceRecognition();
@@ -84,14 +77,14 @@ export const VoiceMode: React.FC<VoiceModeProps> = ({ isOpen, onClose, microHabi
         setUiState('processing');
 
         setTimeout(() => {
-            const category = analyzeIntent(transcript);
             const cleanText = transcript.charAt(0).toUpperCase() + transcript.slice(1);
 
-            handleVoiceLog(cleanText, category);
+            // Always store as 'note' - no type detection
+            handleVoiceLog(cleanText, 'note');
             setUiState('success');
 
             setTimeout(() => {
-                onClose(cleanText);
+                onClose();
             }, 1500);
         }, 1200);
     };
@@ -140,9 +133,9 @@ export const VoiceMode: React.FC<VoiceModeProps> = ({ isOpen, onClose, microHabi
                     </div>
 
                     <h2 className="text-2xl font-bold text-white mb-4 text-center h-8">
-                        {uiState === 'listening' && "Listening..."}
+                        {uiState === 'listening' && "Voice Journal"}
                         {uiState === 'processing' && "Analyzing..."}
-                        {uiState === 'success' && "Saved!"}
+                        {uiState === 'success' && "Noted!"}
                         {uiState === 'error' && "Microphone Error"}
                     </h2>
 
@@ -159,10 +152,8 @@ export const VoiceMode: React.FC<VoiceModeProps> = ({ isOpen, onClose, microHabi
                         <p className="text-white/30 text-xs mt-2">Tap icon to stop</p>
                     )}
 
-                    <div className="mt-8 flex gap-4 text-sm text-white/30">
-                        <span>• Note</span>
-                        <span>• Habit</span>
-                        <span>• Intention</span>
+                    <div className="mt-8 text-sm text-white/30 text-center">
+                        Your voice note will be saved to today's log
                     </div>
 
                 </motion.div>

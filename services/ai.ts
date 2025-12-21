@@ -215,7 +215,8 @@ export const generateDailyAdaptation = async (
   performanceMode: 'GROWTH' | 'STEADY' | 'RECOVERY',
   currentRepository: { high: string[], medium: string[], low: string[] },
   intention?: string,  // Optional: User's daily anchor/intention
-  userModifiedHabits?: Record<string, string>  // Optional: Map of user-modified habits (key: "level_index")
+  userModifiedHabits?: Record<string, string>,  // Optional: Map of user-modified habits (key: "level_index")
+  daysMissed?: number  // Optional: Number of days since last activity (for accurate messaging)
 ): Promise<{ high: string[], medium: string[], low: string[], toastMessage: string }> => {
   console.log("🤖 [AI SERVICE] Generating FULL SPECTRUM for mode:", performanceMode);
   console.log("🤖 [AI SERVICE] Current Repository:", currentRepository);
@@ -284,7 +285,15 @@ export const generateDailyAdaptation = async (
     - MEDIUM (Default for today): Refresh for novelty, maintain difficulty
     - LOW: Keep atomic safety net available`,
 
-    RECOVERY: `Yesterday you struggled or completed only low-energy habits (or none). You need COMPASSIONATE SUPPORT.
+    RECOVERY: daysMissed && daysMissed >= 3
+      ? `User has been ABSENT for ${daysMissed} days. This is NOT a single off day - they need a GENTLE RE-ENTRY. Don't mention "yesterday" - acknowledge the gap and welcome them back.
+      
+      ADAPTATION STRATEGY:
+      - HIGH: Keep very approachable - user needs confidence rebuilt
+      - MEDIUM: Gentle baseline - no pressure
+      - LOW (Default for today): ULTRA-ATOMIC - just start, no judgment
+      - Toast Message: MUST acknowledge they've been away ("Welcome back" style), NOT "yesterday was tough"`
+      : `Yesterday you struggled or completed only low-energy habits (or none). You need COMPASSIONATE SUPPORT.
     
     ADAPTATION STRATEGY:
     - HIGH: Do NOT overload - keep standard
