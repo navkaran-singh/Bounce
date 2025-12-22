@@ -35,8 +35,8 @@ if (!admin.apps?.length) {
 const db = admin.firestore ? admin.firestore() : admin.app().firestore();
 
 // Dodo Payments API configuration
-// const DODO_API_BASE = 'https://live.dodopayments.com'; // Change to https://api.dodopayments.com for production
-const DODO_API_BASE = 'https://test.dodopayments.com'; // Change to https://api.dodopayments.com for production
+const DODO_API_BASE = 'https://live.dodopayments.com'; // Change to https://api.dodopayments.com for production
+// const DODO_API_BASE = 'https://test.dodopayments.com'; // Change to https://api.dodopayments.com for production
 
 interface VerifyRequest {
     paymentId: string;
@@ -161,6 +161,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         // Only set subscriptionId for subscriptions (not one-time payments)
         if (isSubscription) {
             updateData.subscriptionId = paymentId;
+            updateData.subscriptionStatus = 'active'; // Reset status for re-subscriptions
         }
 
         await db.collection('users').doc(userId).set(updateData, { merge: true });

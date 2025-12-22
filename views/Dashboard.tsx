@@ -245,7 +245,7 @@ export const Dashboard: React.FC = () => {
     const { state: engineState, actions: engineActions } = useResilienceEngine();
 
     // 👇 GET 'dailyCompletedIndices' DIRECTLY
-    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak, dailyPlanMessage, dailyPlanMode, dismissDailyPlanMessage, isPremium, user, editHabit, userModifiedHabits } = useStore();
+    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak, dailyPlanMessage, dailyPlanMode, dismissDailyPlanMessage, isPremium, user, editHabit, userModifiedHabits, showPremiumModal, setShowPremiumModal } = useStore();
 
     const [showCelebration, setShowCelebration] = useState(false);
     const [milestoneReached, setMilestoneReached] = useState<number | null>(null);
@@ -257,7 +257,7 @@ export const Dashboard: React.FC = () => {
     const [isGoalsOpen, setIsGoalsOpen] = useState(false);
     const [isEnergyOpen, setIsEnergyOpen] = useState(false);
     const [isVoiceOpen, setIsVoiceOpen] = useState(false);
-    const [isPremiumOpen, setIsPremiumOpen] = useState(false);
+    // Note: isPremiumOpen is now controlled by global store (showPremiumModal)
     const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
     const [zenMode, setZenMode] = useState(false);
 
@@ -579,7 +579,7 @@ export const Dashboard: React.FC = () => {
             {user && <WeeklyReviewModal />}
 
             {/* Premium Modal */}
-            <PremiumModal isOpen={isPremiumOpen} onClose={() => setIsPremiumOpen(false)} />
+            <PremiumModal isOpen={showPremiumModal} onClose={() => setShowPremiumModal(false)} />
 
             {/* Edit Habit Modal */}
             <AnimatePresence>
@@ -715,7 +715,7 @@ export const Dashboard: React.FC = () => {
                                     {/* Premium Button - Show if not premium */}
                                     {!isPremium && user && (
                                         <button
-                                            onClick={() => setIsPremiumOpen(true)}
+                                            onClick={() => setShowPremiumModal(true)}
                                             data-premium-trigger
                                             className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-black hover:shadow-lg hover:shadow-amber-500/20 transition-all"
                                             title="Upgrade to Premium"

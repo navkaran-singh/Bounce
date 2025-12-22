@@ -45,6 +45,9 @@ interface ExtendedUserState extends UserState {
   ensureUserDocAndLoad: () => Promise<void>;
   initializeAuth: () => () => void;
   activatePremium: (expiryDate: number) => void;
+  // 🔥 Premium Modal Global State
+  showPremiumModal: boolean;
+  setShowPremiumModal: (show: boolean) => void;
 }
 
 export const useStore = create<ExtendedUserState>()(
@@ -97,6 +100,10 @@ export const useStore = create<ExtendedUserState>()(
       freezeExpiry: null,
       preFreezeStatus: null,
       lastSubscriptionCheck: null,
+
+      // 🔥 Premium Modal Global State (for cross-component access)
+      showPremiumModal: false,
+      setShowPremiumModal: (show: boolean) => set({ showPremiumModal: show }),
 
       // Recovery Mode (Resilience Engine 2.0)
       recoveryMode: false,
@@ -2095,6 +2102,17 @@ export const useStore = create<ExtendedUserState>()(
         });
         if (state.lastSubscriptionCheck && Date.now() - state.lastSubscriptionCheck < SIX_HOURS) {
           console.log("💎 [PREMIUM] ⏭️ Skipping check - cooldown active");
+
+          // 🔥 CRITICAL FIX: Even if cooling down, check if we've expired locally!
+          if (state.isPremium && state.premiumExpiryDate && Date.now() > state.premiumExpiryDate) {
+            console.log("💎 [PREMIUM] ⏳ Expired locally during cooldown - Revoking access");
+            set({
+              isPremium: false,
+              subscriptionStatus: 'expired',
+              dailyPlanMessage: "⏰ Subscription Expired. Renew to keep your AI Brain active.",
+              lastUpdated: Date.now()
+            });
+          }
           return;
         }
 

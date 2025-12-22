@@ -751,11 +751,13 @@ const LoadingCard = ({ label }: { label: string }) => (
 const FreeUserPreviewCard = ({
   previewText,
   optionLabel,
-  isNoveltyWeek
+  isNoveltyWeek,
+  onUpgradeClick
 }: {
   previewText: string;
   optionLabel: string;
   isNoveltyWeek?: boolean;
+  onUpgradeClick?: () => void;
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 10 }}
@@ -786,8 +788,10 @@ const FreeUserPreviewCard = ({
     <button
       className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-sm shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition flex items-center justify-center gap-2"
       onClick={() => {
-        // TODO: Open upgrade modal or navigate to upgrade page
+        // Open premium modal without completing weekly review
+        // This way the weekly review will show again after payment
         console.log("🔒 [UPGRADE] User clicked upgrade CTA");
+        if (onUpgradeClick) onUpgradeClick();
       }}
     >
       <Lock className="w-4 h-4" />
@@ -808,6 +812,7 @@ export const WeeklyReviewModal: React.FC = () => {
   const applySelectedEvolutionOption = useStore(state => state.applySelectedEvolutionOption);
   const completeWeeklyReview = useStore(state => state.completeWeeklyReview);
   const identity = useStore(state => state.identity);
+  const setShowPremiumModal = useStore(state => state.setShowPremiumModal);
 
   // 🏆 Maintenance Completion handlers
   const handleDeepenIdentity = useStore(state => state.handleDeepenIdentity);
@@ -1356,6 +1361,7 @@ export const WeeklyReviewModal: React.FC = () => {
             previewText={getFreeUserEvolutionPreview(selectedOption.id)}
             optionLabel={selectedOption.label}
             isNoveltyWeek={isNoveltyWeek}
+            onUpgradeClick={() => setShowPremiumModal(true)}
           />
         )}
 
