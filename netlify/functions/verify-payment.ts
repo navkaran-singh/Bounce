@@ -18,7 +18,7 @@ if (!admin.apps?.length) {
         try {
             serviceAccount = JSON.parse(rawJson);
         } catch (e) {
-            console.log("⚠️ Direct JSON parse failed, attempting unescape...");
+            if (process.env.NETLIFY_DEV === 'true') console.log("⚠️ Direct JSON parse failed, attempting unescape...");
             const sanitized = rawJson.replace(/\\n/g, '\n');
             serviceAccount = JSON.parse(sanitized);
         }
@@ -26,9 +26,9 @@ if (!admin.apps?.length) {
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
         });
-        console.log('✅ [VERIFY-PAYMENT] Firebase Admin initialized');
+        if (process.env.NETLIFY_DEV === 'true') console.log('✅ [VERIFY-PAYMENT] Firebase Admin initialized');
     } catch (error) {
-        console.error('❌ [INIT ERROR]', error);
+        if (process.env.NETLIFY_DEV === 'true') console.error('❌ [INIT ERROR]', error);
     }
 }
 
@@ -78,10 +78,48 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
             };
         }
 
-        console.log(`🔍 [VERIFY] Checking ID: ${paymentId} for User: ${userId}`);
+        if (process.env.NETLIFY_DEV === 'true') console.log(`🔍 [VERIFY] Checking ID: ${paymentId} for User: ${userId}`);
 
-        // 1. Determine if Payment or Subscription
+        // 🛡️ RACE CONDITION FIX: Check existing data before calling Dodo API
+        // This prevents verify-payment from overwriting correct webhook data
+        const existingDoc = await db.collection('users').doc(userId).get();
+        const existingData = existingDoc.data();
+
+        // RC-3 FIX: Idempotency - If this exact payment was already processed, return cached result
+        if (existingData?.lastPaymentId === paymentId && existingData?.isPremium) {
+            if (process.env.NETLIFY_DEV === 'true') console.log(`ℹ️ [VERIFY] Payment ${paymentId} already processed - returning cached data`);
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    success: true,
+                    premiumExpiryDate: existingData.premiumExpiryDate,
+                    alreadyProcessed: true,
+                    source: 'cached'
+                }),
+            };
+        }
+
+        // RC-2 FIX: Webhook Priority - If webhook already set this subscription with correct dates, don't overwrite
         const isSubscription = paymentId.startsWith('sub_');
+        if (isSubscription &&
+            existingData?.subscriptionId === paymentId &&
+            existingData?.paymentSource === 'webhook' &&
+            existingData?.premiumExpiryDate &&
+            existingData?.isPremium) {
+            if (process.env.NETLIFY_DEV === 'true') console.log(`ℹ️ [VERIFY] Webhook already processed subscription ${paymentId} - using webhook data`);
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    success: true,
+                    premiumExpiryDate: existingData.premiumExpiryDate,
+                    source: 'webhook_cached'
+                }),
+            };
+        }
+
+        // 1. Determine if Payment or Subscription (moved after checks)
         const endpoint = isSubscription
             ? `${DODO_API_BASE}/subscriptions/${paymentId}`
             : `${DODO_API_BASE}/payments/${paymentId}`;
@@ -97,7 +135,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
 
         if (!dodoResponse.ok) {
             const errorText = await dodoResponse.text();
-            console.error(`❌ [VERIFY] Dodo API error: ${errorText}`);
+            if (process.env.NETLIFY_DEV === 'true') console.error(`❌ [VERIFY] Dodo API error: ${errorText}`);
             return {
                 statusCode: 400,
                 headers,
@@ -106,8 +144,8 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         }
 
         const data = await dodoResponse.json();
-        console.log(`📄 [VERIFY] Status: ${data.status}`);
-        console.log(`📄 [VERIFY] Full Dodo response:`, JSON.stringify(data, null, 2));
+        if (process.env.NETLIFY_DEV === 'true') console.log(`📄 [VERIFY] Status: ${data.status}`);
+        if (process.env.NETLIFY_DEV === 'true') console.log(`📄 [VERIFY] Full Dodo response:`, JSON.stringify(data, null, 2));
 
         // 3. Validate Status
         const isValid = isSubscription
@@ -115,7 +153,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
             : data.status === 'succeeded';
 
         if (!isValid) {
-            console.error(`❌ [VERIFY] Invalid Status: ${data.status}`);
+            if (process.env.NETLIFY_DEV === 'true') console.error(`❌ [VERIFY] Invalid Status: ${data.status}`);
             return {
                 statusCode: 400,
                 headers,
@@ -133,20 +171,20 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
             // For subscriptions: Use Dodo's next_billing_date
             if (data.next_billing_date) {
                 premiumExpiryDate = new Date(data.next_billing_date).getTime();
-                console.log(`📅 [VERIFY] Using next_billing_date: ${data.next_billing_date}`);
+                if (process.env.NETLIFY_DEV === 'true') console.log(`📅 [VERIFY] Using next_billing_date: ${data.next_billing_date}`);
             } else if (data.current_period_end) {
                 premiumExpiryDate = new Date(data.current_period_end).getTime();
-                console.log(`📅 [VERIFY] Using current_period_end: ${data.current_period_end}`);
+                if (process.env.NETLIFY_DEV === 'true') console.log(`📅 [VERIFY] Using current_period_end: ${data.current_period_end}`);
             } else {
                 // Fallback: Use billing interval from product if available
                 const intervalDays = data.billing_interval_count || 30;
                 premiumExpiryDate = Date.now() + (intervalDays * 24 * 60 * 60 * 1000);
-                console.warn(`⚠️ [VERIFY] No billing date from Dodo, using interval: ${intervalDays} days`);
+                if (process.env.NETLIFY_DEV === 'true') console.warn(`⚠️ [VERIFY] No billing date from Dodo, using interval: ${intervalDays} days`);
             }
         } else {
             // For one-time payments: Always 30 days
             premiumExpiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000);
-            console.log(`📅 [VERIFY] One-time payment: +30 days`);
+            if (process.env.NETLIFY_DEV === 'true') console.log(`📅 [VERIFY] One-time payment: +30 days`);
         }
 
         // ✅ FIX: Store subscriptionId separately for proper ownership validation
@@ -162,11 +200,14 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         if (isSubscription) {
             updateData.subscriptionId = paymentId;
             updateData.subscriptionStatus = 'active'; // Reset status for re-subscriptions
+            // Clear any stale cancellation data from previous subscriptions
+            updateData.subscriptionCancelled = false;
+            updateData.cancellationDate = null;
         }
 
         await db.collection('users').doc(userId).set(updateData, { merge: true });
 
-        console.log(`✅ [VERIFY] Success! User upgraded.`);
+        if (process.env.NETLIFY_DEV === 'true') console.log(`✅ [VERIFY] Success! User upgraded.`);
 
         return {
             statusCode: 200,
@@ -179,7 +220,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         };
 
     } catch (error: any) {
-        console.error('❌ [VERIFY] Error:', error.message);
+        if (process.env.NETLIFY_DEV === 'true') console.error('❌ [VERIFY] Error:', error.message);
         return {
             statusCode: 500,
             headers,

@@ -15,6 +15,73 @@ const FAMILIARITY_OPTIONS: { label: string; value: InitialFamiliarity; emoji: st
   { label: "This already feels like part of who I am.", value: 'IDENTITY', emoji: '🔥' },
 ];
 
+// Identity examples with domain mappings for clarification step
+const IDENTITY_EXAMPLES: {
+  label: string;
+  emoji: string;
+  needsClarification: boolean;
+  domainOptions?: { label: string; identityTemplate: string }[];
+}[] = [
+    {
+      label: "Staying consistent with my health",
+      emoji: '🏃',
+      needsClarification: false // Direct identity
+    },
+    {
+      label: "Finishing creative projects",
+      emoji: '✍️',
+      needsClarification: true,
+      domainOptions: [
+        { label: "Writing", identityTemplate: "A writer who finishes what they start" },
+        { label: "Art / Design", identityTemplate: "A creator who finishes what they start" },
+        { label: "Music", identityTemplate: "A musician who finishes what they start" },
+        { label: "Code / Side projects", identityTemplate: "A developer who ships" },
+        { label: "Other", identityTemplate: "A creator who finishes projects" }
+      ]
+    },
+    {
+      label: "Starting tasks instead of overthinking",
+      emoji: '💼',
+      needsClarification: true,
+      domainOptions: [
+        { label: "Work tasks", identityTemplate: "Someone who acts, not just plans at work" },
+        { label: "Personal projects", identityTemplate: "Someone who starts before feeling ready" },
+        { label: "Learning", identityTemplate: "A learner who starts before feeling ready" },
+        { label: "Creative work", identityTemplate: "A creator who starts before feeling ready" },
+        { label: "Other", identityTemplate: "Someone who acts, not just plans" }
+      ]
+    },
+    {
+      label: "Improving without burning out",
+      emoji: '🧘',
+      needsClarification: true,
+      domainOptions: [
+        { label: "Work / Career", identityTemplate: "A professional who grows sustainably" },
+        { label: "Fitness / Health", identityTemplate: "Someone who builds fitness without burnout" },
+        { label: "Self-improvement", identityTemplate: "Someone who improves without burning out" },
+        { label: "Studies / Learning", identityTemplate: "A learner who grows sustainably" },
+        { label: "Other", identityTemplate: "Someone who improves sustainably" }
+      ]
+    },
+    {
+      label: "Learning something and sticking with it",
+      emoji: '📚',
+      needsClarification: true,
+      domainOptions: [
+        { label: "A new skill", identityTemplate: "A learner who sticks with it" },
+        { label: "A language", identityTemplate: "A language learner who stays consistent" },
+        { label: "A subject / course", identityTemplate: "A student who follows through" },
+        { label: "Coding / Tech", identityTemplate: "A developer who keeps learning" },
+        { label: "Other", identityTemplate: "A learner who stays consistent" }
+      ]
+    },
+    {
+      label: "Being more comfortable socially",
+      emoji: '💬',
+      needsClarification: false // Direct identity
+    },
+  ];
+
 // Internal Tooltip Component
 const Tooltip: React.FC<{ text: string; onClose: () => void; delay?: number }> = ({ text, onClose, delay = 0 }) => (
   <motion.div
@@ -36,16 +103,18 @@ const Tooltip: React.FC<{ text: string; onClose: () => void; delay?: number }> =
 );
 
 export const Onboarding: React.FC = () => {
-  const { identity, setIdentity, setHabitsWithLevels, setView, dismissedTooltips, dismissTooltip, setIdentityProfile } = useStore();
+  const { identity, setIdentity, setIdentityPattern, setHabitsWithLevels, setView, dismissedTooltips, dismissTooltip, setIdentityProfile } = useStore();
   const [inputValue, setInputValue] = useState('');
   const [habitInputs, setHabitInputs] = useState<string[]>(['', '', '']);
   const [generatedHabits, setGeneratedHabits] = useState<GenerateHabitsResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedFamiliarity, setSelectedFamiliarity] = useState<InitialFamiliarity | null>(null);
+  const [selectedPattern, setSelectedPattern] = useState<typeof IDENTITY_EXAMPLES[0] | null>(null);
+  const [showDomainSelection, setShowDomainSelection] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<Message[]>([
-    { id: '1', sender: 'bot', text: "Let's start with the big picture. Who are we becoming?", type: 'text' }
+    { id: '1', sender: 'bot', text: "What's one thing in your life that actually bothers you enough to fix?", type: 'text' }
   ]);
 
   const [step, setStep] = useState(0); // 0: Identity, 1: Familiarity, 2: Habits (then → contract)
@@ -64,21 +133,21 @@ export const Onboarding: React.FC = () => {
     try {
       const suggestions = await generateHabits(identity);
 
-      console.log("🪄 [ONBOARDING] AI returned suggestions:", suggestions);
-      console.log("🪄 [ONBOARDING] High array:", suggestions.high);
-      console.log("🪄 [ONBOARDING] Medium array:", suggestions.medium);
-      console.log("🪄 [ONBOARDING] Low array:", suggestions.low);
+      if (import.meta.env.DEV) console.log("🪄 [ONBOARDING] AI returned suggestions:", suggestions);
+      if (import.meta.env.DEV) console.log("🪄 [ONBOARDING] High array:", suggestions.high);
+      if (import.meta.env.DEV) console.log("🪄 [ONBOARDING] Medium array:", suggestions.medium);
+      if (import.meta.env.DEV) console.log("🪄 [ONBOARDING] Low array:", suggestions.low);
 
       // Populate inputs with one habit per energy level: [high, medium, low]
       if (suggestions.high?.length > 0 && suggestions.medium?.length > 0 && suggestions.low?.length > 0) {
         const newInputs = [suggestions.high[0], suggestions.medium[0], suggestions.low[0]];
-        console.log("🪄 [ONBOARDING] Setting habit inputs to:", newInputs);
+        if (import.meta.env.DEV) console.log("🪄 [ONBOARDING] Setting habit inputs to:", newInputs);
         setHabitInputs(newInputs);
         setGeneratedHabits(suggestions);
 
         // Store identityType if AI detected it (v8: preserve stage from familiarity step)
         if (suggestions.identityType) {
-          console.log("🧬 [ONBOARDING] AI detected identity type:", suggestions.identityType, "-", suggestions.identityReason);
+          if (import.meta.env.DEV) console.log("🧬 [ONBOARDING] AI detected identity type:", suggestions.identityType, "-", suggestions.identityReason);
           // Only update the type, preserve stage/weeksInStage from familiarity step
           setIdentityProfile({
             type: suggestions.identityType
@@ -125,9 +194,45 @@ export const Onboarding: React.FC = () => {
 
 
   const handleSend = (value: string | string[]) => {
-    // Logic for Identity Step (Step 0)
+    // Logic for Identity Step (Step 0) - ALWAYS show identity question after pattern
     if (step === 0 && typeof value === 'string') {
       if (!value.trim()) return;
+
+      // Check if this is a predefined pattern
+      const matchingPattern = IDENTITY_EXAMPLES.find(ex => ex.label === value);
+
+      // ALWAYS show domain/identity question - whether preset pattern or custom input
+      if (!showDomainSelection) {
+        // Store the pattern (what bothers them)
+        setIdentityPattern(value);
+        setShowDomainSelection(true);
+        setInputValue(''); // Clear input for user to type identity
+
+        // Create a synthetic pattern object for custom input
+        if (matchingPattern) {
+          setSelectedPattern(matchingPattern);
+        } else {
+          // Custom input - create a synthetic pattern
+          setSelectedPattern({ label: value, emoji: '🎯', needsClarification: true });
+        }
+
+        const displayText = matchingPattern ? `${matchingPattern.emoji} ${value}` : `🎯 ${value}`;
+        const newMessages = [...messages, { id: Date.now().toString(), sender: 'user', text: displayText } as Message];
+        setMessages(newMessages);
+
+        setTimeout(() => {
+          const domainMsg: Message = {
+            id: 'bot-domain',
+            sender: 'bot',
+            text: "Who do you want to become through this?",
+            type: 'text'
+          };
+          setMessages(prev => [...prev, domainMsg]);
+        }, 400);
+        return;
+      }
+
+      // This shouldn't happen now, but keep as fallback for domain selection handling
       const newMessages = [...messages, { id: Date.now().toString(), sender: 'user', text: value } as Message];
       setMessages(newMessages);
       setInputValue('');
@@ -137,11 +242,12 @@ export const Onboarding: React.FC = () => {
         const nextBotMsg: Message = {
           id: 'bot-familiarity',
           sender: 'bot',
-          text: `Love it! ✨ How familiar are you already with being "${value}"?`,
+          text: `Love it! ✨ How familiar are you already with "${value}"?`,
           type: 'text'
         };
         setMessages(prev => [...prev, nextBotMsg]);
         setStep(1); // Move to familiarity step
+        setShowDomainSelection(false);
       }, 600);
     }
 
@@ -186,7 +292,7 @@ export const Onboarding: React.FC = () => {
             break;
         }
 
-        console.log(`🎯 [ONBOARDING] v8 Stage Init: ${familiarity} → ${stage} (week ${weeksInStage})`);
+        if (import.meta.env.DEV) console.log(`🎯 [ONBOARDING] v8 Stage Init: ${familiarity} → ${stage} (week ${weeksInStage})`);
 
         // Set identity profile with familiarity-based stage (type will be set by AI later)
         setIdentityProfile({
@@ -237,7 +343,7 @@ export const Onboarding: React.FC = () => {
           // Manual entry: populate remaining habits from templates (no AI call)
           const identity = useStore.getState().identity || '';
           const templateHabits = getHabitsFromTemplate(identity);
-          console.log('📋 [ONBOARDING] Manual entry - using template fillins:', templateHabits.isTemplateMatch ? 'matched' : 'fallback');
+          if (import.meta.env.DEV) console.log('📋 [ONBOARDING] Manual entry - using template fillins:', templateHabits.isTemplateMatch ? 'matched' : 'fallback');
 
           return {
             // User's habit first, then fill with 2 more from template/fallback
@@ -250,7 +356,7 @@ export const Onboarding: React.FC = () => {
         setHabitsWithLevels(finalHabits);
 
         // v8: Skip time question - go directly to contract
-        console.log('🎯 [ONBOARDING] Habits confirmed, proceeding to contract');
+        if (import.meta.env.DEV) console.log('🎯 [ONBOARDING] Habits confirmed, proceeding to contract');
         setView('contract');
       }, 600);
     }
@@ -263,7 +369,7 @@ export const Onboarding: React.FC = () => {
         {step === 0 && shouldShowTooltip('identity') && (
           <Tooltip
             key="t1"
-            text="Identity-based habits stick longer. Focus on who you are becoming, not just what you do."
+            text="Pick something you're actually willing to work on — not what sounds good."
             onClose={() => dismissTooltip('identity')}
             delay={1}
           />
@@ -344,25 +450,118 @@ export const Onboarding: React.FC = () => {
       {/* Input Area */}
       <div className="p-4 border-t border-dark-900/5 dark:border-white/5 bg-white/80 dark:bg-dark-900/80 backdrop-blur-xl relative z-10">
 
-        {/* Step 0: Identity Input */}
+        {/* Step 0: Identity Input with Examples or Domain Selection */}
         {step === 0 && (
-          <div className="relative">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend(inputValue)}
-              placeholder="e.g. A Writer"
-              className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl pl-4 pr-12 py-4 text-dark-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-primary-cyan/50 transition-colors"
-              autoFocus
-            />
-            <button
-              onClick={() => handleSend(inputValue)}
-              disabled={!inputValue.trim()}
-              className="absolute right-2 top-2 bottom-2 w-10 bg-gradient-to-br from-primary-cyan to-primary-blue rounded-xl flex items-center justify-center disabled:opacity-50 disabled:grayscale transition-all"
-            >
-              <ArrowRight size={20} className="text-white dark:text-dark-900" />
-            </button>
+          <div className="space-y-4">
+            {/* Domain Selection - Now a text input for identity */}
+            {showDomainSelection && selectedPattern ? (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && inputValue.trim()) {
+                      // Combine pattern context with identity
+                      const finalIdentity = inputValue.trim();
+                      const newMessages = [...messages, { id: Date.now().toString(), sender: 'user', text: finalIdentity } as Message];
+                      setMessages(newMessages);
+                      setInputValue('');
+
+                      setTimeout(() => {
+                        setIdentity(finalIdentity);
+                        const nextBotMsg: Message = {
+                          id: 'bot-familiarity',
+                          sender: 'bot',
+                          text: `Perfect! "${finalIdentity}" who works on "${selectedPattern.label}".\n\nHow familiar are you already with this?`,
+                          type: 'text'
+                        };
+                        setMessages(prev => [...prev, nextBotMsg]);
+                        setStep(1);
+                        setShowDomainSelection(false);
+                        setSelectedPattern(null);
+                      }, 600);
+                    }
+                  }}
+                  placeholder="e.g. A Fantasy Writer, A Morning Runner, A Developer..."
+                  className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl pl-4 pr-12 py-4 text-dark-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-primary-cyan/50 transition-colors"
+                  autoFocus
+                />
+                <button
+                  onClick={() => {
+                    if (!inputValue.trim()) return;
+                    const finalIdentity = inputValue.trim();
+                    const newMessages = [...messages, { id: Date.now().toString(), sender: 'user', text: finalIdentity } as Message];
+                    setMessages(newMessages);
+                    setInputValue('');
+
+                    setTimeout(() => {
+                      setIdentity(finalIdentity);
+                      const nextBotMsg: Message = {
+                        id: 'bot-familiarity',
+                        sender: 'bot',
+                        text: `Perfect! "${finalIdentity}" who works on "${selectedPattern.label}".\n\nHow familiar are you already with this?`,
+                        type: 'text'
+                      };
+                      setMessages(prev => [...prev, nextBotMsg]);
+                      setStep(1);
+                      setShowDomainSelection(false);
+                      setSelectedPattern(null);
+                    }, 600);
+                  }}
+                  disabled={!inputValue.trim()}
+                  className="absolute right-2 top-2 bottom-2 w-10 bg-gradient-to-br from-primary-cyan to-primary-blue rounded-xl flex items-center justify-center disabled:opacity-50 disabled:grayscale transition-all"
+                >
+                  <ArrowRight size={20} className="text-white dark:text-dark-900" />
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Tappable Pattern Examples */}
+                <div className="flex flex-wrap gap-2">
+                  {IDENTITY_EXAMPLES.map((ex, idx) => (
+                    <motion.button
+                      key={idx}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      onClick={() => setInputValue(ex.label)}
+                      className={`px-3 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${inputValue === ex.label
+                        ? 'bg-primary-cyan/20 border-primary-cyan/50 text-primary-cyan dark:text-primary-cyan'
+                        : 'bg-white dark:bg-white/5 border-dark-900/10 dark:border-white/20 text-dark-700 dark:text-white/70 hover:bg-primary-cyan/10 hover:border-primary-cyan/30'
+                        } border`}
+                    >
+                      <span>{ex.emoji}</span>
+                      <span>{ex.label}</span>
+                    </motion.button>
+                  ))}
+                </div>
+
+                {/* Custom Input */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend(inputValue)}
+                    placeholder="Or type your own..."
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl pl-4 pr-12 py-4 text-dark-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-primary-cyan/50 transition-colors"
+                  />
+                  <button
+                    onClick={() => handleSend(inputValue)}
+                    disabled={!inputValue.trim()}
+                    className="absolute right-2 top-2 bottom-2 w-10 bg-gradient-to-br from-primary-cyan to-primary-blue rounded-xl flex items-center justify-center disabled:opacity-50 disabled:grayscale transition-all"
+                  >
+                    <ArrowRight size={20} className="text-white dark:text-dark-900" />
+                  </button>
+                </div>
+
+                {/* Seriousness Nudge */}
+                <p className="text-xs text-center text-gray-500 dark:text-white/40">
+                  Pick something you're actually willing to work on — not what sounds good.
+                </p>
+              </>
+            )}
           </div>
         )}
 

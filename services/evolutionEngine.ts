@@ -149,7 +149,7 @@ export function adjustHabitRepository(
     adjustment: number,
     identityType?: IdentityType
 ): { high: string[], medium: string[], low: string[] } {
-    console.log(`🔧 [EVOLUTION] Adjusting habits by ${adjustment}`);
+    if (import.meta.env.DEV) console.log(`🔧 [EVOLUTION] Adjusting habits by ${adjustment}`);
 
     if (adjustment === 0) {
         return { ...repo };
@@ -206,7 +206,7 @@ function increaseHabitDifficulty(
         low: newLow.length > 0 ? newLow : repo.low.slice(0, 3)
     };
 
-    console.log('🔧 [EVOLUTION] Habits increased:', result);
+    if (import.meta.env.DEV) console.log('🔧 [EVOLUTION] Habits increased:', result);
     return result;
 }
 
@@ -249,7 +249,7 @@ function reduceHabitDifficulty(
     if (result.medium.length === 0) result.medium = repo.low.slice(0, 3);
     if (result.low.length === 0) result.low = ['Just show up'];
 
-    console.log('🔧 [EVOLUTION] Habits reduced:', result);
+    if (import.meta.env.DEV) console.log('🔧 [EVOLUTION] Habits reduced:', result);
     return result;
 }
 
@@ -305,11 +305,11 @@ export function applyNoveltyToHabits(
     repo: { high: string[], medium: string[], low: string[] },
     isPremium: boolean
 ): { high: string[], medium: string[], low: string[] } {
-    console.log("🌀 [NOVELTY] Applying novelty to habits, isPremium:", isPremium);
+    if (import.meta.env.DEV) console.log("🌀 [NOVELTY] Applying novelty to habits, isPremium:", isPremium);
 
     // Premium users: AI handles novelty via prompt, we don't modify
     if (isPremium) {
-        console.log("🌀 [NOVELTY] Premium user - AI will handle novelty");
+        if (import.meta.env.DEV) console.log("🌀 [NOVELTY] Premium user - AI will handle novelty");
         return repo;
     }
 
@@ -334,7 +334,7 @@ export function applyNoveltyToHabits(
     // Add novelty to first high habit
     if (newRepo.high.length > 0 && !newRepo.high[0].includes("(")) {
         newRepo.high[0] = newRepo.high[0] + phrase;
-        console.log("🌀 [NOVELTY] ✅ Applied novelty:", newRepo.high[0]);
+        if (import.meta.env.DEV) console.log("🌀 [NOVELTY] ✅ Applied novelty:", newRepo.high[0]);
     }
 
     return newRepo;
@@ -347,7 +347,7 @@ export function generateInitiationHabits(
     identityType: IdentityType,
     identity: string
 ): { high: string[], medium: string[], low: string[] } {
-    console.log('🌱 [FRESH START] Generating initiation habits for:', identityType);
+    if (import.meta.env.DEV) console.log('🌱 [FRESH START] Generating initiation habits for:', identityType);
 
     // Extract key word from identity
     const idLower = identity.toLowerCase();
@@ -432,7 +432,7 @@ function getTitanOptions(stage: IdentityStage, identity: string, consecutiveDiff
 
     // 🛡️ TITAN SATURATION: After 3 consecutive difficulty increases, replace it with variation
     if (consecutiveDifficultyUps >= 3) {
-        console.log("🏆 [TITAN SATURATION] Max difficulty reached - offering variation instead");
+        if (import.meta.env.DEV) console.log("🏆 [TITAN SATURATION] Max difficulty reached - offering variation instead");
         options.push({
             id: 'VARIATION_WEEK',
             label: '🔄 Variation Week',
@@ -540,7 +540,7 @@ function getSurvivorOptions(stage: IdentityStage): EvolutionOption[] {
 function getGhostOptions(identity: string, consecutiveGhostWeeks: number = 0): EvolutionOption[] {
     // 🛡️ GHOST LOOP PROTECTION: After 2 consecutive ghost weeks, offer Atomic Rescue
     if (consecutiveGhostWeeks >= 2) {
-        console.log("👻 [ATOMIC RESCUE] Offering rescue options for user in ghost loop");
+        if (import.meta.env.DEV) console.log("👻 [ATOMIC RESCUE] Offering rescue options for user in ghost loop");
         return [
             {
                 id: 'ATOMIC_RESCUE',

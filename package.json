@@ -23,6 +23,7 @@
     "@google/generative-ai": "^0.24.1",
     "@netlify/functions": "^2.8.0",
     "axios": "^1.13.2",
+    "dodopayments": "^2.13.1",
     "expo-speech-recognition": "^3.0.0",
     "firebase": "^11.10.0",
     "firebase-admin": "^13.6.0",

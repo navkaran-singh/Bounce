@@ -53,7 +53,7 @@ export function findHabitTemplate(identity: string): {
             // Check if any keyword matches
             for (const keyword of template.keywords) {
                 if (normalizedIdentity.includes(keyword.toLowerCase())) {
-                    console.log(`📋 [TEMPLATE] Found match: "${key}" via keyword "${keyword}"`);
+                    if (import.meta.env.DEV) console.log(`📋 [TEMPLATE] Found match: "${key}" via keyword "${keyword}"`);
                     return {
                         template,
                         identityType: type,
@@ -64,7 +64,7 @@ export function findHabitTemplate(identity: string): {
         }
     }
 
-    console.log(`📋 [TEMPLATE] No match found for: "${identity}"`);
+    if (import.meta.env.DEV) console.log(`📋 [TEMPLATE] No match found for: "${identity}"`);
     return {
         template: null,
         identityType: null,
@@ -86,7 +86,7 @@ export function getHabitsFromTemplate(identity: string): {
     const { template, identityType, matchedKeyword } = findHabitTemplate(identity);
 
     if (template) {
-        console.log(`📋 [TEMPLATE] Using template: ${template.displayName} (${identityType})`);
+        if (import.meta.env.DEV) console.log(`📋 [TEMPLATE] Using template: ${template.displayName} (${identityType})`);
         return {
             high: [...template.habits.high],
             medium: [...template.habits.medium],
@@ -98,7 +98,7 @@ export function getHabitsFromTemplate(identity: string): {
     }
 
     // Return fallback habits if no template match
-    console.log(`📋 [TEMPLATE] Using fallback habits`);
+    if (import.meta.env.DEV) console.log(`📋 [TEMPLATE] Using fallback habits`);
     return {
         high: [...habitTemplates.fallback.high],
         medium: [...habitTemplates.fallback.medium],

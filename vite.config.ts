@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '0.0.0.0',
       allowedHosts: [
-        'unmodulative-jeremy-alpinely.ngrok-free.dev'
+        'unmodulative-jeremy-alpinely.ngrok-free.dev',
+        'calm-kids-prove.loca.lt'
       ],
       proxy: {
         '/.netlify/functions': 'http://localhost:8888'

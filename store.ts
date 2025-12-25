@@ -74,6 +74,7 @@ export const useStore = create<ExtendedUserState>()(
       soundType: 'rain',
       soundVolume: 0.5,
       identity: '',
+      identityPattern: '', // User's core struggle pattern
       microHabits: [],
       habitRepository: { high: [], medium: [], low: [] },
       userModifiedHabits: {},  // Key: "level_index" (e.g. "high_0"), Value: user's custom text
@@ -140,6 +141,9 @@ export const useStore = create<ExtendedUserState>()(
       weeklyReviewCount: 0,
       lastNoveltyReviewIndex: null as number | null,
 
+      // User Registration Date (for weekly review skip logic)
+      userJoinedAt: null as string | null,
+
       // 🛡️ COST SAFETY: Prevent duplicate AI calls during weekly review
       isGeneratingReview: false,
 
@@ -177,7 +181,13 @@ export const useStore = create<ExtendedUserState>()(
       toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),
       setSoundType: (soundType) => set({ soundType }),
       setSoundVolume: (soundVolume) => set({ soundVolume }),
-      setIdentity: (identity) => set({ identity, lastUpdated: Date.now() }),
+      setIdentity: (identity) => {
+        const state = get();
+        // Set userJoinedAt on first identity set (onboarding completion)
+        const userJoinedAt = state.userJoinedAt || new Date().toISOString().split('T')[0];
+        set({ identity, userJoinedAt, lastUpdated: Date.now() });
+      },
+      setIdentityPattern: (identityPattern) => set({ identityPattern, lastUpdated: Date.now() }),
       setGoal: (target) => {
         set({ goal: { type: 'weekly', target }, lastUpdated: Date.now() });
         // Sync to Firebase immediately
@@ -230,7 +240,7 @@ export const useStore = create<ExtendedUserState>()(
 
         // Sync to Firebase
         get().syncToFirebase();
-        console.log(`[EDIT HABIT] Updated ${key} to "${trimmedText.slice(0, 30)}..." (user-modified)`);
+        if (import.meta.env.DEV) console.log(`[EDIT HABIT] Updated ${key} to "${trimmedText.slice(0, 30)}..." (user-modified)`);
       },
 
       setMicroHabits: (microHabits) => set({ microHabits, currentHabitIndex: 0, lastUpdated: Date.now() }),
@@ -303,7 +313,7 @@ export const useStore = create<ExtendedUserState>()(
           _dirty: true
         };
 
-        console.log("[HABIT] Snapshotted habit:", habitName, "for date:", dateKey);
+        if (import.meta.env.DEV) console.log("[HABIT] Snapshotted habit:", habitName, "for date:", dateKey);
 
         const isNewDay = !state.lastCompletedDate || state.lastCompletedDate.split('T')[0] !== dateKey;
 
@@ -336,7 +346,7 @@ export const useStore = create<ExtendedUserState>()(
           lastUpdated: Date.now()
         });
 
-        console.log("[HABIT] Completed habit", habitIndex, "- undoState saved with streak:", undoSnapshot.streak);
+        if (import.meta.env.DEV) console.log("[HABIT] Completed habit", habitIndex, "- undoState saved with streak:", undoSnapshot.streak);
       },
       updateResilience: (updates) => {
         if (!get()._hasHydrated) return;
@@ -431,7 +441,7 @@ export const useStore = create<ExtendedUserState>()(
         if (diffDays > 1) {
           const actualMisses = diffDays - 1;
 
-          console.log(`[RECOVERY] Missed days detected: ${actualMisses}`);
+          if (import.meta.env.DEV) console.log(`[RECOVERY] Missed days detected: ${actualMisses}`);
 
           set({
             recoveryMode: true,
@@ -454,18 +464,18 @@ export const useStore = create<ExtendedUserState>()(
         const now = new Date();
         const today = now.toISOString().split('T')[0];
 
-        console.log("🌅 [CHECK NEW DAY] Starting new day check for:", today);
+        if (import.meta.env.DEV) console.log("🌅 [CHECK NEW DAY] Starting new day check for:", today);
 
         // 1. Check if 'dailyCompletedIndices' belongs to a previous day
         // We look at 'lastCompletedDate'. If it's not today, the daily indices are stale.
         const lastCompleted = state.lastCompletedDate ? state.lastCompletedDate.split('T')[0] : null;
-        console.log("🌅 [CHECK NEW DAY] Last completed date:", lastCompleted);
+        if (import.meta.env.DEV) console.log("🌅 [CHECK NEW DAY] Last completed date:", lastCompleted);
 
         const hasStaleHabits = state.dailyCompletedIndices.length > 0 && lastCompleted !== today;
         const isStuckBounced = state.resilienceStatus === 'BOUNCED' && lastCompleted !== today;
 
         if (hasStaleHabits || isStuckBounced) {
-          console.log("🌅 [CHECK NEW DAY] Cleaning up stale state...");
+          if (import.meta.env.DEV) console.log("🌅 [CHECK NEW DAY] Cleaning up stale state...");
 
           // 🔄 DAILY HABIT ROTATION: Different lead habit each day (free users get variety)
           const dayOfWeek = now.getDay(); // 0-6
@@ -485,29 +495,29 @@ export const useStore = create<ExtendedUserState>()(
             lastUpdated: Date.now()
           });
 
-          console.log("🔄 [HABIT ROTATION] Today's lead habit index:", rotatedIndex);
+          if (import.meta.env.DEV) console.log("🔄 [HABIT ROTATION] Today's lead habit index:", rotatedIndex);
         }
 
         // 2. SMART DAILY PLANNER (Premium Only)
         // Generate new habits based on yesterday's performance
-        console.log("🌅 [CHECK NEW DAY] Premium status:", state.isPremium);
-        console.log("🌅 [CHECK NEW DAY] Last completed:", lastCompleted, "Today:", today);
-        console.log("🌅 [CHECK NEW DAY] Last daily plan date:", state.lastDailyPlanDate);
+        if (import.meta.env.DEV) console.log("🌅 [CHECK NEW DAY] Premium status:", state.isPremium);
+        if (import.meta.env.DEV) console.log("🌅 [CHECK NEW DAY] Last completed:", lastCompleted, "Today:", today);
+        if (import.meta.env.DEV) console.log("🌅 [CHECK NEW DAY] Last daily plan date:", state.lastDailyPlanDate);
 
         if (state.isPremium && lastCompleted && lastCompleted !== today) {
           // 🛑 GUARD: Check if we already generated a plan today
           if (state.lastDailyPlanDate === today) {
-            console.log("📊 [SMART PLANNER] ⏭️ Skipping - plan already generated today");
+            if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] ⏭️ Skipping - plan already generated today");
             return;
           }
 
-          console.log("📊 [SMART PLANNER] ✅ Analyzing yesterday's performance...");
+          if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] ✅ Analyzing yesterday's performance...");
 
           // Get yesterday's date
           const yesterday = new Date(now);
           yesterday.setDate(yesterday.getDate() - 1);
           const yesterdayKey = yesterday.toISOString().split('T')[0];
-          console.log("📊 [SMART PLANNER] Yesterday's date key:", yesterdayKey);
+          if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] Yesterday's date key:", yesterdayKey);
 
           // Retrieve yesterday's completed habits
           const yesterdayLog = state.history[yesterdayKey];
@@ -518,14 +528,14 @@ export const useStore = create<ExtendedUserState>()(
           if (yesterdayLog?.completedHabitNames && yesterdayLog.completedHabitNames.length > 0) {
             // NEW DATA: Use the snapshotted habit names
             completedHabits = yesterdayLog.completedHabitNames;
-            console.log("📊 [ENERGY AUDIT] Using snapshotted habit names:", completedHabits);
+            if (import.meta.env.DEV) console.log("📊 [ENERGY AUDIT] Using snapshotted habit names:", completedHabits);
           } else if (yesterdayLog?.completedIndices && yesterdayLog.completedIndices.length > 0) {
             // LEGACY FALLBACK: Map indices using current microHabits (best guess)
             const completedIndices = yesterdayLog.completedIndices;
             completedHabits = completedIndices.map(idx => state.microHabits[idx]).filter(Boolean);
-            console.log("📊 [ENERGY AUDIT] ⚠️ Legacy data - mapping indices:", completedIndices, "→", completedHabits);
+            if (import.meta.env.DEV) console.log("📊 [ENERGY AUDIT] ⚠️ Legacy data - mapping indices:", completedIndices, "→", completedHabits);
           } else {
-            console.log("📊 [ENERGY AUDIT] No completions found for yesterday");
+            if (import.meta.env.DEV) console.log("📊 [ENERGY AUDIT] No completions found for yesterday");
           }
 
           // ENERGY AUDIT: Weighted scoring system (out of 3 expected habits)
@@ -554,10 +564,10 @@ export const useStore = create<ExtendedUserState>()(
           // Calculate average score (out of 3 possible habits)
           const averageScore = totalScore / EXPECTED_HABITS;
 
-          console.log("📊 [ENERGY AUDIT] Energy breakdown:", energyBreakdown);
-          console.log("📊 [ENERGY AUDIT] Total Score:", totalScore, "/ 9 possible");
-          console.log("📊 [ENERGY AUDIT] Average Score:", averageScore.toFixed(2), "/ 3.0");
-          console.log("📊 [ENERGY AUDIT] Completed:", completedHabits.length, "/", EXPECTED_HABITS, "habits");
+          if (import.meta.env.DEV) console.log("📊 [ENERGY AUDIT] Energy breakdown:", energyBreakdown);
+          if (import.meta.env.DEV) console.log("📊 [ENERGY AUDIT] Total Score:", totalScore, "/ 9 possible");
+          if (import.meta.env.DEV) console.log("📊 [ENERGY AUDIT] Average Score:", averageScore.toFixed(2), "/ 3.0");
+          if (import.meta.env.DEV) console.log("📊 [ENERGY AUDIT] Completed:", completedHabits.length, "/", EXPECTED_HABITS, "habits");
 
           // 🔥 PERSIST DAILY SCORE: Write the calculated score to yesterday's history log
           // This makes it immutable and efficient for weekly reviews
@@ -567,7 +577,7 @@ export const useStore = create<ExtendedUserState>()(
               ...historyUpdate[yesterdayKey],
               dailyScore: averageScore
             };
-            console.log("📊 [ENERGY AUDIT] ✅ Persisted daily score:", averageScore.toFixed(2), "for", yesterdayKey);
+            if (import.meta.env.DEV) console.log("📊 [ENERGY AUDIT] ✅ Persisted daily score:", averageScore.toFixed(2), "for", yesterdayKey);
           }
 
           // DETERMINE MODE based on weighted average
@@ -576,20 +586,20 @@ export const useStore = create<ExtendedUserState>()(
           if (averageScore >= 2.2) {
             // Mostly High/Medium energy (e.g., 2 High + 1 Med, or 3 Med, or 2 High + 1 Low)
             mode = 'GROWTH';
-            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🟢 GROWTH (Average >= 2.2 - Strong performance)");
+            if (import.meta.env.DEV) console.log("📊 [ENERGY AUDIT] Calculated Mode: 🟢 GROWTH (Average >= 2.2 - Strong performance)");
           } else if (averageScore >= 1.5) {
             // Mixed performance or consistent Low (e.g., 1 High + 1 Med + 1 Low, or 3 Low + 1 Med)
             mode = 'STEADY';
-            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🟡 STEADY (Average >= 1.5 - Consistent performance)");
+            if (import.meta.env.DEV) console.log("📊 [ENERGY AUDIT] Calculated Mode: 🟡 STEADY (Average >= 1.5 - Consistent performance)");
           } else {
             // Mostly missed or only Low energy (e.g., 0-1 completions, or only Low habits)
             mode = 'RECOVERY';
-            console.log("📊 [ENERGY AUDIT] Calculated Mode: 🔴 RECOVERY (Average < 1.5 - Need support)");
+            if (import.meta.env.DEV) console.log("📊 [ENERGY AUDIT] Calculated Mode: 🔴 RECOVERY (Average < 1.5 - Need support)");
           }
 
           // CALL AI TO GENERATE NEW HABITS (FULL SPECTRUM)
           try {
-            console.log("📊 [SMART PLANNER] Calling AI service for full spectrum...");
+            if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] Calling AI service for full spectrum...");
 
             // 🔥 CALCULATE DAYS MISSED: For accurate messaging (e.g., "welcome back" vs "yesterday was tough")
             let daysMissed = 0;
@@ -597,7 +607,27 @@ export const useStore = create<ExtendedUserState>()(
               const lastDate = new Date(lastCompleted);
               const todayDate = new Date(today);
               daysMissed = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-              console.log("📊 [SMART PLANNER] Days since last activity:", daysMissed);
+              if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] Days since last activity:", daysMissed);
+            }
+
+            // 📝 EXTRACT YESTERDAY'S NOTES ONLY: For daily adaptation, only use yesterday's notes (max 3)
+            // Older notes may reference problems that are now resolved, causing bad habit suggestions
+            const recentNotes: string[] = [];
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayKey = yesterday.toISOString().split('T')[0];
+
+            const yesterdayEntry = state.history[yesterdayKey];
+            if (yesterdayEntry?.note) {
+              // Split by newlines in case multiple notes were logged same day
+              const notes = yesterdayEntry.note.split('\n').filter(n => n.trim());
+              for (const note of notes.slice(0, 3)) { // Max 3 from yesterday
+                const truncated = note.length > 100 ? note.slice(0, 100) + '...' : note;
+                recentNotes.push(truncated);
+              }
+            }
+            if (recentNotes.length > 0) {
+              if (import.meta.env.DEV) console.log("📝 [SMART PLANNER] Passing", recentNotes.length, "notes from yesterday to AI");
             }
 
             const { generateDailyAdaptation } = await import('./services/ai');
@@ -609,7 +639,9 @@ export const useStore = create<ExtendedUserState>()(
               state.habitRepository,
               state.history[today]?.intention,  // Pass today's intention/anchor if set
               state.userModifiedHabits,  // Pass user-modified habits for protection
-              daysMissed  // 🔥 PASS DAYS MISSED: For accurate recovery messaging
+              daysMissed,  // 🔥 PASS DAYS MISSED: For accurate recovery messaging
+              state.identityPattern || undefined,  // User's core struggle pattern
+              recentNotes.length > 0 ? recentNotes : undefined  // 📝 Recent voice/text notes
             );
 
             // Validate the returned repository
@@ -619,8 +651,8 @@ export const useStore = create<ExtendedUserState>()(
               newRepository.medium?.length === 3 &&
               newRepository.low?.length === 3
             ) {
-              console.log("📊 [SMART PLANNER] ✅ New repository generated:", newRepository);
-              console.log("📊 [SMART PLANNER] Old repository:", state.habitRepository);
+              if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] ✅ New repository generated:", newRepository);
+              if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] Old repository:", state.habitRepository);
 
               // AUTO-SWITCH ENERGY LEVEL based on mode
               let defaultEnergyLevel: 'high' | 'medium' | 'low';
@@ -633,18 +665,18 @@ export const useStore = create<ExtendedUserState>()(
               if (mode === 'GROWTH') {
                 defaultEnergyLevel = 'high';
                 defaultHabits = newRepository.high;
-                console.log("📊 [SMART PLANNER] Setting HIGH energy as default (Growth mode)");
+                if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] Setting HIGH energy as default (Growth mode)");
               } else if (mode === 'RECOVERY') {
                 defaultEnergyLevel = 'low';
                 defaultHabits = newRepository.low;
-                console.log("📊 [SMART PLANNER] Setting LOW energy as default (Recovery mode)");
+                if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] Setting LOW energy as default (Recovery mode)");
               } else {
                 defaultEnergyLevel = 'medium';
                 defaultHabits = newRepository.medium;
-                console.log("📊 [SMART PLANNER] Setting MEDIUM energy as default (Steady mode)");
+                if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] Setting MEDIUM energy as default (Steady mode)");
               }
 
-              console.log("📊 [SMART PLANNER] AI Toast Message:", planMessage);
+              if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] AI Toast Message:", planMessage);
 
               set({
                 habitRepository: { high: newRepository.high, medium: newRepository.medium, low: newRepository.low },
@@ -658,12 +690,12 @@ export const useStore = create<ExtendedUserState>()(
                 lastUpdated: Date.now()
               });
 
-              console.log("📊 [SMART PLANNER] ✅ Set lastDailyPlanDate to:", today);
+              if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] ✅ Set lastDailyPlanDate to:", today);
 
               // CRITICAL: Force sync to Firebase
-              console.log("☁️ [CHECK NEW DAY] Forcing Firebase sync...");
+              if (import.meta.env.DEV) console.log("☁️ [CHECK NEW DAY] Forcing Firebase sync...");
               await get().syncToFirebase(true);
-              console.log("☁️ [CHECK NEW DAY] ✅ Forced sync complete.");
+              if (import.meta.env.DEV) console.log("☁️ [CHECK NEW DAY] ✅ Forced sync complete.");
             } else {
               console.warn("📊 [SMART PLANNER] ⚠️ Invalid repository returned, keeping current");
             }
@@ -672,10 +704,13 @@ export const useStore = create<ExtendedUserState>()(
           }
         } else {
           if (!state.isPremium) {
-            console.log("📊 [SMART PLANNER] ⏭️ Skipped (Not Premium) - using emotion messages");
+            if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] ⏭️ Skipped (Not Premium) - using emotion messages");
 
             // FREE USER: Show pre-written emotion message based on yesterday's performance
-            if (lastCompleted && lastCompleted !== today) {
+            // 🛑 GUARD: Check if we already showed emotion message today
+            if (state.lastDailyPlanDate === today) {
+              if (import.meta.env.DEV) console.log("💬 [EMOTION] ⏭️ Skipping - message already shown today");
+            } else if (lastCompleted && lastCompleted !== today) {
               try {
                 const { getEmotionMessage } = await import('./data/emotionMessages');
 
@@ -697,13 +732,18 @@ export const useStore = create<ExtendedUserState>()(
 
                 const emotionMessage = getEmotionMessage(completionPercent, state.streak, state.missedYesterday, yesterdayEnergy, identityStage);
 
-                console.log("💬 [EMOTION] Free user message:", emotionMessage);
+                if (import.meta.env.DEV) console.log("💬 [EMOTION] Free user message:", emotionMessage);
 
+
+                // 🎲 RANDOM DAILY STARTER: Pick a random starting habit for variety
+                const randomStartIndex = Math.floor(Math.random() * state.microHabits.length);
+                if (import.meta.env.DEV) console.log(`🎲 [VARIETY] Random daily starter: index ${randomStartIndex}`);
 
                 set({
                   dailyPlanMessage: emotionMessage,
                   dailyPlanMode: completionPercent >= 80 ? 'GROWTH' : completionPercent >= 30 ? 'STEADY' : 'RECOVERY',
                   lastDailyPlanDate: today,
+                  currentHabitIndex: randomStartIndex, // 🎲 Random starting habit for free users
                   lastUpdated: Date.now()
                 });
               } catch (error) {
@@ -711,23 +751,23 @@ export const useStore = create<ExtendedUserState>()(
               }
             }
           } else if (!lastCompleted) {
-            console.log("📊 [SMART PLANNER] ⏭️ Skipped (No previous completion date)");
+            if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] ⏭️ Skipped (No previous completion date)");
           } else if (lastCompleted === today) {
-            console.log("📊 [SMART PLANNER] ⏭️ Skipped (Already ran today)");
+            if (import.meta.env.DEV) console.log("📊 [SMART PLANNER] ⏭️ Skipped (Already ran today)");
           }
         }
       },
 
       activatePremium: (expiryDate: number) => {
         const state = get();
-        console.log("💎 [STORE] Activating Premium via API Success...");
+        if (import.meta.env.DEV) console.log("💎 [STORE] Activating Premium via API Success...");
 
         // FIRST TIME BONUS: Give +1 shield on first premium upgrade
         const isFirstTimeUpgrade = !state.isPremium;
         const bonusShield = isFirstTimeUpgrade ? 1 : 0;
 
         if (isFirstTimeUpgrade) {
-          console.log("🛡️ [STORE] First time upgrade! Granting +1 bonus shield");
+          if (import.meta.env.DEV) console.log("🛡️ [STORE] First time upgrade! Granting +1 bonus shield");
         }
 
         set({
@@ -754,7 +794,7 @@ export const useStore = create<ExtendedUserState>()(
           identityProfile: { ...currentProfile, ...profile },
           lastUpdated: Date.now()
         });
-        console.log("🧬 [IDENTITY] Profile updated:", { ...currentProfile, ...profile });
+        if (import.meta.env.DEV) console.log("🧬 [IDENTITY] Profile updated:", { ...currentProfile, ...profile });
       },
 
       setLastEvolutionSuggestion: (suggestion) => {
@@ -762,12 +802,12 @@ export const useStore = create<ExtendedUserState>()(
           lastEvolutionSuggestion: suggestion,
           lastUpdated: Date.now()
         });
-        console.log("🌱 [EVOLUTION] Suggestion updated:", suggestion);
+        if (import.meta.env.DEV) console.log("🌱 [EVOLUTION] Suggestion updated:", suggestion);
       },
 
       // Identity Change Flow Action
       initiateIdentityChange: () => {
-        console.log("🔄 [IDENTITY CHANGE] Initiating identity change...");
+        if (import.meta.env.DEV) console.log("🔄 [IDENTITY CHANGE] Initiating identity change...");
 
         set((state) => ({
           // Clear identity to trigger re-onboarding (prevents auto-redirect back to dashboard)
@@ -789,13 +829,13 @@ export const useStore = create<ExtendedUserState>()(
           lastUpdated: Date.now()
         }));
 
-        console.log("🔄 [IDENTITY CHANGE] Identity + habits cleared, stage reset to INITIATION, pendingIdentityChange = true");
-        console.log("🔄 [IDENTITY CHANGE] Current identityProfile:", get().identityProfile);
+        if (import.meta.env.DEV) console.log("🔄 [IDENTITY CHANGE] Identity + habits cleared, stage reset to INITIATION, pendingIdentityChange = true");
+        if (import.meta.env.DEV) console.log("🔄 [IDENTITY CHANGE] Current identityProfile:", get().identityProfile);
       },
 
       // Maintenance Completion Actions
       handleDeepenIdentity: () => {
-        console.log("🏆 [MAINTENANCE] Deepening identity - resetting maintenance cycle");
+        if (import.meta.env.DEV) console.log("🏆 [MAINTENANCE] Deepening identity - resetting maintenance cycle");
         const state = get();
 
         set({
@@ -809,11 +849,11 @@ export const useStore = create<ExtendedUserState>()(
           lastUpdated: Date.now()
         });
 
-        console.log("🏆 [MAINTENANCE] Cycle reset - weekly AI will evolve habits next week");
+        if (import.meta.env.DEV) console.log("🏆 [MAINTENANCE] Cycle reset - weekly AI will evolve habits next week");
       },
 
       handleEvolveIdentity: (newIdentity: string) => {
-        console.log("🏆 [MAINTENANCE] Evolving to new identity:", newIdentity);
+        if (import.meta.env.DEV) console.log("🏆 [MAINTENANCE] Evolving to new identity:", newIdentity);
         const state = get();
 
         set({
@@ -829,11 +869,11 @@ export const useStore = create<ExtendedUserState>()(
           lastUpdated: Date.now()
         });
 
-        console.log("🏆 [MAINTENANCE] Identity evolved, stage reset to INTEGRATION");
+        if (import.meta.env.DEV) console.log("🏆 [MAINTENANCE] Identity evolved, stage reset to INTEGRATION");
       },
 
       handleStartNewIdentity: () => {
-        console.log("🏆 [MAINTENANCE] Starting fresh - triggering identity change flow");
+        if (import.meta.env.DEV) console.log("🏆 [MAINTENANCE] Starting fresh - triggering identity change flow");
         get().initiateIdentityChange();
         set({ maintenanceComplete: false });
       },
@@ -853,7 +893,7 @@ export const useStore = create<ExtendedUserState>()(
           return { success: false, narrative: "Not enough data to evolve habits." };
         }
 
-        console.log("🌱 [EVOLUTION] Applying evolution plan...");
+        if (import.meta.env.DEV) console.log("🌱 [EVOLUTION] Applying evolution plan...");
 
         try {
           const result = await generateWeeklyEvolutionPlan(
@@ -874,7 +914,7 @@ export const useStore = create<ExtendedUserState>()(
             lastUpdated: Date.now()
           });
 
-          console.log("🌱 [EVOLUTION] ✅ Habits evolved:", result);
+          if (import.meta.env.DEV) console.log("🌱 [EVOLUTION] ✅ Habits evolved:", result);
           return { success: true, narrative: result.narrative };
         } catch (error) {
           console.error("🌱 [EVOLUTION] ❌ Error applying evolution:", error);
@@ -891,7 +931,7 @@ export const useStore = create<ExtendedUserState>()(
         const { identityProfile, isPremium, weeklyReview } = state;
         let { habitRepository } = state;
 
-        console.log("🎯 [EVOLUTION] Applying selected option:", option.id, "skipNovelty:", skipNovelty);
+        if (import.meta.env.DEV) console.log("🎯 [EVOLUTION] Applying selected option:", option.id, "skipNovelty:", skipNovelty);
 
         // Import evolution engine functions
         const {
@@ -903,11 +943,11 @@ export const useStore = create<ExtendedUserState>()(
         // 🛡️ SAFETY: Ensure habitRepository exists before any adjustments
         // For new users or users without habits, generate initiation habits first
         if (!habitRepository || !habitRepository.high?.length || !habitRepository.medium?.length || !habitRepository.low?.length) {
-          console.log("🛡️ [EVOLUTION] No valid habit repository - generating defaults");
+          if (import.meta.env.DEV) console.log("🛡️ [EVOLUTION] No valid habit repository - generating defaults");
           if (identityProfile?.type && state.identity) {
             habitRepository = generateInitiationHabits(identityProfile.type, state.identity);
             set({ habitRepository, lastUpdated: Date.now() });
-            console.log("🛡️ [EVOLUTION] ✅ Default habits generated:", habitRepository);
+            if (import.meta.env.DEV) console.log("🛡️ [EVOLUTION] ✅ Default habits generated:", habitRepository);
           } else {
             console.warn("🛡️ [EVOLUTION] ⚠️ Cannot generate habits - missing identity/type");
             return { success: false, message: "Please complete your identity setup first." };
@@ -915,7 +955,7 @@ export const useStore = create<ExtendedUserState>()(
         }
 
         const effects = calculateEvolutionEffects(option, identityProfile);
-        console.log("🎯 [EVOLUTION] Calculated effects:", effects);
+        if (import.meta.env.DEV) console.log("🎯 [EVOLUTION] Calculated effects:", effects);
 
         let updatedRepository = habitRepository;
 
@@ -931,13 +971,13 @@ export const useStore = create<ExtendedUserState>()(
               adjustment,
               identityProfile?.type
             );
-            console.log("📊 [EVOLUTION] Habit difficulty adjusted by:", adjustment);
+            if (import.meta.env.DEV) console.log("📊 [EVOLUTION] Habit difficulty adjusted by:", adjustment);
           }
         }
 
         // 2. Handle Fresh Start (generate INITIATION-level habits)
         if (effects.isFreshStart && identityProfile?.type && state.identity) {
-          console.log("🌱 [EVOLUTION] Fresh start - generating initiation habits");
+          if (import.meta.env.DEV) console.log("🌱 [EVOLUTION] Fresh start - generating initiation habits");
           updatedRepository = generateInitiationHabits(
             identityProfile.type,
             state.identity
@@ -951,7 +991,7 @@ export const useStore = create<ExtendedUserState>()(
             habitRepository: updatedRepository,
             lastUpdated: Date.now()
           });
-          console.log("✅ [EVOLUTION] Habit repository updated:", updatedRepository);
+          if (import.meta.env.DEV) console.log("✅ [EVOLUTION] Habit repository updated:", updatedRepository);
         }
 
         // 3. Apply stage changes
@@ -966,12 +1006,12 @@ export const useStore = create<ExtendedUserState>()(
             },
             lastUpdated: Date.now()
           });
-          console.log("🎯 [EVOLUTION] Stage updated to:", effects.newStage);
+          if (import.meta.env.DEV) console.log("🎯 [EVOLUTION] Stage updated to:", effects.newStage);
         }
 
         // 4. Handle identity change trigger
         if (effects.triggerIdentityChange) {
-          console.log("🔄 [EVOLUTION] Identity change triggered - setting flag");
+          if (import.meta.env.DEV) console.log("🔄 [EVOLUTION] Identity change triggered - setting flag");
           set({
             currentView: 'onboarding', // Return to onboarding for new identity
             lastUpdated: Date.now()
@@ -992,7 +1032,7 @@ export const useStore = create<ExtendedUserState>()(
 
         // 6. For premium users, regenerate the weekly plan with the selected option
         if (isPremium && state.identity && identityProfile?.type) {
-          console.log("🤖 [EVOLUTION] Regenerating weekly plan with option:", option.id);
+          if (import.meta.env.DEV) console.log("🤖 [EVOLUTION] Regenerating weekly plan with option:", option.id);
 
           try {
             const { generateWeeklyReviewContent } = await import('./services/ai');
@@ -1023,6 +1063,31 @@ export const useStore = create<ExtendedUserState>()(
                   .filter(([date]) => new Date(date) >= sevenDaysAgo)
                   .map(([, log]) => log.intention)
                   .filter((i): i is string => !!i);
+              })(),
+              // 📝 Pass last 7 days' notes (max 9) for AI context
+              recentNotes: (() => {
+                const today = new Date();
+                const sevenDaysAgo = new Date(today);
+                sevenDaysAgo.setDate(today.getDate() - 6);
+                sevenDaysAgo.setHours(0, 0, 0, 0);
+
+                const notes: string[] = [];
+                Object.entries(history)
+                  .filter(([date]) => new Date(date) >= sevenDaysAgo)
+                  .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime()) // Most recent first
+                  .forEach(([, log]) => {
+                    if (log.note && notes.length < 9) {
+                      // Split by newlines and take individually
+                      const dayNotes = log.note.split('\n').filter(n => n.trim());
+                      for (const note of dayNotes) {
+                        if (notes.length < 9) {
+                          const truncated = note.length > 100 ? note.slice(0, 100) + '...' : note;
+                          notes.push(truncated);
+                        }
+                      }
+                    }
+                  });
+                return notes.length > 0 ? notes : undefined;
               })()
             });
 
@@ -1058,13 +1123,13 @@ export const useStore = create<ExtendedUserState>()(
               lastUpdated: Date.now()
             });
 
-            console.log("🤖 [EVOLUTION] ✅ Weekly plan regenerated AND habits applied:", newRepository);
+            if (import.meta.env.DEV) console.log("🤖 [EVOLUTION] ✅ Weekly plan regenerated AND habits applied:", newRepository);
           } catch (error) {
             console.error("🤖 [EVOLUTION] ❌ Failed to regenerate plan:", error);
           }
         } else {
           // 7. FREE USER FALLBACK: Generate rule-based plan
-          console.log("📋 [EVOLUTION] Free user - generating rule-based fallback plan");
+          if (import.meta.env.DEV) console.log("📋 [EVOLUTION] Free user - generating rule-based fallback plan");
 
           // Get narrative and tips based on selected option
           const fallbackNarratives: Record<string, string> = {
@@ -1108,7 +1173,7 @@ export const useStore = create<ExtendedUserState>()(
               },
               lastUpdated: Date.now()
             });
-            console.log("📋 [EVOLUTION] ✅ Free user fallback plan generated");
+            if (import.meta.env.DEV) console.log("📋 [EVOLUTION] ✅ Free user fallback plan generated");
           }
         }
 
@@ -1120,7 +1185,7 @@ export const useStore = create<ExtendedUserState>()(
             consecutiveDifficultyUps: currentUps + 1,
             lastUpdated: Date.now()
           });
-          console.log("📈 [TITAN SATURATION] Difficulty up count:", currentUps + 1);
+          if (import.meta.env.DEV) console.log("📈 [TITAN SATURATION] Difficulty up count:", currentUps + 1);
         } else {
           // Any other option resets the counter
           set({
@@ -1128,13 +1193,13 @@ export const useStore = create<ExtendedUserState>()(
             consecutiveDifficultyUps: 0,
             lastUpdated: Date.now()
           });
-          console.log("📊 [EVOLUTION] Selected option tracked:", option.id);
+          if (import.meta.env.DEV) console.log("📊 [EVOLUTION] Selected option tracked:", option.id);
         }
 
         // 🌀 NOVELTY INJECTION: Apply novelty if it's a novelty week (FREE USERS ONLY)
         // Premium users get novelty via AI prompt, so we skip them here
         if (weeklyReview?.isNoveltyWeek && !isPremium) {
-          console.log("🌀 [NOVELTY] Applying novelty for FREE user (cycle #" + state.weeklyReviewCount + ")");
+          if (import.meta.env.DEV) console.log("🌀 [NOVELTY] Applying novelty for FREE user (cycle #" + state.weeklyReviewCount + ")");
           const { applyNoveltyToHabits } = await import('./services/evolutionEngine');
 
           // Get the current habitRepository (may have been updated by previous steps)
@@ -1148,16 +1213,16 @@ export const useStore = create<ExtendedUserState>()(
               lastNoveltyReviewIndex: state.weeklyReviewCount,
               lastUpdated: Date.now()
             });
-            console.log("🌀 [NOVELTY] ✅ Novelty applied:", noveltyRepo.high[0]);
+            if (import.meta.env.DEV) console.log("🌀 [NOVELTY] ✅ Novelty applied:", noveltyRepo.high[0]);
           } else {
             console.warn("🌀 [NOVELTY] ⚠️ No valid habitRepository to apply novelty to");
           }
         } else if (weeklyReview?.isNoveltyWeek && isPremium && !skipNovelty) {
           // Premium users: AI already handled novelty, just update the index
           set({ lastNoveltyReviewIndex: state.weeklyReviewCount });
-          console.log("🌀 [NOVELTY] Premium user - AI handled novelty, index updated to", state.weeklyReviewCount);
+          if (import.meta.env.DEV) console.log("🌀 [NOVELTY] Premium user - AI handled novelty, index updated to", state.weeklyReviewCount);
         } else if (weeklyReview?.isNoveltyWeek && isPremium && skipNovelty) {
-          console.log("🌀 [NOVELTY] Premium user skipped novelty - not updating index");
+          if (import.meta.env.DEV) console.log("🌀 [NOVELTY] Premium user skipped novelty - not updating index");
         }
 
         return { success: true, message: effects.message };
@@ -1198,7 +1263,7 @@ export const useStore = create<ExtendedUserState>()(
               // Keep resilienceStatus as is (RECOVERING)
               lastUpdated: Date.now()
             });
-            console.log("[RECOVERY] Lower bar applied - switched to low energy habits, still in recovery");
+            if (import.meta.env.DEV) console.log("[RECOVERY] Lower bar applied - switched to low energy habits, still in recovery");
             break;
 
           case 'use-shield':
@@ -1213,7 +1278,7 @@ export const useStore = create<ExtendedUserState>()(
                 resilienceScore: Math.min(100, state.resilienceScore + 10), // Restore some score
                 lastUpdated: Date.now()
               });
-              console.log("[RECOVERY] Shield used - streak preserved");
+              if (import.meta.env.DEV) console.log("[RECOVERY] Shield used - streak preserved");
             }
             break;
 
@@ -1237,7 +1302,7 @@ export const useStore = create<ExtendedUserState>()(
               },
               lastUpdated: Date.now()
             });
-            console.log("[RECOVERY] Restart identity - streak, score, stage reset. Badges/completions preserved.");
+            if (import.meta.env.DEV) console.log("[RECOVERY] Restart identity - streak, score, stage reset. Badges/completions preserved.");
             break;
         }
 
@@ -1253,11 +1318,11 @@ export const useStore = create<ExtendedUserState>()(
         const state = get();
         const { undoState } = state;
         if (!undoState) {
-          console.log("[UNDO] No undo state available");
+          if (import.meta.env.DEV) console.log("[UNDO] No undo state available");
           return;
         }
 
-        console.log("[UNDO] Restoring state:", undoState);
+        if (import.meta.env.DEV) console.log("[UNDO] Restoring state:", undoState);
 
         // Simply restore the previous state - the undo state already has the correct values
         // including the streak from before the habit was completed
@@ -1286,7 +1351,7 @@ export const useStore = create<ExtendedUserState>()(
           lastUpdated: Date.now()
         });
 
-        console.log("[UNDO] State restored, new streak:", undoState.streak);
+        if (import.meta.env.DEV) console.log("[UNDO] State restored, new streak:", undoState.streak);
 
         // Sync to Firebase
         get().syncToFirebase();
@@ -1304,7 +1369,7 @@ export const useStore = create<ExtendedUserState>()(
 
         // 🛡️ COST SAFETY: Prevent duplicate AI calls if button is mashed
         if (state.isGeneratingReview) {
-          console.log("📅 [WEEKLY REVIEW] ⏳ Already generating - blocked duplicate call");
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] ⏳ Already generating - blocked duplicate call");
           return;
         }
 
@@ -1320,20 +1385,36 @@ export const useStore = create<ExtendedUserState>()(
 
         const currentWeekKey = getWeekKey(new Date());
         if (state.weeklyReview?.weekKey === currentWeekKey) {
-          console.log("📅 [WEEKLY REVIEW] ⏭️ Already have review for week", currentWeekKey);
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] ⏭️ Already have review for week", currentWeekKey);
           return;
         }
 
         const now = new Date();
         const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday
 
-        console.log("📅 [WEEKLY REVIEW] Checking if review is needed...");
-        console.log("📅 [WEEKLY REVIEW] Day of week:", dayOfWeek, "(0=Sun, 1=Mon)");
+        if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Checking if review is needed...");
+        if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Day of week:", dayOfWeek, "(0=Sun, 1=Mon)");
 
         // 1. TRIGGER GUARD: Only run on Sunday (0) or Monday (1)
         if (dayOfWeek !== 0 && dayOfWeek !== 1) {
-          console.log("📅 [WEEKLY REVIEW] ⏭️ Not Sunday/Monday - skipping");
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] ⏭️ Not Sunday/Monday - skipping");
           return;
+        }
+
+        // 1.5 NEW USER GUARD: Skip if user joined less than 5 days ago
+        if (state.userJoinedAt) {
+          const joinedDate = new Date(state.userJoinedAt + 'T00:00:00');
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const daysSinceJoined = Math.floor((today.getTime() - joinedDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] User joined:", state.userJoinedAt);
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Days since joined:", daysSinceJoined);
+
+          if (daysSinceJoined < 5) {
+            if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] ⏭️ User joined less than 5 days ago - skipping");
+            return;
+          }
         }
 
         // 2. PREVENT DOUBLE TRIGGER: Check if we already ran within last 4 days
@@ -1343,17 +1424,17 @@ export const useStore = create<ExtendedUserState>()(
           const todayDate = new Date(today + 'T00:00:00');
           const daysSinceLastReview = Math.floor((todayDate.getTime() - lastReviewDate.getTime()) / (1000 * 60 * 60 * 24));
 
-          console.log("📅 [WEEKLY REVIEW] Last review date:", state.lastWeeklyReviewDate);
-          console.log("📅 [WEEKLY REVIEW] Today:", today);
-          console.log("📅 [WEEKLY REVIEW] Days since last review:", daysSinceLastReview);
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Last review date:", state.lastWeeklyReviewDate);
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Today:", today);
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Days since last review:", daysSinceLastReview);
 
           if (daysSinceLastReview < 4) {
-            console.log("📅 [WEEKLY REVIEW] ⏭️ Already ran within last 4 days - skipping");
+            if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] ⏭️ Already ran within last 4 days - skipping");
             return;
           }
         }
 
-        console.log("📅 [WEEKLY REVIEW] ✅ Generating weekly review...");
+        if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] ✅ Generating weekly review...");
 
         // 🛡️ COST SAFETY: Set lock to prevent duplicate AI calls
         set({ isGeneratingReview: true });
@@ -1370,7 +1451,7 @@ export const useStore = create<ExtendedUserState>()(
         const startDate = new Date(endDate);
         startDate.setDate(startDate.getDate() - (DAYS_TO_ANALYZE - 1));
 
-        console.log("📅 [WEEKLY REVIEW] Analyzing period:", startDate.toISOString().split('T')[0], "to", endDate.toISOString().split('T')[0]);
+        if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Analyzing period:", startDate.toISOString().split('T')[0], "to", endDate.toISOString().split('T')[0]);
 
         // 🔥 OPTIMIZED: Simply sum the persisted daily scores
         for (let i = 0; i < DAYS_TO_ANALYZE; i++) {
@@ -1417,39 +1498,39 @@ export const useStore = create<ExtendedUserState>()(
           }
         }
 
-        console.log("📅 [WEEKLY REVIEW] Daily scores:", dailyScores);
-        console.log("📅 [WEEKLY REVIEW] Weekly Momentum Score:", weeklyMomentumScore.toFixed(2), "/ 21.0");
-        console.log("📅 [WEEKLY REVIEW] Total completions:", totalCompletions);
+        if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Daily scores:", dailyScores);
+        if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Weekly Momentum Score:", weeklyMomentumScore.toFixed(2), "/ 21.0");
+        if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Total completions:", totalCompletions);
 
         // 4. THE CLASSIFICATION: Determine Persona
         let persona: 'TITAN' | 'GRINDER' | 'SURVIVOR' | 'GHOST';
 
         if (weeklyMomentumScore > 18.0) {
           persona = 'TITAN';
-          console.log("📅 [WEEKLY REVIEW] Persona: 🏆 TITAN (Score > 18.0 - Exceptional performance)");
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Persona: 🏆 TITAN (Score > 18.0 - Exceptional performance)");
         } else if (weeklyMomentumScore > 12.0) {
           persona = 'GRINDER';
-          console.log("📅 [WEEKLY REVIEW] Persona: 💪 GRINDER (Score > 12.0 - Strong consistency)");
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Persona: 💪 GRINDER (Score > 12.0 - Strong consistency)");
         } else if (weeklyMomentumScore > 6.0) {
           persona = 'SURVIVOR';
-          console.log("📅 [WEEKLY REVIEW] Persona: 🌱 SURVIVOR (Score > 6.0 - Showing up)");
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Persona: 🌱 SURVIVOR (Score > 6.0 - Showing up)");
         } else {
           persona = 'GHOST';
-          console.log("📅 [WEEKLY REVIEW] Persona: 👻 GHOST (Score <= 6.0 - Need reconnection)");
+          if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Persona: 👻 GHOST (Score <= 6.0 - Need reconnection)");
         }
 
         // 4.5 GHOST LOOP TRACKING: Track consecutive ghost weeks
         if (persona === 'GHOST') {
           const newGhostCount = (state.consecutiveGhostWeeks || 0) + 1;
           set({ consecutiveGhostWeeks: newGhostCount });
-          console.log("👻 [GHOST LOOP] Consecutive ghost weeks:", newGhostCount);
+          if (import.meta.env.DEV) console.log("👻 [GHOST LOOP] Consecutive ghost weeks:", newGhostCount);
           if (newGhostCount >= 2) {
-            console.log("⚠️ [GHOST LOOP] User in ghost loop - Atomic Rescue will be offered");
+            if (import.meta.env.DEV) console.log("⚠️ [GHOST LOOP] User in ghost loop - Atomic Rescue will be offered");
           }
         } else {
           if ((state.consecutiveGhostWeeks || 0) > 0) {
             set({ consecutiveGhostWeeks: 0 });
-            console.log("✅ [GHOST LOOP] Reset - user broke out of ghost pattern");
+            if (import.meta.env.DEV) console.log("✅ [GHOST LOOP] Reset - user broke out of ghost pattern");
           }
         }
 
@@ -1459,14 +1540,14 @@ export const useStore = create<ExtendedUserState>()(
           (persona === 'SURVIVOR' || persona === 'GHOST');
 
         if (overreached) {
-          console.log("⚠️ [OVERREACH] Detected! User picked INCREASE_DIFFICULTY but crashed to", persona);
+          if (import.meta.env.DEV) console.log("⚠️ [OVERREACH] Detected! User picked INCREASE_DIFFICULTY but crashed to", persona);
         }
 
         // 5. PREMIUM WEEKLY SHIELD: Grant +1 shield to premium users every week
         let weeklyShieldBonus = 0;
         if (state.isPremium) {
           weeklyShieldBonus = 1;
-          console.log("🛡️ [WEEKLY REVIEW] Premium user - granting +1 weekly shield");
+          if (import.meta.env.DEV) console.log("🛡️ [WEEKLY REVIEW] Premium user - granting +1 weekly shield");
         }
 
         // 6. IDENTITY EVOLUTION ENGINE (if identityType is set)
@@ -1483,42 +1564,42 @@ export const useStore = create<ExtendedUserState>()(
         // 🛡️ SAFETY: Generate default habits if missing (for new users)
         let currentHabitRepository = state.habitRepository;
         if (identityType && state.identity && (!currentHabitRepository || !currentHabitRepository.high?.length)) {
-          console.log("🛡️ [WEEKLY REVIEW] No habit repository - generating defaults for new user");
+          if (import.meta.env.DEV) console.log("🛡️ [WEEKLY REVIEW] No habit repository - generating defaults for new user");
           const { generateInitiationHabits } = await import('./services/evolutionEngine');
           currentHabitRepository = generateInitiationHabits(identityType, state.identity);
           set({ habitRepository: currentHabitRepository, lastUpdated: Date.now() });
-          console.log("🛡️ [WEEKLY REVIEW] ✅ Default habits generated:", currentHabitRepository);
+          if (import.meta.env.DEV) console.log("🛡️ [WEEKLY REVIEW] ✅ Default habits generated:", currentHabitRepository);
         }
 
         // Now check if we can run evolution engine
         if (identityType && state.identity && currentHabitRepository?.high?.length > 0) {
           try {
-            console.log("🧬 [IDENTITY] Running evolution engine for:", identityType, "at stage:", identityStage);
+            if (import.meta.env.DEV) console.log("🧬 [IDENTITY] Running evolution engine for:", identityType, "at stage:", identityStage);
 
             // Calculate weekly stats for stage detection
             const weeklyStats = calculateWeeklyStats(state.history, 3);
-            console.log("🧬 [IDENTITY] Weekly stats:", weeklyStats);
-            console.log("🧬 [IDENTITY] Stats detail - Week0:", weeklyStats[0]?.weeklyCompletionRate?.toFixed(1) + "%", "Week1:", weeklyStats[1]?.weeklyCompletionRate?.toFixed(1) + "%");
+            if (import.meta.env.DEV) console.log("🧬 [IDENTITY] Weekly stats:", weeklyStats);
+            if (import.meta.env.DEV) console.log("🧬 [IDENTITY] Stats detail - Week0:", weeklyStats[0]?.weeklyCompletionRate?.toFixed(1) + "%", "Week1:", weeklyStats[1]?.weeklyCompletionRate?.toFixed(1) + "%");
 
             // v8 GATEKEEPER: Check stage eligibility (replaces automatic detectStageTransition)
             const eligibleStage = weeklyStats.length > 0
               ? checkStageEligibility(state.identityProfile, weeklyStats[0])
               : null;
 
-            console.log("🚪 [GATEKEEPER] Eligible stage:", eligibleStage || "none");
+            if (import.meta.env.DEV) console.log("🚪 [GATEKEEPER] Eligible stage:", eligibleStage || "none");
 
             // v8 GATEKEEPER: Process eligibility and set fields
 
             if (eligibleStage) {
               if (identityStage === 'INITIATION' && eligibleStage === 'INTEGRATION') {
                 // v8: INITIATION → INTEGRATION is AUTO-PROMOTED (no user confirmation needed)
-                console.log("⚡ [GATEKEEPER] AUTO-PROMOTING: INITIATION → INTEGRATION");
+                if (import.meta.env.DEV) console.log("⚡ [GATEKEEPER] AUTO-PROMOTING: INITIATION → INTEGRATION");
                 identityStage = 'INTEGRATION';
                 stageReason = getAutoPromotionMessage();
                 stageMessage = stageReason;
               } else if (eligibleStage !== 'INTEGRATION') {
                 // v8: EXPANSION and MAINTENANCE are SUGGESTED (need user confirmation)
-                console.log("🔔 [GATEKEEPER] SUGGESTING:", eligibleStage, "(needs user confirmation)");
+                if (import.meta.env.DEV) console.log("🔔 [GATEKEEPER] SUGGESTING:", eligibleStage, "(needs user confirmation)");
                 suggestedStage = eligibleStage;
                 stageMessage = getSuggestedUpgradeMessage(eligibleStage);
 
@@ -1526,7 +1607,7 @@ export const useStore = create<ExtendedUserState>()(
                 // Note: Premium users will get AI-generated statements from unified generateWeeklyReviewContent call later
                 // Use templates as fallback/initial value for both free and premium
                 resonanceStatements = getRandomResonanceStatements(eligibleStage, 3);
-                console.log(state.isPremium
+                if (import.meta.env.DEV) console.log(state.isPremium
                   ? "💎 [GATEKEEPER] Premium user - using templates as fallback, AI resonance will come from unified call"
                   : "🆓 [GATEKEEPER] Free user resonance statements:", resonanceStatements);
 
@@ -1534,7 +1615,7 @@ export const useStore = create<ExtendedUserState>()(
 
                 // 🚪 v8 GHOST GUARD: Never suggest stage promotion to GHOST users
                 if (persona === 'GHOST') {
-                  console.log("🚪 [GATEKEEPER] GHOST guard triggered - clearing stage suggestion");
+                  if (import.meta.env.DEV) console.log("🚪 [GATEKEEPER] GHOST guard triggered - clearing stage suggestion");
                   suggestedStage = null;
                   resonanceStatements = null;
                   stageMessage = null;
@@ -1555,7 +1636,7 @@ export const useStore = create<ExtendedUserState>()(
                 momentum: weeklyMomentumScore
               }
             );
-            console.log("🌱 [EVOLUTION] Generated suggestion:", evolutionSuggestion);
+            if (import.meta.env.DEV) console.log("🌱 [EVOLUTION] Generated suggestion:", evolutionSuggestion);
 
             // NEW: Generate persona-aware evolution options (includes Ghost Loop + Titan Saturation)
             const { generatePersonaEvolutionOptions } = await import('./services/evolutionEngine');
@@ -1564,7 +1645,7 @@ export const useStore = create<ExtendedUserState>()(
 
             // 🛡️ OVERREACH DETECTION: Override with recovery options if user pushed too hard
             if (overreached) {
-              console.log("⚠️ [OVERREACH] Overriding with recovery pullback options");
+              if (import.meta.env.DEV) console.log("⚠️ [OVERREACH] Overriding with recovery pullback options");
               evolutionOptions = [
                 {
                   id: 'PULLBACK_RECOVERY' as any,
@@ -1588,7 +1669,7 @@ export const useStore = create<ExtendedUserState>()(
             } else {
               evolutionOptions = generatePersonaEvolutionOptions(persona, identityStage, state.identity, ghostWeeks, difficultyUps);
             }
-            console.log("🎯 [EVOLUTION] Generated persona options for", persona, ":", evolutionOptions.map(o => o.id));
+            if (import.meta.env.DEV) console.log("🎯 [EVOLUTION] Generated persona options for", persona, ":", evolutionOptions.map(o => o.id));
           } catch (error) {
             console.error("🧬 [IDENTITY] ❌ Evolution engine error - using defaults:", error);
             // Graceful fallback - don't block weekly review
@@ -1596,7 +1677,7 @@ export const useStore = create<ExtendedUserState>()(
             evolutionSuggestion = null;
           }
         } else if (identityType) {
-          console.log("🧬 [IDENTITY] ⚠️ Skipping evolution - missing identity or habits");
+          if (import.meta.env.DEV) console.log("🧬 [IDENTITY] ⚠️ Skipping evolution - missing identity or habits");
           stageReason = "Set up your habits to unlock evolution insights.";
           // Provide fallback options so Step 3 isn't empty
           evolutionOptions = [
@@ -1613,10 +1694,10 @@ export const useStore = create<ExtendedUserState>()(
               impact: { difficultyAdjustment: -1 }
             }
           ];
-          console.log("🧬 [IDENTITY] Using fallback evolution options");
+          if (import.meta.env.DEV) console.log("🧬 [IDENTITY] Using fallback evolution options");
         } else {
           // No identityType at all - generate minimal fallback
-          console.log("🧬 [IDENTITY] ⚠️ No identity type detected - using minimal fallback options");
+          if (import.meta.env.DEV) console.log("🧬 [IDENTITY] ⚠️ No identity type detected - using minimal fallback options");
           evolutionOptions = [
             {
               id: 'MAINTAIN' as any,
@@ -1671,7 +1752,7 @@ export const useStore = create<ExtendedUserState>()(
             weeksInStage
           );
 
-          console.log("📊 [IDENTITY PROGRESS]", progressionPercent + "%", "| Branching:", identityBranching.showBranching);
+          if (import.meta.env.DEV) console.log("📊 [IDENTITY PROGRESS]", progressionPercent + "%", "| Branching:", identityBranching.showBranching);
         }
 
         // 9. AI GENERATION (SINGLE CALL): Generate all weekly review content at once
@@ -1691,7 +1772,7 @@ export const useStore = create<ExtendedUserState>()(
         // Premium users get AI-generated content (single API call)
         if (state.isPremium && identityType && state.identity && evolutionSuggestion) {
           try {
-            console.log("🌱 [WEEKLY REVIEW] Generating unified AI content (single call)...");
+            if (import.meta.env.DEV) console.log("🌱 [WEEKLY REVIEW] Generating unified AI content (single call)...");
             const { generateWeeklyReviewContent } = await import('./services/ai');
 
             const content = await generateWeeklyReviewContent({
@@ -1715,6 +1796,30 @@ export const useStore = create<ExtendedUserState>()(
                   .filter(([date]) => new Date(date) >= sevenDaysAgo)
                   .map(([, log]) => log.intention)
                   .filter((i): i is string => !!i);
+              })(),
+              // 📝 Pass last 7 days' notes (max 9) for AI context
+              recentNotes: (() => {
+                const today = new Date();
+                const sevenDaysAgo = new Date(today);
+                sevenDaysAgo.setDate(today.getDate() - 6);
+                sevenDaysAgo.setHours(0, 0, 0, 0);
+
+                const notes: string[] = [];
+                Object.entries(state.history)
+                  .filter(([date]) => new Date(date) >= sevenDaysAgo)
+                  .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
+                  .forEach(([, log]) => {
+                    if (log.note && notes.length < 9) {
+                      const dayNotes = log.note.split('\n').filter(n => n.trim());
+                      for (const note of dayNotes) {
+                        if (notes.length < 9) {
+                          const truncated = note.length > 100 ? note.slice(0, 100) + '...' : note;
+                          notes.push(truncated);
+                        }
+                      }
+                    }
+                  });
+                return notes.length > 0 ? notes : undefined;
               })()
             });
 
@@ -1736,20 +1841,20 @@ export const useStore = create<ExtendedUserState>()(
             // 🚪 v8 Gatekeeper: Override template resonance with AI-generated if present
             if (content.resonanceStatements && content.resonanceStatements.length >= 3) {
               resonanceStatements = content.resonanceStatements;
-              console.log("🚪 [GATEKEEPER] AI resonance statements applied:", resonanceStatements);
+              if (import.meta.env.DEV) console.log("🚪 [GATEKEEPER] AI resonance statements applied:", resonanceStatements);
             }
 
-            console.log("🌱 [WEEKLY REVIEW] ✅ Unified content generated");
-            console.log("🪞 Reflection:", cachedIdentityReflection?.substring(0, 60) + "...");
-            console.log("🎭 Archetype:", cachedArchetype);
-            console.log("🏆 Advanced Identity:", cachedAdvancedIdentity);
+            if (import.meta.env.DEV) console.log("🌱 [WEEKLY REVIEW] ✅ Unified content generated");
+            if (import.meta.env.DEV) console.log("🪞 Reflection:", cachedIdentityReflection?.substring(0, 60) + "...");
+            if (import.meta.env.DEV) console.log("🎭 Archetype:", cachedArchetype);
+            if (import.meta.env.DEV) console.log("🏆 Advanced Identity:", cachedAdvancedIdentity);
           } catch (error) {
             console.error("📅 [WEEKLY REVIEW] ❌ AI generation error:", error);
             // Graceful fallback - modal will show defaults
           }
         } else {
           // FREE USERS: Use template-based reflection and archetype (no AI call)
-          console.log("🆓 [WEEKLY REVIEW] Generating template-based content for free user...");
+          if (import.meta.env.DEV) console.log("🆓 [WEEKLY REVIEW] Generating template-based content for free user...");
           try {
             const { generateFreeUserReflection, getArchetype } = await import('./services/freeUserTemplates');
 
@@ -1765,9 +1870,9 @@ export const useStore = create<ExtendedUserState>()(
               identityType
             );
 
-            console.log("🆓 [WEEKLY REVIEW] ✅ Template content generated");
-            console.log("🪞 Reflection:", cachedIdentityReflection?.substring(0, 60) + "...");
-            console.log("🎭 Archetype:", cachedArchetype);
+            if (import.meta.env.DEV) console.log("🆓 [WEEKLY REVIEW] ✅ Template content generated");
+            if (import.meta.env.DEV) console.log("🪞 Reflection:", cachedIdentityReflection?.substring(0, 60) + "...");
+            if (import.meta.env.DEV) console.log("🎭 Archetype:", cachedArchetype);
           } catch (error) {
             console.error("📅 [WEEKLY REVIEW] ❌ Template generation error:", error);
             // Graceful fallback
@@ -1810,8 +1915,8 @@ export const useStore = create<ExtendedUserState>()(
               const count = state.weeklyReviewCount;
               const lastIndex = state.lastNoveltyReviewIndex;
               const isNovelty = lastIndex === null || (count - lastIndex >= 2);
-              console.log("🌀 [NOVELTY] count:", count, "lastIndex:", lastIndex, "isNovelty:", isNovelty);
-              if (isNovelty) console.log("🌀 [NOVELTY] Triggered based on weekly cycle (#" + count + ")");
+              if (import.meta.env.DEV) console.log("🌀 [NOVELTY] count:", count, "lastIndex:", lastIndex, "isNovelty:", isNovelty);
+              if (isNovelty) if (import.meta.env.DEV) console.log("🌀 [NOVELTY] Triggered based on weekly cycle (#" + count + ")");
               return isNovelty;
             })(),
             // 🚪 v8 GATEKEEPER FIELDS - Hybrid stage progression
@@ -1832,7 +1937,7 @@ export const useStore = create<ExtendedUserState>()(
               };
               const info = stageInfo[stage] || stageInfo.INITIATION;
               const progress = Math.min(1, weeks / info.length);
-              console.log("📊 [STAGE PROGRESS] Added stage progress visualization for stage", stage, "- week", weeks + "/" + info.length);
+              if (import.meta.env.DEV) console.log("📊 [STAGE PROGRESS] Added stage progress visualization for stage", stage, "- week", weeks + "/" + info.length);
               return { stage, weeks, label: info.label, description: info.description, progress, totalWeeks: info.length };
             })()
           },
@@ -1848,10 +1953,10 @@ export const useStore = create<ExtendedUserState>()(
         });
 
         if (identityStage === 'MAINTENANCE' && newIdentityProfile.weeksInStage >= 6) {
-          console.log("🏆 [MAINTENANCE COMPLETE] User has embodied this identity! Triggering celebration modal.");
+          if (import.meta.env.DEV) console.log("🏆 [MAINTENANCE COMPLETE] User has embodied this identity! Triggering celebration modal.");
         }
 
-        console.log("📅 [WEEKLY REVIEW] ✅ Review is now available for user");
+        if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] ✅ Review is now available for user");
       },
 
       completeWeeklyReview: () => {
@@ -1859,8 +1964,8 @@ export const useStore = create<ExtendedUserState>()(
         const now = new Date();
         const today = now.toISOString().split('T')[0];
 
-        console.log("📅 [WEEKLY REVIEW] User completed review - marking as viewed");
-        console.log("📅 [WEEKLY REVIEW] Setting lastWeeklyReviewDate to:", today);
+        if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] User completed review - marking as viewed");
+        if (import.meta.env.DEV) console.log("📅 [WEEKLY REVIEW] Setting lastWeeklyReviewDate to:", today);
 
         set({
           weeklyReview: null, // Clear the review completely
@@ -1870,9 +1975,9 @@ export const useStore = create<ExtendedUserState>()(
         });
 
         // Force immediate sync to Firebase to persist the lock
-        console.log("☁️ [WEEKLY REVIEW] Forcing Firebase sync to lock review...");
+        if (import.meta.env.DEV) console.log("☁️ [WEEKLY REVIEW] Forcing Firebase sync to lock review...");
         get().syncToFirebase(true);
-        console.log("☁️ [WEEKLY REVIEW] ✅ Review locked and synced.");
+        if (import.meta.env.DEV) console.log("☁️ [WEEKLY REVIEW] ✅ Review locked and synced.");
       },
 
 
@@ -1908,7 +2013,7 @@ export const useStore = create<ExtendedUserState>()(
             throw new Error("No subscription ID found. Contact support.");
           }
 
-          console.log(`🛑 [CANCEL] Attempting to cancel subscription: ${subscriptionId}`);
+          if (import.meta.env.DEV) console.log(`🛑 [CANCEL] Attempting to cancel subscription: ${subscriptionId}`);
 
           // Call secure backend function
           const response = await fetch('/.netlify/functions/cancel-subscription', {
@@ -1926,7 +2031,7 @@ export const useStore = create<ExtendedUserState>()(
             throw new Error(data.error || 'Cancellation failed');
           }
 
-          console.log("✅ [CANCEL] API success:", data);
+          if (import.meta.env.DEV) console.log("✅ [CANCEL] API success:", data);
 
           // 2. Optimistic Update
           set({
@@ -1937,7 +2042,7 @@ export const useStore = create<ExtendedUserState>()(
           // 3. Force Sync to Firestore
           await get().syncToFirebase(true);
 
-          console.log("✅ [CANCEL] State updated and synced to cloud");
+          if (import.meta.env.DEV) console.log("✅ [CANCEL] State updated and synced to cloud");
 
         } catch (error) {
           console.error("❌ [CANCEL] Action failed:", error);
@@ -1950,16 +2055,16 @@ export const useStore = create<ExtendedUserState>()(
 
 
       // v8 GATEKEEPER: Accept suggested stage promotion
-      acceptStagePromotion: () => {
+      acceptStagePromotion: async () => {
         const state = get();
         const suggestedStage = state.weeklyReview?.suggestedStage;
 
         if (!suggestedStage) {
-          console.log("🚪 [GATEKEEPER] No suggested stage to accept");
+          if (import.meta.env.DEV) console.log("🚪 [GATEKEEPER] No suggested stage to accept");
           return;
         }
 
-        console.log("🚪 [GATEKEEPER] ✅ User accepted stage promotion:", state.identityProfile?.stage, "→", suggestedStage);
+        if (import.meta.env.DEV) console.log("🚪 [GATEKEEPER] ✅ User accepted stage promotion:", state.identityProfile?.stage, "→", suggestedStage);
 
         const today = new Date().toISOString().split('T')[0];
 
@@ -1985,7 +2090,50 @@ export const useStore = create<ExtendedUserState>()(
           lastUpdated: Date.now()
         });
 
-        console.log("🚪 [GATEKEEPER] ✅ Stage promotion complete. Profile updated:", newIdentityProfile);
+        if (import.meta.env.DEV) console.log("🚪 [GATEKEEPER] ✅ Stage promotion complete. Profile updated:", newIdentityProfile);
+
+        // 🎁 FREE USER BONUS: Generate new habits on stage promotion
+        // This gives free users fresh, stage-appropriate habits when they progress
+        if (!state.isPremium && state.identity) {
+          if (import.meta.env.DEV) console.log("🎁 [FREE USER] Generating new habits for stage:", suggestedStage);
+
+          try {
+            const { generateHabits } = await import('./services/ai');
+            const newHabits = await generateHabits(state.identity, state.identityPattern || undefined);
+
+            if (newHabits.high?.length && newHabits.medium?.length && newHabits.low?.length) {
+              if (import.meta.env.DEV) console.log("🎁 [FREE USER] ✅ New habits generated successfully");
+
+              // Stage-specific celebration messages
+              const stageMessages: Record<string, string> = {
+                'INTEGRATION': "🌿 New stage, new habits! Your journey is evolving.",
+                'EXPANSION': "🌳 You've grown! Here are habits to match your progress.",
+                'MAINTENANCE': "🌲 You've mastered this. Fresh habits for the long game."
+              };
+              const celebrationMessage = stageMessages[suggestedStage] || "✨ Fresh habits unlocked for your new stage!";
+
+              set({
+                habitRepository: {
+                  high: newHabits.high,
+                  medium: newHabits.medium,
+                  low: newHabits.low
+                },
+                microHabits: newHabits.medium, // Default to medium energy
+                currentHabitIndex: 0,
+                // Use dailyPlanMessage to show toast on Dashboard
+                dailyPlanMessage: celebrationMessage,
+                dailyPlanMode: 'GROWTH', // Celebratory styling
+                lastUpdated: Date.now()
+              });
+              if (import.meta.env.DEV) console.log("🎁 [FREE USER] ✅ Habit repository updated with new habits");
+            } else {
+              console.warn("🎁 [FREE USER] ⚠️ AI returned incomplete habits, keeping current");
+            }
+          } catch (error) {
+            console.error("🎁 [FREE USER] ❌ AI generation failed, keeping current habits:", error);
+            // Silently fail - user keeps their existing habits
+          }
+        }
 
         // Sync to Firebase
         get().syncToFirebase(true);
@@ -1995,7 +2143,7 @@ export const useStore = create<ExtendedUserState>()(
       optimizeWeeklyRoutine: async (type: 'LEVEL_UP' | 'RESET') => {
         const state = get();
 
-        console.log("🔧 [ROUTINE OPTIMIZER] Starting optimization:", type);
+        if (import.meta.env.DEV) console.log("🔧 [ROUTINE OPTIMIZER] Starting optimization:", type);
 
         // Determine the mode for AI generation
         const mode = type === 'LEVEL_UP' ? 'GROWTH' : 'RECOVERY';
@@ -2004,7 +2152,7 @@ export const useStore = create<ExtendedUserState>()(
           // Reuse our powerful AI adaptation function
           const { generateDailyAdaptation } = await import('./services/ai');
 
-          console.log("🔧 [ROUTINE OPTIMIZER] Calling AI with mode:", mode);
+          if (import.meta.env.DEV) console.log("🔧 [ROUTINE OPTIMIZER] Calling AI with mode:", mode);
 
           const newRepository = await generateDailyAdaptation(
             state.identity,
@@ -2013,7 +2161,9 @@ export const useStore = create<ExtendedUserState>()(
             mode,
             state.habitRepository,
             state.history[new Date().toISOString().split('T')[0]]?.intention,  // Pass today's intention
-            state.userModifiedHabits  // Pass user-modified habits for protection
+            state.userModifiedHabits,  // Pass user-modified habits for protection
+            undefined,  // daysMissed - not needed for manual trigger
+            state.identityPattern || undefined  // User's core struggle pattern
           );
 
           // Validate the returned repository
@@ -2023,7 +2173,7 @@ export const useStore = create<ExtendedUserState>()(
             newRepository.medium?.length === 3 &&
             newRepository.low?.length === 3
           ) {
-            console.log("🔧 [ROUTINE OPTIMIZER] ✅ New repository generated:", newRepository);
+            if (import.meta.env.DEV) console.log("🔧 [ROUTINE OPTIMIZER] ✅ New repository generated:", newRepository);
 
             // Determine default energy level based on optimization type
             let defaultEnergyLevel: 'high' | 'medium' | 'low';
@@ -2040,7 +2190,7 @@ export const useStore = create<ExtendedUserState>()(
               message = "🌱 Routine reset! Your habits have been simplified for a fresh start.";
             }
 
-            console.log("🔧 [ROUTINE OPTIMIZER] Setting default energy:", defaultEnergyLevel);
+            if (import.meta.env.DEV) console.log("🔧 [ROUTINE OPTIMIZER] Setting default energy:", defaultEnergyLevel);
 
             set({
               habitRepository: newRepository,
@@ -2053,9 +2203,9 @@ export const useStore = create<ExtendedUserState>()(
             });
 
             // Force sync to Firebase
-            console.log("☁️ [ROUTINE OPTIMIZER] Forcing Firebase sync...");
+            if (import.meta.env.DEV) console.log("☁️ [ROUTINE OPTIMIZER] Forcing Firebase sync...");
             await get().syncToFirebase(true);
-            console.log("☁️ [ROUTINE OPTIMIZER] ✅ Sync complete.");
+            if (import.meta.env.DEV) console.log("☁️ [ROUTINE OPTIMIZER] ✅ Sync complete.");
           } else {
             console.warn("🔧 [ROUTINE OPTIMIZER] ⚠️ Invalid repository returned");
           }
@@ -2076,36 +2226,36 @@ export const useStore = create<ExtendedUserState>()(
         // Wait for Firebase load AND hydration before checking
         // Prevents race condition where lastSubscriptionCheck is still null
         if (!state._hasHydrated || !state.user || !state.initialLoadComplete) {
-          console.log("💎 [PREMIUM] ⏳ Waiting for initial load to complete...");
+          if (import.meta.env.DEV) console.log("💎 [PREMIUM] ⏳ Waiting for initial load to complete...");
           return;
         }
 
         // Only check if user has a subscription
         if (!state.isPremium || !state.subscriptionId) {
-          console.log("💎 [PREMIUM] No active subscription to check");
+          if (import.meta.env.DEV) console.log("💎 [PREMIUM] No active subscription to check");
           return;
         }
 
         // Guard: Only check subscriptions, not one-time payments
         if (!state.subscriptionId.startsWith('sub_')) {
-          console.log("💎 [PREMIUM] One-time payment - no renewal check needed");
+          if (import.meta.env.DEV) console.log("💎 [PREMIUM] One-time payment - no renewal check needed");
           return;
         }
 
         // ✅ FIX #3: COOLDOWN - Only check once every 6 hours
         const SIX_HOURS = 6 * 60 * 60 * 1000;
-        console.log("💎 [PREMIUM] 🕐 Cooldown check:", {
+        if (import.meta.env.DEV) console.log("💎 [PREMIUM] 🕐 Cooldown check:", {
           lastCheck: state.lastSubscriptionCheck,
           timeSinceCheck: state.lastSubscriptionCheck ? Date.now() - state.lastSubscriptionCheck : 'N/A',
           sixHours: SIX_HOURS,
           shouldSkip: state.lastSubscriptionCheck && (Date.now() - state.lastSubscriptionCheck < SIX_HOURS)
         });
         if (state.lastSubscriptionCheck && Date.now() - state.lastSubscriptionCheck < SIX_HOURS) {
-          console.log("💎 [PREMIUM] ⏭️ Skipping check - cooldown active");
+          if (import.meta.env.DEV) console.log("💎 [PREMIUM] ⏭️ Skipping check - cooldown active");
 
           // 🔥 CRITICAL FIX: Even if cooling down, check if we've expired locally!
           if (state.isPremium && state.premiumExpiryDate && Date.now() > state.premiumExpiryDate) {
-            console.log("💎 [PREMIUM] ⏳ Expired locally during cooldown - Revoking access");
+            if (import.meta.env.DEV) console.log("💎 [PREMIUM] ⏳ Expired locally during cooldown - Revoking access");
             set({
               isPremium: false,
               subscriptionStatus: 'expired',
@@ -2116,7 +2266,7 @@ export const useStore = create<ExtendedUserState>()(
           return;
         }
 
-        console.log("💎 [PREMIUM] Checking subscription status with Dodo...");
+        if (import.meta.env.DEV) console.log("💎 [PREMIUM] Checking subscription status with Dodo...");
 
         try {
           // Call secure backend to verify subscription with Dodo API
@@ -2142,7 +2292,7 @@ export const useStore = create<ExtendedUserState>()(
 
             // Fall back to local expiry check only
             if (state.premiumExpiryDate && Date.now() > state.premiumExpiryDate) {
-              console.log("💎 [PREMIUM] ⚠️ Local expiry passed, marking as expired");
+              if (import.meta.env.DEV) console.log("💎 [PREMIUM] ⚠️ Local expiry passed, marking as expired");
               set({
                 isPremium: false,
                 subscriptionStatus: 'expired',
@@ -2156,7 +2306,7 @@ export const useStore = create<ExtendedUserState>()(
           // Handle response from Dodo check
           if (data.isActive) {
             // 🔥 Server already updated Firebase with correct status
-            console.log("💎 [PREMIUM] ✅ Subscription ACTIVE - server updated Firebase");
+            if (import.meta.env.DEV) console.log("💎 [PREMIUM] ✅ Subscription ACTIVE - server updated Firebase");
 
             // ✅ FIX: Only update local tracking fields, NOT subscriptionStatus
             // Server is the ONLY authority for both premiumExpiryDate AND subscriptionStatus
@@ -2177,7 +2327,7 @@ export const useStore = create<ExtendedUserState>()(
               const userSnap = await getDoc(userRef);
               if (userSnap.exists()) {
                 const freshData = userSnap.data();
-                console.log("💎 [PREMIUM] 🔄 Fresh Firebase data:", {
+                if (import.meta.env.DEV) console.log("💎 [PREMIUM] 🔄 Fresh Firebase data:", {
                   subscriptionStatus: freshData.subscriptionStatus,
                   premiumExpiryDate: freshData.premiumExpiryDate
                 });
@@ -2187,9 +2337,9 @@ export const useStore = create<ExtendedUserState>()(
                 });
               }
             }
-            console.log("💎 [PREMIUM] ✅ Synced from Firebase, status:", get().subscriptionStatus);
+            if (import.meta.env.DEV) console.log("💎 [PREMIUM] ✅ Synced from Firebase, status:", get().subscriptionStatus);
           } else if (data.status === 'cancelled' || data.status === 'expired') {
-            console.log("💎 [PREMIUM] ⚠️ Subscription", data.status);
+            if (import.meta.env.DEV) console.log("💎 [PREMIUM] ⚠️ Subscription", data.status);
 
             // Update status only (let server handle expiry)
             set({
@@ -2210,7 +2360,7 @@ export const useStore = create<ExtendedUserState>()(
               });
             } else if (currentState.premiumExpiryDate) {
               const daysRemaining = Math.ceil((currentState.premiumExpiryDate - Date.now()) / (1000 * 60 * 60 * 24));
-              console.log("💎 [PREMIUM] ⏳", daysRemaining, "days remaining on current period");
+              if (import.meta.env.DEV) console.log("💎 [PREMIUM] ⏳", daysRemaining, "days remaining on current period");
             }
           }
         } catch (error) {
@@ -2225,7 +2375,7 @@ export const useStore = create<ExtendedUserState>()(
         const state = get();
         // Store as a reflection note in history - visible in stats and used by AI
         state.logReflection(new Date().toISOString(), null, text);
-        console.log("[VOICE] 📝 Note stored:", text);
+        if (import.meta.env.DEV) console.log("[VOICE] 📝 Note stored:", text);
       },
 
       // Auth listener - called on sign in/out
@@ -2237,7 +2387,7 @@ export const useStore = create<ExtendedUserState>()(
             // User signed in
             const isNewLogin = state.user?.uid !== firebaseUser.uid;
             if (isNewLogin) {
-              console.log("[AUTH] User signed in:", firebaseUser.email);
+              if (import.meta.env.DEV) console.log("[AUTH] User signed in:", firebaseUser.email);
               set({ user: toAppUser(firebaseUser) });
 
               // Determine if this is Sign Up (new account) or Log In (existing account)
@@ -2245,7 +2395,7 @@ export const useStore = create<ExtendedUserState>()(
             }
           } else {
             // User signed out
-            console.log("[AUTH] User signed out");
+            if (import.meta.env.DEV) console.log("[AUTH] User signed out");
             set({ user: null });
           }
         });
@@ -2257,14 +2407,14 @@ export const useStore = create<ExtendedUserState>()(
         if (!state.user) return;
 
         try {
-          console.log("[SYNC] Checking if new or existing account...");
+          if (import.meta.env.DEV) console.log("[SYNC] Checking if new or existing account...");
           const userRef = doc(db, 'users', state.user.uid);
           const userSnap = await getDoc(userRef);
 
           if (!userSnap.exists()) {
             // SIGN UP: No cloud data exists - this is a NEW account
             // Upload local data to cloud (preserve guest progress)
-            console.log("[SYNC] NEW ACCOUNT - uploading local data to cloud");
+            if (import.meta.env.DEV) console.log("[SYNC] NEW ACCOUNT - uploading local data to cloud");
             await get().syncToFirebase(true);
           } else {
             // LOG IN: Cloud data exists - this is an EXISTING account
@@ -2274,11 +2424,11 @@ export const useStore = create<ExtendedUserState>()(
 
             if (cloudHasRealData) {
               // EXISTING account with data - download cloud data (overwrite local)
-              console.log("[SYNC] EXISTING ACCOUNT - downloading cloud data");
+              if (import.meta.env.DEV) console.log("[SYNC] EXISTING ACCOUNT - downloading cloud data");
               await get().downloadFromFirebase(cloudData);
             } else {
               // Account exists but empty - upload local data
-              console.log("[SYNC] EMPTY ACCOUNT - uploading local data");
+              if (import.meta.env.DEV) console.log("[SYNC] EMPTY ACCOUNT - uploading local data");
               await get().syncToFirebase(true);
             }
           }
@@ -2336,6 +2486,8 @@ export const useStore = create<ExtendedUserState>()(
             lastWeeklyReviewDate: profile.lastWeeklyReviewDate || null,
             // Identity Evolution Engine
             identityProfile: profile.identityProfile || state.identityProfile,
+            // User Registration Date
+            userJoinedAt: profile.userJoinedAt || state.userJoinedAt || null,
             // Subscription Fields (map cloud field names to local)
             subscriptionId: profile.lastPaymentId || null, // Cloud uses lastPaymentId
             subscriptionStatus: profile.subscriptionStatus || null,
@@ -2353,7 +2505,7 @@ export const useStore = create<ExtendedUserState>()(
             lastUpdated: cloudLastUpdated, // Preserve cloud timestamp
           });
 
-          console.log("[SYNC] Cloud data downloaded successfully, history entries:", Object.keys(history).length);
+          if (import.meta.env.DEV) console.log("[SYNC] Cloud data downloaded successfully, history entries:", Object.keys(history).length);
         } catch (error) {
           console.error("[SYNC] Download error:", error);
         }
@@ -2399,6 +2551,8 @@ export const useStore = create<ExtendedUserState>()(
             lastWeeklyReviewDate: state.lastWeeklyReviewDate,
             // Identity Evolution Engine
             identityProfile: state.identityProfile,
+            // User Registration Date
+            userJoinedAt: state.userJoinedAt,
             settings: {
               theme: state.theme,
               soundEnabled: state.soundEnabled,
@@ -2418,9 +2572,9 @@ export const useStore = create<ExtendedUserState>()(
           );
 
           if (dirtyDates.length === 0) {
-            console.log("[SYNC] 🛡️ No dirty logs - skipping log sync (0 writes)");
+            if (import.meta.env.DEV) console.log("[SYNC] 🛡️ No dirty logs - skipping log sync (0 writes)");
           } else {
-            console.log("[SYNC] 🛡️ Syncing only", dirtyDates.length, "dirty logs (not", Object.keys(state.history).length, "total)");
+            if (import.meta.env.DEV) console.log("[SYNC] 🛡️ Syncing only", dirtyDates.length, "dirty logs (not", Object.keys(state.history).length, "total)");
 
             for (const dateKey of dirtyDates) {
               const logRef = doc(db, 'users', state.user.uid, 'logs', dateKey);
@@ -2441,12 +2595,12 @@ export const useStore = create<ExtendedUserState>()(
               }
             }
             set({ history: clearedHistory, lastSync: Date.now() });
-            console.log("[SYNC] ✅ Cleared dirty flags for", dirtyDates.length, "logs");
+            if (import.meta.env.DEV) console.log("[SYNC] ✅ Cleared dirty flags for", dirtyDates.length, "logs");
           } else {
             set({ lastSync: Date.now() });
           }
 
-          console.log("[SYNC] Uploaded to Firebase, lastUpdated:", state.lastUpdated);
+          if (import.meta.env.DEV) console.log("[SYNC] Uploaded to Firebase, lastUpdated:", state.lastUpdated);
         } catch (error) {
           console.error("Firebase Sync Error:", error);
         }
@@ -2458,7 +2612,7 @@ export const useStore = create<ExtendedUserState>()(
         if (!state.user) return;
 
         try {
-          console.log("[LOAD] Checking cloud vs local timestamps...");
+          if (import.meta.env.DEV) console.log("[LOAD] Checking cloud vs local timestamps...");
           const userRef = doc(db, 'users', state.user.uid);
           const userSnap = await getDoc(userRef);
 
@@ -2467,7 +2621,7 @@ export const useStore = create<ExtendedUserState>()(
             const cloudLastUpdated = cloudData.lastUpdated || 0;
             const localLastUpdated = state.lastUpdated || 0;
 
-            console.log("[LOAD] Cloud TS:", cloudLastUpdated, "Local TS:", localLastUpdated);
+            if (import.meta.env.DEV) console.log("[LOAD] Cloud TS:", cloudLastUpdated, "Local TS:", localLastUpdated);
 
             // 🛡️ SECURITY CHECK: Always respect Cloud Premium status if it exists and is valid
             // This prevents a local state glitch from overwriting a paid subscription
@@ -2477,13 +2631,13 @@ export const useStore = create<ExtendedUserState>()(
 
             if (cloudLastUpdated > localLastUpdated) {
               // Cloud is newer - download everything
-              console.log("[LOAD] Cloud is newer - downloading...");
+              if (import.meta.env.DEV) console.log("[LOAD] Cloud is newer - downloading...");
               await get().downloadFromFirebase(cloudData);
             } else if (localLastUpdated > cloudLastUpdated) {
               // Local is newer - usually we upload local...
               // BUT if Cloud has a valid subscription and Local doesn't, we must PRESERVE the Cloud subscription
               if (isCloudValid && !state.isPremium) {
-                console.log("🛡️ [LOAD] Conflict detected: Local is newer but lost Premium. Restoring from Cloud.");
+                if (import.meta.env.DEV) console.log("🛡️ [LOAD] Conflict detected: Local is newer but lost Premium. Restoring from Cloud.");
 
                 // Merge Cloud Premium into Local State BEFORE uploading
                 set({
@@ -2500,20 +2654,20 @@ export const useStore = create<ExtendedUserState>()(
                 // Now upload the merged state (Local Habits + Cloud Premium)
                 await get().syncToFirebase(true);
               } else {
-                console.log("[LOAD] Local is newer - uploading...");
+                if (import.meta.env.DEV) console.log("[LOAD] Local is newer - uploading...");
                 await get().syncToFirebase(true);
               }
             } else {
-              console.log("[LOAD] Already in sync");
+              if (import.meta.env.DEV) console.log("[LOAD] Already in sync");
             }
           } else {
-            console.log("[LOAD] No cloud data - uploading local...");
+            if (import.meta.env.DEV) console.log("[LOAD] No cloud data - uploading local...");
             await get().syncToFirebase(true);
           }
 
           // 🛡️ SAFETY LOCK: Mark initial load as complete - safe to sync now
           set({ initialLoadComplete: true });
-          console.log("🛡️ [LOAD] Initial load complete - sync unlocked");
+          if (import.meta.env.DEV) console.log("🛡️ [LOAD] Initial load complete - sync unlocked");
 
           // Now that Firebase data is loaded, check subscription status
           // Cooldown will work correctly since lastSubscriptionCheck is loaded
@@ -2586,7 +2740,7 @@ export const useStore = create<ExtendedUserState>()(
               }
             }
             if (calculatedTotal > 0) {
-              console.log("[MIGRATION] Calculated totalCompletions from history:", calculatedTotal);
+              if (import.meta.env.DEV) console.log("[MIGRATION] Calculated totalCompletions from history:", calculatedTotal);
               useStore.setState({ totalCompletions: calculatedTotal, lastUpdated: Date.now() });
             }
           }
@@ -2597,11 +2751,11 @@ export const useStore = create<ExtendedUserState>()(
           state.initializeAuth();
           // If user is already logged in (from persisted state), check for cloud updates
           if (state.user) {
-            console.log("[REHYDRATE] User logged in, checking cloud sync...");
+            if (import.meta.env.DEV) console.log("[REHYDRATE] User logged in, checking cloud sync...");
             state.loadFromFirebase();
           } else {
             // 🛡️ SAFETY LOCK: No user = no cloud sync needed, unlock immediately
-            console.log("[REHYDRATE] No user logged in, skipping cloud sync");
+            if (import.meta.env.DEV) console.log("[REHYDRATE] No user logged in, skipping cloud sync");
             useStore.setState({ initialLoadComplete: true });
           }
 
@@ -2629,10 +2783,6 @@ export const useStore = create<ExtendedUserState>()(
   )
 );
 
-if (typeof window !== 'undefined') {
-  (window as any).useStore = useStore;
-}
-
 // Auto-sync listener
 useStore.subscribe(
   (state, prevState) => {
@@ -2640,7 +2790,7 @@ useStore.subscribe(
     // This prevents a fresh device from overwriting cloud premium status
     if (!state.initialLoadComplete) {
       if (state.lastUpdated > prevState.lastUpdated) {
-        console.log("🛡️ [SYNC] Blocked - waiting for initial cloud load");
+        if (import.meta.env.DEV) console.log("🛡️ [SYNC] Blocked - waiting for initial cloud load");
       }
       return;
     }

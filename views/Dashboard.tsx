@@ -383,7 +383,7 @@ export const Dashboard: React.FC = () => {
         intervalRef.current = setTimeout(() => {
             triggerHaptic('success');
 
-            console.log("🔥 [UI] Button Held. Calling Store...");
+            if (import.meta.env.DEV) console.log("🔥 [UI] Button Held. Calling Store...");
 
             // 1. Update Persistence (Store)
             completeHabit(currentHabitIndex);

@@ -43,9 +43,9 @@ const WebApp: React.FC = () => {
 
       // If we have a payment_id, verify it securely
       if (paymentId && user?.uid) {
-        console.log("🔒 [APP] Secure payment verification starting...");
-        console.log("🔒 [APP] Payment ID:", paymentId);
-        console.log("🔒 [APP] User ID:", user.uid);
+        if (import.meta.env.DEV) console.log("🔒 [APP] Secure payment verification starting...");
+        if (import.meta.env.DEV) console.log("🔒 [APP] Payment ID:", paymentId);
+        if (import.meta.env.DEV) console.log("🔒 [APP] User ID:", user.uid);
 
         setPaymentStatus('verifying');
         setPaymentError(null);
@@ -65,7 +65,7 @@ const WebApp: React.FC = () => {
           const result = await response.json();
 
           if (response.ok && result.success) {
-            console.log("✅ [APP] Payment verified successfully!");
+            if (import.meta.env.DEV) console.log("✅ [APP] Payment verified successfully!");
             setPaymentStatus('success');
 
             // Reload user data from Firebase to get updated premium status
@@ -136,7 +136,7 @@ const WebApp: React.FC = () => {
       try {
         const result = await getRedirectResult(auth);
         if (result?.user) {
-          console.log("[AUTH] Redirect sign-in success:", result.user.email);
+          if (import.meta.env.DEV) console.log("[AUTH] Redirect sign-in success:", result.user.email);
         }
       } catch (err) {
         console.error("[AUTH] Redirect result error:", err);
@@ -148,9 +148,9 @@ const WebApp: React.FC = () => {
   // Handle magic link sign-in (web and native)
   useEffect(() => {
     const handleMagicLink = async (url: string) => {
-      console.log("[AUTH] Checking magic link URL:", url);
+      if (import.meta.env.DEV) console.log("[AUTH] Checking magic link URL:", url);
       if (isSignInWithEmailLink(auth, url)) {
-        console.log("[AUTH] Valid magic link detected!");
+        if (import.meta.env.DEV) console.log("[AUTH] Valid magic link detected!");
 
         // Try to get email from localStorage (works on both web and native via Capacitor)
         let email = window.localStorage.getItem('emailForSignIn');
@@ -163,7 +163,7 @@ const WebApp: React.FC = () => {
         if (email) {
           try {
             await signInWithEmailLink(auth, email, url);
-            console.log("[AUTH] Magic link sign-in success!");
+            if (import.meta.env.DEV) console.log("[AUTH] Magic link sign-in success!");
             window.localStorage.removeItem('emailForSignIn');
             // Clear URL params on web
             if (!isNative) {
@@ -183,7 +183,7 @@ const WebApp: React.FC = () => {
     let urlOpenListener: any;
     if (isNative) {
       urlOpenListener = CapacitorApp.addListener('appUrlOpen', (data) => {
-        console.log("[AUTH] App opened with URL:", data.url);
+        if (import.meta.env.DEV) console.log("[AUTH] App opened with URL:", data.url);
         handleMagicLink(data.url);
       });
     }
@@ -220,7 +220,7 @@ const WebApp: React.FC = () => {
   const pendingIdentityChange = useStore(state => state.pendingIdentityChange);
   useEffect(() => {
     if (pendingIdentityChange) {
-      console.log("🔄 [WEBAPP] Pending identity change detected - navigating to onboarding");
+      if (import.meta.env.DEV) console.log("🔄 [WEBAPP] Pending identity change detected - navigating to onboarding");
       setView('onboarding');
       // Clear the flag after navigation
       useStore.setState({ pendingIdentityChange: false });

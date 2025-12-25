@@ -51,7 +51,7 @@ export function detectIdentityType(
         identityLower.includes(keyword)
     );
     if (hasRecoveryKeyword) {
-        console.log('🔍 [DETECTOR] Detected RECOVERY identity:', identity);
+        if (import.meta.env.DEV) console.log('🔍 [DETECTOR] Detected RECOVERY identity:', identity);
         return 'RECOVERY';
     }
 
@@ -60,7 +60,7 @@ export function detectIdentityType(
         pattern.test(identityLower)
     );
     if (matchesCharacterPattern) {
-        console.log('🔍 [DETECTOR] Detected CHARACTER identity:', identity);
+        if (import.meta.env.DEV) console.log('🔍 [DETECTOR] Detected CHARACTER identity:', identity);
         return 'CHARACTER';
     }
 
@@ -69,12 +69,12 @@ export function detectIdentityType(
         allText.includes(verb)
     );
     if (hasSkillVerb) {
-        console.log('🔍 [DETECTOR] Detected SKILL identity:', identity);
+        if (import.meta.env.DEV) console.log('🔍 [DETECTOR] Detected SKILL identity:', identity);
         return 'SKILL';
     }
 
     // Ambiguous - return null, let weekly review clarify
-    console.log('🔍 [DETECTOR] Could not detect identity type for:', identity);
+    if (import.meta.env.DEV) console.log('🔍 [DETECTOR] Could not detect identity type for:', identity);
     return null;
 }
 

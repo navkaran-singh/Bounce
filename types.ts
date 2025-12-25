@@ -217,6 +217,7 @@ export interface UserState {
 
   // User Data
   identity: string;
+  identityPattern: string; // The user's core struggle pattern (e.g., "Finishing creative projects")
   microHabits: string[];
   habitRepository: Record<EnergyLevel, string[]>;
   userModifiedHabits: Record<string, string>;  // Key: "level_index" (e.g. "high_0"), Value: user's custom text
@@ -292,8 +293,12 @@ export interface UserState {
   weeklyReviewCount: number;
   lastNoveltyReviewIndex: number | null;
 
+  // User Registration Date (for weekly review skip logic)
+  userJoinedAt: string | null; // ISO date (YYYY-MM-DD)
+
   // Actions
   setIdentity: (identity: string) => void;
+  setIdentityPattern: (pattern: string) => void;
   setMicroHabits: (habits: string[]) => void;
   setHabitsWithLevels: (habits: Record<EnergyLevel, string[]>) => void;
   cycleMicroHabit: () => void;
@@ -331,7 +336,7 @@ export interface UserState {
   initiateIdentityChange: () => void;
 
   // v8 Stage Gatekeeper Actions
-  acceptStagePromotion: () => void;
+  acceptStagePromotion: () => Promise<void>;
 
   // Maintenance Completion Actions
   handleDeepenIdentity: () => void;

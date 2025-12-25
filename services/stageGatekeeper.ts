@@ -32,7 +32,7 @@ export function checkStageEligibility(
     // Convert weeklyCompletionRate from 0-100 to 0-1 for threshold comparison
     const completionRate = stats.weeklyCompletionRate / 100;
 
-    console.log(`🚪 [GATEKEEPER] Checking eligibility: stage=${stage}, weeks=${weeksInStage}, rate=${(completionRate * 100).toFixed(1)}%, type=${type}`);
+    if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] Checking eligibility: stage=${stage}, weeks=${weeksInStage}, rate=${(completionRate * 100).toFixed(1)}%, type=${type}`);
 
     switch (stage) {
         case 'INITIATION':
@@ -60,17 +60,17 @@ function checkInitiationToIntegration(
 ): IdentityStage | null {
     // Time-based: survived 3+ weeks
     if (weeksInStage >= 3) {
-        console.log(`🚪 [GATEKEEPER] ✅ INITIATION → INTEGRATION (time: ${weeksInStage} weeks >= 3)`);
+        if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] ✅ INITIATION → INTEGRATION (time: ${weeksInStage} weeks >= 3)`);
         return 'INTEGRATION';
     }
 
     // Performance-based: 30%+ completion rate
     if (completionRate >= 0.30) {
-        console.log(`🚪 [GATEKEEPER] ✅ INITIATION → INTEGRATION (rate: ${(completionRate * 100).toFixed(1)}% >= 30%)`);
+        if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] ✅ INITIATION → INTEGRATION (rate: ${(completionRate * 100).toFixed(1)}% >= 30%)`);
         return 'INTEGRATION';
     }
 
-    console.log(`🚪 [GATEKEEPER] ❌ Not eligible for INTEGRATION (weeks=${weeksInStage}, rate=${(completionRate * 100).toFixed(1)}%)`);
+    if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] ❌ Not eligible for INTEGRATION (weeks=${weeksInStage}, rate=${(completionRate * 100).toFixed(1)}%)`);
     return null;
 }
 
@@ -93,14 +93,14 @@ function checkIntegrationToExpansion(
     switch (identityType) {
         case 'SKILL':
             if (completionRate >= 0.60) {
-                console.log(`🚪 [GATEKEEPER] ✅ INTEGRATION → EXPANSION (SKILL: ${(completionRate * 100).toFixed(1)}% >= 60%)`);
+                if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] ✅ INTEGRATION → EXPANSION (SKILL: ${(completionRate * 100).toFixed(1)}% >= 60%)`);
                 return 'EXPANSION';
             }
             break;
 
         case 'CHARACTER':
             if (completionRate >= 0.50) {
-                console.log(`🚪 [GATEKEEPER] ✅ INTEGRATION → EXPANSION (CHARACTER: ${(completionRate * 100).toFixed(1)}% >= 50%)`);
+                if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] ✅ INTEGRATION → EXPANSION (CHARACTER: ${(completionRate * 100).toFixed(1)}% >= 50%)`);
                 return 'EXPANSION';
             }
             break;
@@ -108,13 +108,13 @@ function checkIntegrationToExpansion(
         case 'RECOVERY':
             // RECOVERY requires BOTH time AND performance (single source of truth)
             if (weeksInStage >= 6 && completionRate >= 0.40) {
-                console.log(`🚪 [GATEKEEPER] ✅ INTEGRATION → EXPANSION (RECOVERY: ${weeksInStage} weeks >= 6, ${(completionRate * 100).toFixed(1)}% >= 40%)`);
+                if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] ✅ INTEGRATION → EXPANSION (RECOVERY: ${weeksInStage} weeks >= 6, ${(completionRate * 100).toFixed(1)}% >= 40%)`);
                 return 'EXPANSION';
             }
             break;
     }
 
-    console.log(`🚪 [GATEKEEPER] ❌ Not eligible for EXPANSION (type=${identityType}, weeks=${weeksInStage}, rate=${(completionRate * 100).toFixed(1)}%)`);
+    if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] ❌ Not eligible for EXPANSION (type=${identityType}, weeks=${weeksInStage}, rate=${(completionRate * 100).toFixed(1)}%)`);
     return null;
 }
 
@@ -137,27 +137,27 @@ function checkExpansionToMaintenance(
     switch (identityType) {
         case 'SKILL':
             if (weeksInStage >= 8 && completionRate >= 0.55) {
-                console.log(`🚪 [GATEKEEPER] ✅ EXPANSION → MAINTENANCE (SKILL: ${weeksInStage} weeks >= 8, ${(completionRate * 100).toFixed(1)}% >= 55%)`);
+                if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] ✅ EXPANSION → MAINTENANCE (SKILL: ${weeksInStage} weeks >= 8, ${(completionRate * 100).toFixed(1)}% >= 55%)`);
                 return 'MAINTENANCE';
             }
             break;
 
         case 'CHARACTER':
             if (weeksInStage >= 8 && completionRate >= 0.50) {
-                console.log(`🚪 [GATEKEEPER] ✅ EXPANSION → MAINTENANCE (CHARACTER: ${weeksInStage} weeks >= 8, ${(completionRate * 100).toFixed(1)}% >= 50%)`);
+                if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] ✅ EXPANSION → MAINTENANCE (CHARACTER: ${weeksInStage} weeks >= 8, ${(completionRate * 100).toFixed(1)}% >= 50%)`);
                 return 'MAINTENANCE';
             }
             break;
 
         case 'RECOVERY':
             if (weeksInStage >= 12 && completionRate >= 0.45) {
-                console.log(`🚪 [GATEKEEPER] ✅ EXPANSION → MAINTENANCE (RECOVERY: ${weeksInStage} weeks >= 12, ${(completionRate * 100).toFixed(1)}% >= 45%)`);
+                if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] ✅ EXPANSION → MAINTENANCE (RECOVERY: ${weeksInStage} weeks >= 12, ${(completionRate * 100).toFixed(1)}% >= 45%)`);
                 return 'MAINTENANCE';
             }
             break;
     }
 
-    console.log(`🚪 [GATEKEEPER] ❌ Not eligible for MAINTENANCE (type=${identityType}, weeks=${weeksInStage}, rate=${(completionRate * 100).toFixed(1)}%)`);
+    if (import.meta.env.DEV) console.log(`🚪 [GATEKEEPER] ❌ Not eligible for MAINTENANCE (type=${identityType}, weeks=${weeksInStage}, rate=${(completionRate * 100).toFixed(1)}%)`);
     return null;
 }
 

@@ -23,7 +23,7 @@ const computePlatform = (): PlatformFlags => {
     const isAndroid = /android/i.test(userAgent);
     const isPWA = window.matchMedia('(display-mode: standalone)').matches;
 
-    console.log(`[PLATFORM] isNative=${isNative}, isWeb=${isWeb}, isIOS=${isIOS}, isAndroid=${isAndroid}`);
+    if (import.meta.env.DEV) console.log(`[PLATFORM] isNative=${isNative}, isWeb=${isWeb}, isIOS=${isIOS}, isAndroid=${isAndroid}`);
 
     return { isNative, isWeb, isIOS, isAndroid, isPWA };
 };

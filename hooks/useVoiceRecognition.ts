@@ -42,13 +42,13 @@ export const useVoiceRecognition = (): UseVoiceRecognitionReturn => {
         recognition.lang = 'en-US';
 
         recognition.onstart = () => {
-            console.log("🎤 Microphone started");
+            if (import.meta.env.DEV) console.log("🎤 Microphone started");
             setIsListening(true);
         };
 
         recognition.onresult = (event: any) => {
             // DEBUG LOG: See if we get *any* data
-            console.log("⚡ Event Result Fired", event.results);
+            if (import.meta.env.DEV) console.log("⚡ Event Result Fired", event.results);
 
             let finalTranscript = '';
             let interimTranscript = '';
@@ -62,18 +62,18 @@ export const useVoiceRecognition = (): UseVoiceRecognitionReturn => {
             }
 
             const currentText = finalTranscript || interimTranscript;
-            console.log("📝 Transcript:", currentText);
+            if (import.meta.env.DEV) console.log("📝 Transcript:", currentText);
             setTranscript(currentText);
         };
 
         recognition.onerror = (event: any) => {
             if (event.error === 'aborted') return;
-            console.error("❌ Speech Error:", event.error);
+            if (import.meta.env.DEV) console.error("❌ Speech Error:", event.error);
             setError(event.error);
         };
 
         recognition.onend = () => {
-            console.log("🛑 Microphone stopped");
+            if (import.meta.env.DEV) console.log("🛑 Microphone stopped");
             setIsListening(false);
         };
 

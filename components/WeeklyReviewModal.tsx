@@ -779,8 +779,8 @@ const FreeUserPreviewCard = ({
     <div className="bg-white/5 rounded-xl p-3 mb-4">
       <p className="text-xs text-white/50 text-center">
         {isNoveltyWeek
-          ? 'Upgrade to Premium for AI coaching, automatic habit evolution, and auto novelty variations.'
-          : 'Upgrade to Premium for AI coaching and automatic habit evolution.'}
+          ? 'Upgrade to Premium for AI adaptation, automatic habit evolution, and smart novelty variations.'
+          : 'Upgrade to Premium for AI adaptation and automatic habit evolution.'}
       </p>
     </div>
 
@@ -790,12 +790,12 @@ const FreeUserPreviewCard = ({
       onClick={() => {
         // Open premium modal without completing weekly review
         // This way the weekly review will show again after payment
-        console.log("🔒 [UPGRADE] User clicked upgrade CTA");
+        if (import.meta.env.DEV) console.log("🔒 [UPGRADE] User clicked upgrade CTA");
         if (onUpgradeClick) onUpgradeClick();
       }}
     >
       <Lock className="w-4 h-4" />
-      <span>Unlock Premium Coaching</span>
+      <span>Unlock Bounce AI</span>
     </button>
   </motion.div>
 );
@@ -841,7 +841,7 @@ export const WeeklyReviewModal: React.FC = () => {
 
   // Handler: Free user chooses to skip evolution and keep habits as-is
   const handleManualMode = () => {
-    console.log("🔧 [FREE USER] Manual mode selected - habits will stay unchanged");
+    if (import.meta.env.DEV) console.log("🔧 [FREE USER] Manual mode selected - habits will stay unchanged");
     setSelectedOption(null);
     setManualMode(true);
   };
@@ -864,24 +864,24 @@ export const WeeklyReviewModal: React.FC = () => {
   // Helper: Get preview text for free users (explains what WOULD happen with premium)
   const getFreeUserEvolutionPreview = (optionId: EvolutionOptionId): string => {
     const previews: Record<string, string> = {
-      'INCREASE_DIFFICULTY': "Your coach would increase difficulty and shift your habits up one level, making them more challenging.",
-      'ADD_VARIATION': "Your coach would add new habit variations to keep things fresh while maintaining your current intensity.",
-      'BRANCH_IDENTITY': "Your coach would help you explore a new branch of your identity and expand your growth path.",
-      'START_MASTERY_WEEK': "Your coach would activate mastery mode, fine-tuning your habits for peak performance.",
-      'MAINTAIN': "Your coach would keep your current habits stable while monitoring your progress for opportunities.",
-      'SOFTER_HABIT': "Your coach would soften your high-energy habits, reduce weekly load, and adjust your difficulty curve.",
-      'TECHNIQUE_WEEK': "Your coach would focus on habit quality over quantity, helping you refine your existing routines.",
-      'REDUCE_SCOPE': "Your coach would simplify your habits, keeping only the most impactful ones.",
-      'REST_WEEK': "Your coach would reduce your workload by 30% and give you a recovery-focused week.",
-      'REDUCE_DIFFICULTY': "Your coach would switch you to low-energy habits this week and prioritize recovery.",
-      'FRICTION_REMOVAL': "Your coach would switch you to minimal-effort habits this week and prioritize recovery.",
-      'STABILIZATION_WEEK': "Your coach would stabilize your current habits, preventing burnout while maintaining momentum.",
-      'FRESH_START_WEEK': "Your coach would reset you to Initiation habits and restart your identity momentum.",
-      'FRESH_START': "Your coach would reset you to Initiation habits and restart your identity momentum.",
-      'CHANGE_IDENTITY': "Your coach would guide you through a complete identity transition to a new goal.",
-      'SOFTER_WEEK': "Your coach would give you ultra-gentle habits this week. Just exist, no pressure."
+      'INCREASE_DIFFICULTY': "Bounce would increase difficulty and shift your habits up one level, making them more challenging.",
+      'ADD_VARIATION': "Bounce would add new habit variations to keep things fresh while maintaining your current intensity.",
+      'BRANCH_IDENTITY': "Bounce would help you explore a new branch of your identity and expand your growth path.",
+      'START_MASTERY_WEEK': "Bounce would activate mastery mode, fine-tuning your habits for peak performance.",
+      'MAINTAIN': "Bounce would keep your current habits stable while monitoring your progress for opportunities.",
+      'SOFTER_HABIT': "Bounce would soften your high-energy habits, reduce weekly load, and adjust your difficulty curve.",
+      'TECHNIQUE_WEEK': "Bounce would focus on habit quality over quantity, helping you refine your existing routines.",
+      'REDUCE_SCOPE': "Bounce would simplify your habits, keeping only the most impactful ones.",
+      'REST_WEEK': "Bounce would reduce your workload by 30% and give you a recovery-focused week.",
+      'REDUCE_DIFFICULTY': "Bounce would switch you to low-energy habits this week and prioritize recovery.",
+      'FRICTION_REMOVAL': "Bounce would switch you to minimal-effort habits this week and prioritize recovery.",
+      'STABILIZATION_WEEK': "Bounce would stabilize your current habits, preventing burnout while maintaining momentum.",
+      'FRESH_START_WEEK': "Bounce would reset you to Initiation habits and restart your identity momentum.",
+      'FRESH_START': "Bounce would reset you to Initiation habits and restart your identity momentum.",
+      'CHANGE_IDENTITY': "Bounce would guide you through a complete identity transition to a new goal.",
+      'SOFTER_WEEK': "Bounce would give you ultra-gentle habits this week. Just exist, no pressure."
     };
-    return previews[optionId] || "Your coach would customize your habits based on your performance and goals.";
+    return previews[optionId] || "Bounce would customize your habits based on your performance and goals.";
   };
 
   // Handler for selecting an evolution option (NO AI CALL - just selection)
@@ -890,7 +890,7 @@ export const WeeklyReviewModal: React.FC = () => {
     if (planState === 'generating' || planState === 'success') return;
 
     setSelectedOption(option);
-    console.log("🎯 [EVOLUTION] Option selected:", option.id);
+    if (import.meta.env.DEV) console.log("🎯 [EVOLUTION] Option selected:", option.id);
     // NO AI CALL HERE - AI is called only when Apply is clicked
   };
 
@@ -900,22 +900,22 @@ export const WeeklyReviewModal: React.FC = () => {
 
     // 🔒 FREE USERS: Still apply evolution (for novelty, tracking, etc.) but no AI
     if (!isPremium) {
-      console.log("🆓 [FREE USER] Applying evolution (no AI)...");
+      if (import.meta.env.DEV) console.log("🆓 [FREE USER] Applying evolution (no AI)...");
       try {
         const result = await applySelectedEvolutionOption(selectedOption);
         if (result?.identityChange) {
           return; // Exit early, UI will navigate away
         }
-        console.log("🆓 [FREE USER] Evolution applied successfully");
+        if (import.meta.env.DEV) console.log("🆓 [FREE USER] Evolution applied successfully");
       } catch (error) {
-        console.error("Failed to apply evolution for free user:", error);
+        if (import.meta.env.DEV) console.error("Failed to apply evolution for free user:", error);
       }
       return;
     }
 
     // ✅ PREMIUM USERS: Now trigger AI
     setPlanState('generating');
-    console.log("🚀 [PREMIUM] Generating evolution plan for:", selectedOption.id, "skipNovelty:", noveltyOptOut);
+    if (import.meta.env.DEV) console.log("🚀 [PREMIUM] Generating evolution plan for:", selectedOption.id, "skipNovelty:", noveltyOptOut);
 
     try {
       const result = await applySelectedEvolutionOption(selectedOption, noveltyOptOut);
@@ -923,9 +923,9 @@ export const WeeklyReviewModal: React.FC = () => {
         return; // Exit early, UI will navigate away
       }
       setPlanState('success');
-      console.log("✅ [PREMIUM] Evolution plan generated successfully");
+      if (import.meta.env.DEV) console.log("✅ [PREMIUM] Evolution plan generated successfully");
     } catch (error) {
-      console.error("Failed to apply evolution option:", error);
+      if (import.meta.env.DEV) console.error("Failed to apply evolution option:", error);
       setPlanState('error');
     }
   };
@@ -934,7 +934,7 @@ export const WeeklyReviewModal: React.FC = () => {
   const handleApplyMaintenancePath = async () => {
     if (!selectedMaintenancePath) return;
 
-    console.log("🏆 [MAINTENANCE] Applying path:", selectedMaintenancePath);
+    if (import.meta.env.DEV) console.log("🏆 [MAINTENANCE] Applying path:", selectedMaintenancePath);
 
     // START_NEW doesn't need AI - just goes to onboarding
     if (selectedMaintenancePath === 'START_NEW') {
@@ -944,7 +944,7 @@ export const WeeklyReviewModal: React.FC = () => {
 
     // DEEPEN and EVOLVE need AI generation
     if (!isPremium) {
-      console.log("🔒 [FREE USER] Maintenance completion requires premium");
+      if (import.meta.env.DEV) console.log("🔒 [FREE USER] Maintenance completion requires premium");
       return;
     }
 
@@ -965,7 +965,7 @@ export const WeeklyReviewModal: React.FC = () => {
           // Reset the maintenance cycle AFTER AI completes
           handleDeepenIdentity();
           setPlanState('success');
-          console.log("✅ [MAINTENANCE] Deepen path applied with AI evolution");
+          if (import.meta.env.DEV) console.log("✅ [MAINTENANCE] Deepen path applied with AI evolution");
         } else {
           setPlanState('error');
         }
@@ -976,7 +976,7 @@ export const WeeklyReviewModal: React.FC = () => {
           : advancedIdentity;
 
         if (newIdentity) {
-          console.log("🏆 [MAINTENANCE] Evolving to new identity:", newIdentity);
+          if (import.meta.env.DEV) console.log("🏆 [MAINTENANCE] Evolving to new identity:", newIdentity);
 
           // Call AI to generate habits for the NEW identity
           const { generateHabits } = await import('../services/ai');
@@ -1002,14 +1002,14 @@ export const WeeklyReviewModal: React.FC = () => {
             });
 
             setPlanState('success');
-            console.log("✅ [MAINTENANCE] Evolve path applied with new habits:", result);
+            if (import.meta.env.DEV) console.log("✅ [MAINTENANCE] Evolve path applied with new habits:", result);
           } else {
             setPlanState('error');
           }
         }
       }
     } catch (error) {
-      console.error("❌ [MAINTENANCE] Failed to apply path:", error);
+      if (import.meta.env.DEV) console.error("❌ [MAINTENANCE] Failed to apply path:", error);
       setPlanState('error');
     }
   };
@@ -1093,12 +1093,12 @@ export const WeeklyReviewModal: React.FC = () => {
               resonanceStatements={weeklyReview.resonanceStatements}
               isDismissed={resonanceDismissed}
               onAccept={(statement) => {
-                console.log("🚪 [RESONANCE] User accepted stage promotion via:", statement);
+                if (import.meta.env.DEV) console.log("🚪 [RESONANCE] User accepted stage promotion via:", statement);
                 acceptStagePromotion();
                 setResonanceDismissed(true); // Hide card after acceptance
               }}
               onDismiss={() => {
-                console.log("🚪 [RESONANCE] User dismissed stage suggestion");
+                if (import.meta.env.DEV) console.log("🚪 [RESONANCE] User dismissed stage suggestion");
                 setResonanceDismissed(true);
               }}
             />

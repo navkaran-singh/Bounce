@@ -22,7 +22,7 @@ if (!admin.apps?.length) {
         try {
             serviceAccount = JSON.parse(rawJson);
         } catch (e) {
-            console.log("⚠️ Direct JSON parse failed, attempting unescape...");
+            if (process.env.NETLIFY_DEV === 'true') console.log("⚠️ Direct JSON parse failed, attempting unescape...");
             const sanitized = rawJson.replace(/\\n/g, '\n');
             serviceAccount = JSON.parse(sanitized);
         }
@@ -30,9 +30,9 @@ if (!admin.apps?.length) {
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
         });
-        console.log('✅ [CHECK-SUB] Firebase Admin initialized');
+        if (process.env.NETLIFY_DEV === 'true') console.log('✅ [CHECK-SUB] Firebase Admin initialized');
     } catch (error) {
-        console.error('❌ [CHECK-SUB INIT ERROR]', error);
+        if (process.env.NETLIFY_DEV === 'true') console.error('❌ [CHECK-SUB INIT ERROR]', error);
     }
 }
 
@@ -91,7 +91,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
             };
         }
 
-        console.log(`🔍 [CHECK-SUB] Checking subscription: ${subscriptionId} for User: ${userId}`);
+        if (process.env.NETLIFY_DEV === 'true') console.log(`🔍 [CHECK-SUB] Checking subscription: ${subscriptionId} for User: ${userId}`);
 
         // ✅ FIX #4: VALIDATE SUBSCRIPTION OWNERSHIP
         // Verify that this subscriptionId actually belongs to this user
@@ -109,7 +109,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         const storedSubId = userData?.subscriptionId || userData?.lastPaymentId;
 
         if (storedSubId !== subscriptionId) {
-            console.warn(`⚠️ [CHECK-SUB] Subscription mismatch! Stored: ${storedSubId}, Requested: ${subscriptionId}`);
+            if (process.env.NETLIFY_DEV === 'true') console.warn(`⚠️ [CHECK-SUB] Subscription mismatch! Stored: ${storedSubId}, Requested: ${subscriptionId}`);
             return {
                 statusCode: 403,
                 headers,
@@ -128,7 +128,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
 
         if (!dodoResponse.ok) {
             const errorText = await dodoResponse.text();
-            console.error(`❌ [CHECK-SUB] Dodo API error: ${errorText}`);
+            if (process.env.NETLIFY_DEV === 'true') console.error(`❌ [CHECK-SUB] Dodo API error: ${errorText}`);
             return {
                 statusCode: 200, // Don't fail the app, just skip the check
                 headers,
@@ -137,8 +137,8 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         }
 
         const subData = await dodoResponse.json();
-        console.log(`📄 [CHECK-SUB] Subscription status: ${subData.status}`);
-        console.log(`📄 [CHECK-SUB] Dodo response:`, JSON.stringify(subData, null, 2));
+        if (process.env.NETLIFY_DEV === 'true') console.log(`📄 [CHECK-SUB] Subscription status: ${subData.status}`);
+        if (process.env.NETLIFY_DEV === 'true') console.log(`📄 [CHECK-SUB] Dodo response:`, JSON.stringify(subData, null, 2));
 
         // If subscription is active, update Firebase with Dodo's billing period end
         if (subData.status === 'active') {
@@ -149,25 +149,25 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
             if (subData.current_period_end) {
                 // Best case: Dodo provides current_period_end
                 newExpiryDate = new Date(subData.current_period_end).getTime();
-                console.log(`📅 [CHECK-SUB] Using current_period_end: ${subData.current_period_end}`);
+                if (process.env.NETLIFY_DEV === 'true') console.log(`📅 [CHECK-SUB] Using current_period_end: ${subData.current_period_end}`);
             } else if (subData.next_billing_date) {
                 // Alternative: next_billing_date
                 newExpiryDate = new Date(subData.next_billing_date).getTime();
-                console.log(`📅 [CHECK-SUB] Using next_billing_date: ${subData.next_billing_date}`);
+                if (process.env.NETLIFY_DEV === 'true') console.log(`📅 [CHECK-SUB] Using next_billing_date: ${subData.next_billing_date}`);
             } else if (subData.renewal_at) {
                 // Another alternative
                 newExpiryDate = new Date(subData.renewal_at).getTime();
-                console.log(`📅 [CHECK-SUB] Using renewal_at: ${subData.renewal_at}`);
+                if (process.env.NETLIFY_DEV === 'true') console.log(`📅 [CHECK-SUB] Using renewal_at: ${subData.renewal_at}`);
             } else {
                 // ⚠️ FALLBACK: Dodo didn't provide billing period
                 // Only extend if current expiry has passed (prevents accidental shortening)
                 const currentExpiry = userData?.premiumExpiryDate || 0;
                 if (Date.now() > currentExpiry) {
                     newExpiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000);
-                    console.warn(`⚠️ [CHECK-SUB] No billing period from Dodo, using fallback +30 days`);
+                    if (process.env.NETLIFY_DEV === 'true') console.warn(`⚠️ [CHECK-SUB] No billing period from Dodo, using fallback +30 days`);
                 } else {
                     // Don't overwrite existing valid expiry
-                    console.log(`✅ [CHECK-SUB] Current expiry still valid, not overwriting`);
+                    if (process.env.NETLIFY_DEV === 'true') console.log(`✅ [CHECK-SUB] Current expiry still valid, not overwriting`);
                     return {
                         statusCode: 200,
                         headers,
@@ -190,7 +190,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
             const effectiveStatus = isScheduledForCancellation ? 'cancelled' : 'active';
 
             if (isScheduledForCancellation) {
-                console.log(`📅 [CHECK-SUB] Subscription scheduled for cancellation at: ${subData.cancelled_at}`);
+                if (process.env.NETLIFY_DEV === 'true') console.log(`📅 [CHECK-SUB] Subscription scheduled for cancellation at: ${subData.cancelled_at}`);
             }
 
             // ✅ FIX: Only write if values changed (reduces unnecessary Firebase writes)
@@ -200,7 +200,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
             const statusChanged = currentStatus !== effectiveStatus;
 
             if (expiryChanged || statusChanged) {
-                console.log(`📝 [CHECK-SUB] Writing to Firebase - expiry changed: ${expiryChanged}, status changed: ${statusChanged}`);
+                if (process.env.NETLIFY_DEV === 'true') console.log(`📝 [CHECK-SUB] Writing to Firebase - expiry changed: ${expiryChanged}, status changed: ${statusChanged}`);
                 await db.collection('users').doc(userId).set({
                     isPremium: true,
                     premiumExpiryDate: newExpiryDate,
@@ -208,9 +208,9 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
                     lastSubscriptionCheck: Date.now(),
                     lastUpdated: Date.now()
                 }, { merge: true });
-                console.log(`✅ [CHECK-SUB] Premium expiry set to: ${new Date(newExpiryDate).toISOString()}`);
+                if (process.env.NETLIFY_DEV === 'true') console.log(`✅ [CHECK-SUB] Premium expiry set to: ${new Date(newExpiryDate).toISOString()}`);
             } else {
-                console.log(`⏭️ [CHECK-SUB] Skipping write - no changes (expiry: ${new Date(newExpiryDate).toISOString()}, status: ${effectiveStatus})`);
+                if (process.env.NETLIFY_DEV === 'true') console.log(`⏭️ [CHECK-SUB] Skipping write - no changes (expiry: ${new Date(newExpiryDate).toISOString()}, status: ${effectiveStatus})`);
                 // Still update lastSubscriptionCheck locally without full write
                 await db.collection('users').doc(userId).set({
                     lastSubscriptionCheck: Date.now()
@@ -229,7 +229,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
             };
         } else if (subData.status === 'cancelled' || subData.status === 'expired') {
             // Subscription ended - update status but don't revoke immediately
-            console.log(`ℹ️ [CHECK-SUB] Subscription ${subData.status} - updating status`);
+            if (process.env.NETLIFY_DEV === 'true') console.log(`ℹ️ [CHECK-SUB] Subscription ${subData.status} - updating status`);
 
             await db.collection('users').doc(userId).set({
                 subscriptionStatus: subData.status,
@@ -262,7 +262,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         };
 
     } catch (error: any) {
-        console.error('❌ [CHECK-SUB] Error:', error.message);
+        if (process.env.NETLIFY_DEV === 'true') console.error('❌ [CHECK-SUB] Error:', error.message);
         return {
             statusCode: 200, // Don't fail the app
             headers,

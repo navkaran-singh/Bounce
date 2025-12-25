@@ -33,11 +33,11 @@ async function safeAIRequest(
     const modelName = preferredModels[attempt % preferredModels.length];
 
     try {
-      console.log(`🤖 [AI] Attempt ${attempt + 1}/${MAX_TOTAL_ATTEMPTS} using ${modelName}...`);
+      if (import.meta.env.DEV) console.log(`🤖 [AI] Attempt ${attempt + 1}/${MAX_TOTAL_ATTEMPTS} using ${modelName}...`);
       const model = genAI.getGenerativeModel({ model: modelName });
       const result = await model.generateContent(prompt);
       const text = result.response.text();
-      console.log(`🤖 [AI] ✅ Success with ${modelName} on attempt ${attempt + 1}`);
+      if (import.meta.env.DEV) console.log(`🤖 [AI] ✅ Success with ${modelName} on attempt ${attempt + 1}`);
       return text;
     } catch (err: any) {
       const errorMsg = err?.message || String(err);
@@ -50,7 +50,7 @@ async function safeAIRequest(
       }
 
       // Backoff before next attempt
-      console.log(`🤖 [AI] Waiting ${BACKOFF_MS}ms before retry...`);
+      if (import.meta.env.DEV) console.log(`🤖 [AI] Waiting ${BACKOFF_MS}ms before retry...`);
       await new Promise(r => setTimeout(r, BACKOFF_MS));
     }
   }
@@ -68,12 +68,12 @@ export interface GenerateHabitsResult {
   identityReason?: string;
 }
 
-export const generateHabits = async (identity: string): Promise<GenerateHabitsResult> => {
+export const generateHabits = async (identity: string, identityPattern?: string): Promise<GenerateHabitsResult> => {
   // 🛡️ COST SAFETY: Try templates first before AI
   const { getHabitsFromTemplate, hasTemplateMatch } = await import('./habitTemplateService');
 
   if (hasTemplateMatch(identity)) {
-    console.log("📋 [HABITS] Using template-based generation (no AI call)");
+    if (import.meta.env.DEV) console.log("📋 [HABITS] Using template-based generation (no AI call)");
     const templateResult = getHabitsFromTemplate(identity);
     return {
       high: templateResult.high,
@@ -85,7 +85,7 @@ export const generateHabits = async (identity: string): Promise<GenerateHabitsRe
   }
 
   // No template match - fall back to AI
-  console.log("🤖 [HABITS] No template match - using AI generation");
+  if (import.meta.env.DEV) console.log("🤖 [HABITS] No template match - using AI generation");
 
   if (!API_KEY) {
     console.warn("Missing GEMINI_API_KEY - using fallback habits");
@@ -107,6 +107,21 @@ export const generateHabits = async (identity: string): Promise<GenerateHabitsRe
     Role: You are an expert Behavioral Psychologist specializing in ADHD and BJ Fogg's "Tiny Habits".
     
     Goal: Convert the user's desired identity: "${identity}" into actionable, dopamine-friendly habits for 3 energy levels.
+    ${identityPattern ? `
+    ⚠️ CRITICAL - THE "CORE STRUGGLE" (Use as CONSTRAINT, not just context):
+    The user's specific barrier is: "${identityPattern}".
+    
+    HABIT DESIGN RULE - "THE BYPASS":
+    Design LOW and MEDIUM habits that make "${identityPattern}" irrelevant by requiring zero of the thing they struggle with.
+    
+    Examples of struggle → bypass:
+    - "Perfectionism" → Habits must allow ugly output ("Write one trash sentence", "Sketch without lifting pen")
+    - "Starting/Procrastination" → Habits must have instant entry, no prep ("Open doc and type one word", "Do 1 pushup where you stand")
+    - "Consistency/Boredom" → Habits should have novelty hooks ("Try in a weird location", "With a timer challenge")
+    - "Overwhelm" → Habits must be laughably small ("Just look at the task list", "Write the first word only")
+    - "All-or-nothing thinking" → Habits must celebrate partial wins ("Any amount counts", "Even 30 seconds is a win")
+    
+    If "${identityPattern}" relates to any of these, adapt accordingly. The goal: lower the barrier so far that their struggle can't stop them.` : ''}
     
     FIRST: Classify this identity into one of 3 types:
     - "SKILL": User wants to GET BETTER at something (run faster, write better, learn coding, etc.)
@@ -164,17 +179,17 @@ export const generateHabits = async (identity: string): Promise<GenerateHabitsRe
     const response = await result.response;
     const text = response.text();
 
-    console.log("🤖 [AI] Raw response:", text);
+    if (import.meta.env.DEV) console.log("🤖 [AI] Raw response:", text);
 
     // Clean up markdown if the model ignores instructions
     const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleanedText);
 
-    console.log("🤖 [AI] Parsed response:", parsed);
-    console.log("🤖 [AI] High habits:", parsed.high);
-    console.log("🤖 [AI] Medium habits:", parsed.medium);
-    console.log("🤖 [AI] Low habits:", parsed.low);
-    console.log("🤖 [AI] Identity type:", parsed.identityType);
+    if (import.meta.env.DEV) console.log("🤖 [AI] Parsed response:", parsed);
+    if (import.meta.env.DEV) console.log("🤖 [AI] High habits:", parsed.high);
+    if (import.meta.env.DEV) console.log("🤖 [AI] Medium habits:", parsed.medium);
+    if (import.meta.env.DEV) console.log("🤖 [AI] Low habits:", parsed.low);
+    if (import.meta.env.DEV) console.log("🤖 [AI] Identity type:", parsed.identityType);
 
     // Validate we have 3 habits per energy level
     const finalResult = {
@@ -185,7 +200,7 @@ export const generateHabits = async (identity: string): Promise<GenerateHabitsRe
       identityReason: parsed.identityReason || ""
     };
 
-    console.log("🤖 [AI] Final result to return:", finalResult);
+    if (import.meta.env.DEV) console.log("🤖 [AI] Final result to return:", finalResult);
 
     return finalResult;
   } catch (error) {
@@ -216,10 +231,12 @@ export const generateDailyAdaptation = async (
   currentRepository: { high: string[], medium: string[], low: string[] },
   intention?: string,  // Optional: User's daily anchor/intention
   userModifiedHabits?: Record<string, string>,  // Optional: Map of user-modified habits (key: "level_index")
-  daysMissed?: number  // Optional: Number of days since last activity (for accurate messaging)
+  daysMissed?: number,  // Optional: Number of days since last activity (for accurate messaging)
+  identityPattern?: string,  // Optional: User's core struggle pattern for personalization
+  recentNotes?: string[]  // Optional: Yesterday's notes only (max 3) for daily context
 ): Promise<{ high: string[], medium: string[], low: string[], toastMessage: string }> => {
-  console.log("🤖 [AI SERVICE] Generating FULL SPECTRUM for mode:", performanceMode);
-  console.log("🤖 [AI SERVICE] Current Repository:", currentRepository);
+  if (import.meta.env.DEV) console.log("🤖 [AI SERVICE] Generating FULL SPECTRUM for mode:", performanceMode);
+  if (import.meta.env.DEV) console.log("🤖 [AI SERVICE] Current Repository:", currentRepository);
 
   // Helper: Merge AI output with user-modified habits (preserve user edits)
   const mergeHabits = (level: 'high' | 'medium' | 'low', aiHabits: string[], existingHabits: string[]): string[] => {
@@ -227,7 +244,7 @@ export const generateDailyAdaptation = async (
       const key = `${level}_${i}`;
       if (userModifiedHabits && userModifiedHabits[key]) {
         // 🛡️ NEVER overwrite user-modified habits
-        console.log(`🛡️ [AI SERVICE] Preserving user-modified habit: "${userModifiedHabits[key].slice(0, 30)}..."`);
+        if (import.meta.env.DEV) console.log(`🛡️ [AI SERVICE] Preserving user-modified habit: "${userModifiedHabits[key].slice(0, 30)}..."`);
         return userModifiedHabits[key];
       }
       // Use AI-generated habit
@@ -321,10 +338,63 @@ export const generateDailyAdaptation = async (
     Identity: "${identity}" (${identityType})
     Identity Stage: ${identityStage}
     Yesterday's Mode: ${performanceMode}
+    ${identityPattern ? (() => {
+      // FADING LOGIC: How we treat the struggle changes based on Stage + Performance
+      if (identityStage === 'INITIATION') {
+        // PHASE 1: Training Wheels - User is fragile, bypass the struggle entirely
+        return `
+    ⚠️ STRUGGLE HANDLING (PHASE 1: Training Wheels)
+    The user is NEW and battling "${identityPattern}".
+    
+    DESIGN RULE: Accommodate this struggle across ALL habit levels.
+    - Keep barriers EXTREMELY low to prevent early churn.
+    - LOW habit: Must be 10-30 seconds, zero friction.
+    - MEDIUM habit: Keep short and achievable (5-7 mins max).
+    - HIGH habit: Don't push too hard yet — they're still building the neural pathway.
+    - Toast: Focus on "you showed up" — don't mention the struggle.
+        `;
+      } else if (performanceMode === 'RECOVERY') {
+        // PHASE 2: Safety Net - Usually strong, but stumbled yesterday
+        return `
+    🛡️ STRUGGLE HANDLING (PHASE 2: Safety Net)
+    The user is usually strong but stumbled yesterday. "${identityPattern}" may have flared up.
+    
+    DESIGN RULE: Lower the bar TODAY only — this is a temporary catch.
+    - LOW habit: "Backdoor entry" — bypass "${identityPattern}" completely.
+    - MEDIUM habit: Keep accessible, no pressure.
+    - HIGH habit: Keep similar or slightly easier — don't punish them.
+    - Toast: Validate that resting/recovering is part of the process. Keep the door open.
+        `;
+      } else {
+        // PHASE 3: Growth Mode - Push them, they've outgrown this
+        return `
+    🚀 STRUGGLE HANDLING (PHASE 3: Conquered Enemy)
+    The user identified "${identityPattern}" as a struggle, BUT they are now in ${identityStage} stage.
+    
+    DESIGN RULE: Do NOT let "${identityPattern}" limit HIGH or MEDIUM habits!
+    - HIGH habit: Push them. Prove they have OUTGROWN this label.
+    - MEDIUM habit: Standard difficulty — don't baby them.
+    - LOW habit: Keep as safety net only — still available if they crash.
+    - Toast: Optionally celebrate: "That thing that used to hold you back? You're past it."
+    
+    ⚠️ ANTI-ENABLING: If you keep habits easy because of "${identityPattern}" for a user in ${identityStage}, 
+    you are reinforcing they can't handle more. That's harmful. Trust their progress.
+        `;
+      }
+    })() : ''}
     ${intention ? `
     📍 TODAY'S ANCHOR: "${intention}"
     - If relevant, subtly reference this anchor in the toastMessage (e.g., "Your anchor: ${intention.slice(0, 30)}... guides today's habits.").
     - Don't force it. Only mention if it naturally fits.` : ''}
+    ${recentNotes && recentNotes.length > 0 ? `
+    📝 USER'S RECENT NOTES (Context from their voice/text logs):
+    ${recentNotes.map((note, i) => `${i + 1}. "${note}"`).join('\n    ')}
+    
+    USE THIS CONTEXT TO:
+    - Understand their current mental state or challenges
+    - Reference specific things they mentioned (e.g., "You mentioned work stress - today's habits are extra-light")
+    - Make the toastMessage feel "aware" of what they're going through
+    - Do NOT quote them back verbatim. Summarize or acknowledge naturally.` : ''}
     
     === STAGE CONTEXT (Long-term: How experienced is this user?) ===
     ${macroInstruction}
@@ -345,7 +415,9 @@ export const generateDailyAdaptation = async (
     
     1. IF RECOVERY MODE (Yesterday was hard):
        - 🎯 Goal: "SHAME REDUCTION" - Make it impossible to fail.
-       - LOW Habit: Must be a "0-Friction Win" (e.g., "Write 1 sentence", NOT "Plan chapter").
+       - HABIT CALIBRATION FOR LOW habit (STAGE AWARE):
+          - IF INITIATION/INTEGRATION: LOW habit = "Micro-step" (e.g., "Put on shoes").
+          - IF EXPANSION/MAINTENANCE: LOW habit = "De-load Rep" (e.g., "Run 1 mile" instead of 5). *Respect their baseline.*
        - HIGH Habit: Do NOT increase difficulty. Keep it standard or slightly easier.
        - Toast Message: Must validate that *resting/surviving* is part of the process.
     
@@ -387,11 +459,11 @@ export const generateDailyAdaptation = async (
   `;
 
   try {
-    console.log("🤖 [AI SERVICE] Calling Gemini API for full spectrum...");
+    if (import.meta.env.DEV) console.log("🤖 [AI SERVICE] Calling Gemini API for full spectrum...");
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
-    console.log("🤖 [AI SERVICE] Raw Response:", text);
+    if (import.meta.env.DEV) console.log("🤖 [AI SERVICE] Raw Response:", text);
 
     const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleanedText);
@@ -413,7 +485,7 @@ export const generateDailyAdaptation = async (
         low: mergeHabits('low', parsed.low, currentRepository.low),
         toastMessage
       };
-      console.log(`🤖 [AI SERVICE] ✅ Generated ${performanceMode} mode repository (with user-edit protection):`, mergedResult);
+      if (import.meta.env.DEV) console.log(`🤖 [AI SERVICE] ✅ Generated ${performanceMode} mode repository (with user-edit protection):`, mergedResult);
       return mergedResult;
     } else {
       console.warn("🤖 [AI SERVICE] ⚠️ Invalid response format, returning current repository");
@@ -447,6 +519,8 @@ interface WeeklyReviewParams {
   stageProgress?: { label: string; weeks: number; totalWeeks: number }; // 📊 Stage progress info
   suggestedStage?: 'EXPANSION' | 'MAINTENANCE' | null; // 🚪 v8 Gatekeeper: Stage user can upgrade to
   weeklyIntentions?: string[];  // 📍 User's daily anchors from this week
+  identityPattern?: string;  // 🎯 User's core struggle pattern for personalization
+  recentNotes?: string[];  // 📝 User's notes from past 7 days (max 9) for AI context
 }
 
 interface WeeklyReviewContent {
@@ -466,7 +540,7 @@ interface WeeklyReviewContent {
 export const generateWeeklyReviewContent = async (
   params: WeeklyReviewParams
 ): Promise<WeeklyReviewContent> => {
-  console.log("🌱 [WEEKLY AI] Generating unified weekly review content...");
+  if (import.meta.env.DEV) console.log("🌱 [WEEKLY AI] Generating unified weekly review content...");
 
   const fallback: WeeklyReviewContent = {
     reflection: "Keep building your identity one day at a time. Small wins compound.",
@@ -545,11 +619,61 @@ USER CONTEXT:
 - Evolution needed: ${params.suggestionType}
 - Difficulty adjustment: ${params.difficultyLevel || 'same'}
 - Novelty week: ${params.isNoveltyWeek ? 'YES' : 'NO'}
+${params.identityPattern ? (() => {
+      // FADING LOGIC: How we talk about the struggle depends on Stage + Persona
+      if (params.identityStage === 'INITIATION') {
+        // PHASE 1: Training Wheels - Don't even mention the struggle much
+        return `
+🌱 STRUGGLE HANDLING (PHASE 1: Training Wheels)
+The user is NEW. Their struggle "${params.identityPattern}" is still raw.
+
+REFLECTION RULE: Don't overemphasize the struggle.
+- Focus on "you showed up" — that's the win.
+- Don't frame it as "fighting against ${params.identityPattern}" yet — that feels heavy.
+- Keep it simple: "You're building something new. Every day counts."
+- Next week habits: Keep LOW and accessible.
+    `;
+      } else if (params.persona === 'SURVIVOR' || params.persona === 'GHOST') {
+        // PHASE 2: Safety Net - They struggled this week
+        return `
+🛡️ STRUGGLE HANDLING (PHASE 2: Safety Net for Tough Week)
+The user had a hard week. "${params.identityPattern}" may have resurfaced.
+
+REFLECTION RULE: Compassion, not shame.
+${params.persona === 'GHOST'
+            ? `- GHOST: Don't mention "${params.identityPattern}" at all. Just keep the door open.
+  - Example: "Life happens. The path is still here when you're ready."`
+            : `- SURVIVOR: Acknowledge the struggle without dwelling on it.
+  - Example: "Tough week. But you're here reviewing — that's not nothing."`}
+- Next week habits: Suggest gentler re-entry, not punishment.
+    `;
+      } else {
+        // PHASE 3: Proof of Growth - They did well this week
+        return `
+🚀 STRUGGLE HANDLING (PHASE 3: Proof Against the Label)
+The user is in ${params.identityStage} stage and had a ${params.persona} week.
+
+REFLECTION RULE: Use their behavior as EVIDENCE they've outgrown "${params.identityPattern}".
+- Example: "You showed up ${params.streak} days. That's not what '${params.identityPattern}' looks like."
+- Frame it as identity proof: Their actions prove the old pattern doesn't define them.
+- Next week habits: Don't baby them. Trust their progress.
+    `;
+      }
+    })() : ''}
 ${params.weeklyIntentions && params.weeklyIntentions.length > 0 ? `
 📍 WEEKLY ANCHORS (User's stated intentions this week):
 ${params.weeklyIntentions.map((i, idx) => `  ${idx + 1}. "${i}"`).join('\n')}
 - In your reflection, briefly mention whether their habits aligned with these anchors.
 - This shows the user you "see" their deeper goals beyond just habit completion.` : ''}
+${params.recentNotes && params.recentNotes.length > 0 ? `
+📝 USER'S NOTES THIS WEEK (Context from their voice/text logs):
+${params.recentNotes.map((note, i) => `${i + 1}. "${note}"`).join('\n')}
+
+USE THIS CONTEXT TO:
+- Understand themes in their week (stress, wins, struggles)
+- Reference specific things they mentioned in the reflection
+- Make next week's habits address any unresolved issues they noted
+- Do NOT quote them verbatim. Summarize or acknowledge naturally.` : ''}
 
 ${evolutionContext[params.suggestionType] || 'Maintain current habits.'}
 
@@ -642,10 +766,10 @@ Return ONLY valid JSON. No markdown.
     const hasMedium = Array.isArray(parsed?.medium) && parsed.medium.length >= 1;
     const hasLow = Array.isArray(parsed?.low) && parsed.low.length >= 1;
 
-    console.log("🌱 [WEEKLY AI] Validation:", { hasReflection, hasArchetype, hasHigh, hasMedium, hasLow });
+    if (import.meta.env.DEV) console.log("🌱 [WEEKLY AI] Validation:", { hasReflection, hasArchetype, hasHigh, hasMedium, hasLow });
 
     if (hasReflection && hasArchetype && hasHigh && hasMedium && hasLow) {
-      console.log("🌱 [WEEKLY AI] ✅ Generated complete review content");
+      if (import.meta.env.DEV) console.log("🌱 [WEEKLY AI] ✅ Generated complete review content");
 
       // Pad arrays to 3 items if needed
       const padToThree = (arr: string[], fallbackArr: string[]): string[] => {
@@ -665,7 +789,7 @@ Return ONLY valid JSON. No markdown.
           }
           return s;
         });
-        console.log("🚪 [WEEKLY AI] Resonance statements extracted:", resonanceStatements);
+        if (import.meta.env.DEV) console.log("🚪 [WEEKLY AI] Resonance statements extracted:", resonanceStatements);
       }
 
       return {
@@ -722,7 +846,7 @@ export const generateWeeklyEvolutionPlan = async (
   stageAdvice?: string,
   summary?: string
 }> => {
-  console.log("🌱 [EVOLUTION AI] Generating plan for:", identityType, stage, suggestionType);
+  if (import.meta.env.DEV) console.log("🌱 [EVOLUTION AI] Generating plan for:", identityType, stage, suggestionType);
 
   if (!API_KEY) {
     return { ...currentRepository, narrative: "Keep building your habits." };
@@ -795,7 +919,7 @@ RULES:
     const parsed = JSON.parse(cleanedText);
 
     if (parsed?.high?.length === 3 && parsed?.medium?.length === 3 && parsed?.low?.length === 3) {
-      console.log("🌱 [EVOLUTION AI] ✅ Generated evolution plan:", parsed);
+      if (import.meta.env.DEV) console.log("🌱 [EVOLUTION AI] ✅ Generated evolution plan:", parsed);
       return {
         high: parsed.high,
         medium: parsed.medium,
@@ -832,7 +956,7 @@ export interface IdentityReflectionParams {
 export const generateIdentityReflection = async (
   params: IdentityReflectionParams
 ): Promise<string> => {
-  console.log("🪞 [REFLECTION AI] Generating identity reflection...");
+  if (import.meta.env.DEV) console.log("🪞 [REFLECTION AI] Generating identity reflection...");
 
   if (!API_KEY) {
     return getDefaultReflection(params);
@@ -873,7 +997,7 @@ Return ONLY the reflection text.
 
   try {
     const text = await safeAIRequest(prompt);
-    console.log("🪞 [REFLECTION AI] ✅ Generated:", text.substring(0, 100) + "...");
+    if (import.meta.env.DEV) console.log("🪞 [REFLECTION AI] ✅ Generated:", text.substring(0, 100) + "...");
     return text.trim();
   } catch (error) {
     console.error("🪞 [REFLECTION AI] ❌ Error:", error);
@@ -912,8 +1036,8 @@ export interface PremiumResonanceParams {
 export const generatePremiumResonanceStatements = async (
   params: PremiumResonanceParams
 ): Promise<string[]> => {
-  console.log("🚪 [RESONANCE AI] Generating premium resonance statements...");
-  console.log("🚪 [RESONANCE AI] Params:", params);
+  if (import.meta.env.DEV) console.log("🚪 [RESONANCE AI] Generating premium resonance statements...");
+  if (import.meta.env.DEV) console.log("🚪 [RESONANCE AI] Params:", params);
 
   // Fallback statements if AI fails
   const fallbackStatements: Record<string, string[]> = {
@@ -988,7 +1112,7 @@ No markdown, no explanation, just the JSON array.
         return s;
       });
 
-      console.log("🚪 [RESONANCE AI] ✅ Generated statements:", statements);
+      if (import.meta.env.DEV) console.log("🚪 [RESONANCE AI] ✅ Generated statements:", statements);
       return statements;
     }
 

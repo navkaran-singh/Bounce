@@ -152,8 +152,8 @@ export const VoiceMode: React.FC<VoiceModeProps> = ({ isOpen, onClose, microHabi
                         <p className="text-white/30 text-xs mt-2">Tap icon to stop</p>
                     )}
 
-                    <div className="mt-8 text-sm text-white/30 text-center">
-                        Your voice note will be saved to today's log
+                    <div className="mt-8 text-sm text-white/30 text-center max-w-xs">
+                        Be specific! "Couldn't focus because of work stress" helps our system adapt to you.
                     </div>
 
                 </motion.div>

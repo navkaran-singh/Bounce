@@ -25,17 +25,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     try {
       const isNative = Capacitor.isNativePlatform();
       const redirectUrl = isNative ? nativeRedirectUrl : window.location.origin;
-      console.log("[AUTH] Sending magic link to:", email);
-      console.log("[AUTH] Redirect URL:", redirectUrl);
-      console.log("[AUTH] Action code settings:", actionCodeSettings(redirectUrl));
+      if (import.meta.env.DEV) console.log("[AUTH] Sending magic link to:", email);
+      if (import.meta.env.DEV) console.log("[AUTH] Redirect URL:", redirectUrl);
+      if (import.meta.env.DEV) console.log("[AUTH] Action code settings:", actionCodeSettings(redirectUrl));
       await sendSignInLinkToEmail(auth, email, actionCodeSettings(redirectUrl));
       window.localStorage.setItem('emailForSignIn', email);
       setIsEmailSent(true);
-      console.log("[AUTH] Magic link sent successfully!");
+      if (import.meta.env.DEV) console.log("[AUTH] Magic link sent successfully!");
     } catch (err: any) {
-      console.error("[AUTH] Magic link error:", err);
-      console.error("[AUTH] Error code:", err?.code);
-      console.error("[AUTH] Error message:", err?.message);
+      if (import.meta.env.DEV) console.error("[AUTH] Magic link error:", err);
+      if (import.meta.env.DEV) console.error("[AUTH] Error code:", err?.code);
+      if (import.meta.env.DEV) console.error("[AUTH] Error message:", err?.message);
       setError(err?.message || 'Could not send sign-in link. Please try again.');
     }
   };
@@ -50,31 +50,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     try {
       if (isNative) {
         // Native: Use Capacitor Firebase Authentication plugin (native Google Sign-In UI)
-        console.log("[AUTH] Starting native Google sign-in...");
+        if (import.meta.env.DEV) console.log("[AUTH] Starting native Google sign-in...");
         const result = await FirebaseAuthentication.signInWithGoogle();
-        console.log("[AUTH] Native sign-in result:", result);
-        
+        if (import.meta.env.DEV) console.log("[AUTH] Native sign-in result:", result);
+
         // Get the ID token and create a Firebase credential
         const idToken = result.credential?.idToken;
         if (idToken) {
           const credential = GoogleAuthProvider.credential(idToken);
           await signInWithCredential(auth, credential);
-          console.log("[AUTH] Native Google sign-in success:", result.user?.email);
+          if (import.meta.env.DEV) console.log("[AUTH] Native Google sign-in success:", result.user?.email);
           onClose();
         } else {
           throw new Error('No ID token received from Google');
         }
       } else {
         // Web: Use popup
-        console.log("[AUTH] Starting Google sign-in with popup (web)...");
+        if (import.meta.env.DEV) console.log("[AUTH] Starting Google sign-in with popup (web)...");
         const result = await signInWithPopup(auth, googleProvider);
-        console.log("[AUTH] Google sign-in success:", result.user.email);
+        if (import.meta.env.DEV) console.log("[AUTH] Google sign-in success:", result.user.email);
         onClose();
       }
     } catch (err: any) {
-      console.error("[AUTH] Google sign-in error:", err);
-      console.error("[AUTH] Error code:", err?.code);
-      console.error("[AUTH] Error message:", err?.message);
+      if (import.meta.env.DEV) console.error("[AUTH] Google sign-in error:", err);
+      if (import.meta.env.DEV) console.error("[AUTH] Error code:", err?.code);
+      if (import.meta.env.DEV) console.error("[AUTH] Error message:", err?.message);
       setError(err?.message || 'Could not sign in with Google. Please try again.');
     } finally {
       setIsLoading(false);

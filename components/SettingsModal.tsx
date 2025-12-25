@@ -28,8 +28,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         subscriptionStatus, cancelSubscription // Simplified
     } = useStore();
 
-    console.log("Current Store User:", user);
-    console.log("🔍 [SETTINGS] subscriptionStatus from store:", subscriptionStatus);
+    if (import.meta.env.DEV) console.log("Current Store User:", user);
+    if (import.meta.env.DEV) console.log("🔍 [SETTINGS] subscriptionStatus from store:", subscriptionStatus);
 
     const [localIdentity, setLocalIdentity] = useState(identity);
     const [localHabits, setLocalHabits] = useState([...microHabits]);

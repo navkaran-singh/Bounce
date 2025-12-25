@@ -18,7 +18,7 @@ if (!admin.apps?.length) {
         try {
             serviceAccount = JSON.parse(rawJson);
         } catch (e) {
-            console.log("⚠️ Direct JSON parse failed, attempting unescape...");
+            if (process.env.NETLIFY_DEV === 'true') console.log("⚠️ Direct JSON parse failed, attempting unescape...");
             const sanitized = rawJson.replace(/\\n/g, '\n');
             serviceAccount = JSON.parse(sanitized);
         }
@@ -26,9 +26,9 @@ if (!admin.apps?.length) {
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
         });
-        console.log('✅ [CANCEL SDK] Firebase Admin initialized');
+        if (process.env.NETLIFY_DEV === 'true') console.log('✅ [CANCEL SDK] Firebase Admin initialized');
     } catch (error) {
-        console.error('❌ [CANCEL SDK INIT ERROR]', error);
+        if (process.env.NETLIFY_DEV === 'true') console.error('❌ [CANCEL SDK INIT ERROR]', error);
     }
 }
 
@@ -79,11 +79,11 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
             };
         }
 
-        console.log(`🛑 [CANCEL] Request for User: ${userId}, Sub: ${subscriptionId}`);
+        if (process.env.NETLIFY_DEV === 'true') console.log(`🛑 [CANCEL] Request for User: ${userId}, Sub: ${subscriptionId}`);
 
         // Guard: One-time payments can't be cancelled (they're not subscriptions)
         if (!subscriptionId.startsWith('sub_')) {
-            console.log(`ℹ️ [CANCEL] ID ${subscriptionId} is a one-time payment, not a subscription.`);
+            if (process.env.NETLIFY_DEV === 'true') console.log(`ℹ️ [CANCEL] ID ${subscriptionId} is a one-time payment, not a subscription.`);
             return {
                 statusCode: 200,
                 headers,
@@ -109,7 +109,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         const userData = userDoc.data();
         const storedSubId = userData?.lastPaymentId; // Database uses lastPaymentId
         if (storedSubId !== subscriptionId) {
-            console.warn(`⚠️ [CANCEL] Mismatch! Authed User Sub: ${storedSubId} vs Request: ${subscriptionId}`);
+            if (process.env.NETLIFY_DEV === 'true') console.warn(`⚠️ [CANCEL] Mismatch! Authed User Sub: ${storedSubId} vs Request: ${subscriptionId}`);
             // Proceed with caution: legacy users might not have subId stored yet, 
             // but if they do, it MUST match.
             if (storedSubId) {
@@ -124,7 +124,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         // 2. Call Dodo Payments API
         const endpoint = `${DODO_API_BASE}/subscriptions/${subscriptionId}`;
 
-        console.log(`🔄 [CANCEL] Calling Dodo API: ${endpoint}`);
+        if (process.env.NETLIFY_DEV === 'true') console.log(`🔄 [CANCEL] Calling Dodo API: ${endpoint}`);
 
         const dodoResponse = await fetch(endpoint, {
             method: 'PATCH',
@@ -139,7 +139,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
 
         if (!dodoResponse.ok) {
             const errorText = await dodoResponse.text();
-            console.error(`❌ [CANCEL] Dodo API Error (${dodoResponse.status}): ${errorText}`);
+            if (process.env.NETLIFY_DEV === 'true') console.error(`❌ [CANCEL] Dodo API Error (${dodoResponse.status}): ${errorText}`);
 
             // Parse error if JSON
             let errorMessage = 'Failed to cancel with payment provider.';
@@ -150,7 +150,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
                 // Handle common cases gracefully
                 if (errorText.includes('already') || errorText.includes('cancelled') || errorText.includes('expired') || dodoResponse.status === 400) {
                     // Subscription might already be cancelled - that's fine
-                    console.log('⚠️ [CANCEL] Subscription may already be cancelled/expired. Treating as success.');
+                    if (process.env.NETLIFY_DEV === 'true') console.log('⚠️ [CANCEL] Subscription may already be cancelled/expired. Treating as success.');
 
                     // Update local status anyway
                     await db.collection('users').doc(userId).set({
@@ -181,7 +181,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         }
 
         const dodoData = await dodoResponse.json();
-        console.log(`✅ [CANCEL] Dodo Success. Status: ${dodoData.status}`);
+        if (process.env.NETLIFY_DEV === 'true') console.log(`✅ [CANCEL] Dodo Success. Status: ${dodoData.status}`);
 
         // 3. Update Firestore 
         // We optimistically update status even though webhook will verify it later
@@ -201,7 +201,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         };
 
     } catch (error: any) {
-        console.error('❌ [CANCEL] Internal Error:', error.message);
+        if (process.env.NETLIFY_DEV === 'true') console.error('❌ [CANCEL] Internal Error:', error.message);
         return {
             statusCode: 500,
             headers,

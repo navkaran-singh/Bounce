@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles, Shield, Zap, ArrowRight, Anchor, RefreshCw, Activity, Brain, Check, Info, X, RotateCcw, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Particles } from '../components/Particles';
+import ScrollStory from './ScrollStory';
 
 // --- 1. THE ORB COMPONENT (Matched to your Orb.tsx) ---
 interface OrbProps {
@@ -204,10 +205,10 @@ const FeatureVisual = ({ type }: { type: 'safety' | 'energy' | 'identity' | 'fri
                     </div>
                     {/* Floating badges */}
                     <motion.div animate={{ y: [-5, 5, -5] }} transition={{ duration: 4, repeat: Infinity }} className="absolute -right-8 -top-4 bg-black/80 border border-purple-500/50 px-2 py-1 rounded text-[10px] text-purple-200 backdrop-blur-md">
-                        Runner
+                        Initiation
                     </motion.div>
                     <motion.div animate={{ y: [5, -5, 5] }} transition={{ duration: 5, repeat: Infinity }} className="absolute -left-8 -bottom-4 bg-black/80 border border-purple-500/50 px-2 py-1 rounded text-[10px] text-purple-200 backdrop-blur-md">
-                        Reader
+                        Expansion
                     </motion.div>
                 </div>
             </div>
@@ -233,12 +234,126 @@ const FeatureVisual = ({ type }: { type: 'safety' | 'energy' | 'identity' | 'fri
     return null;
 }
 
+// --- FAQ ITEM COMPONENT ---
+const FAQItem: React.FC<{ question: string; answer: string }> = ({ question, answer }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    return (
+        <motion.div
+            initial={false}
+            className="border border-white/10 rounded-2xl overflow-hidden bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+        >
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full px-6 py-5 flex items-center justify-between text-left"
+            >
+                <span className="font-medium text-white pr-4">{question}</span>
+                <motion.div
+                    animate={{ rotate: isOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </motion.div>
+            </button>
+            <AnimatePresence initial={false}>
+                {isOpen && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        <div className="px-6 pb-5 text-gray-400 leading-relaxed">
+                            {answer}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
+    );
+};
+
+// --- MOBILE NAVIGATION SIDEBAR ---
+const MobileNav: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+    const sections = [
+        { id: 'hero', label: 'Home' },
+        { id: 'comparison', label: 'Why Bounce' },
+        { id: 'how-it-works', label: 'How It Works' },
+        { id: 'pricing', label: 'Pricing' },
+        { id: 'faq', label: 'FAQ' },
+    ];
+
+    const scrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+            onClose();
+        }
+    };
+
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <>
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+                    />
+                    <motion.div
+                        initial={{ x: '-100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '-100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="fixed left-0 top-0 bottom-0 w-64 bg-[#0A0A0C] border-r border-white/10 z-50 md:hidden"
+                    >
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-2">
+                                    <img src="/pwa-192x192.png" alt="Bounce" className="w-8 h-8 rounded-lg" />
+                                    <span className="font-bold text-white">Bounce</span>
+                                </div>
+                                <button onClick={onClose} className="p-2 text-gray-400 hover:text-white">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <nav className="space-y-2">
+                                {sections.map((section) => (
+                                    <button
+                                        key={section.id}
+                                        onClick={() => scrollToSection(section.id)}
+                                        className="w-full text-left px-4 py-3 rounded-xl text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                                    >
+                                        {section.label}
+                                    </button>
+                                ))}
+                            </nav>
+                            <div className="mt-8 pt-8 border-t border-white/10">
+                                <Link
+                                    to="/app"
+                                    className="block w-full text-center px-4 py-3 bg-white text-black rounded-xl font-semibold hover:bg-gray-100 transition-colors"
+                                >
+                                    Get Started
+                                </Link>
+                            </div>
+                        </div>
+                    </motion.div>
+                </>
+            )}
+        </AnimatePresence>
+    );
+};
+
 
 // --- 3. MAIN PAGE ---
 
 export const LandingPage: React.FC = () => {
     const [orbState, setOrbState] = useState<'frozen' | 'healing' | 'success'>('frozen');
     const [showInfoTooltip, setShowInfoTooltip] = useState(false);
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
     // Cycle through states to tell the story visually
     useEffect(() => {
@@ -264,11 +379,23 @@ export const LandingPage: React.FC = () => {
         <div className="min-h-screen bg-[#050507] text-white overflow-x-hidden font-sans selection:bg-purple-500/30">
             <Particles />
             <BackgroundEnvironment />
+            <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
             {/* Nav */}
-            <nav className="fixed top-0 w-full z-50 border-b border-white/5 bg-[#050507]/80 backdrop-blur-md">
+            <nav
+                className={`fixed top-0 w-full z-50 border-b border-white/5 bg-[#050507]/80 backdrop-blur-md transition-transform duration-300`}
+            >
                 <div className="px-6 py-4 flex justify-between items-center max-w-7xl mx-auto">
                     <div className="flex items-center gap-3">
+                        {/* Mobile hamburger */}
+                        <button
+                            onClick={() => setMobileNavOpen(true)}
+                            className="md:hidden p-2 -ml-2 text-gray-400 hover:text-white"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 12h18M3 6h18M3 18h18" />
+                            </svg>
+                        </button>
                         <img src="/pwa-192x192.png" alt="Bounce" className="w-8 h-8 rounded-lg" />
                         <span className="font-bold tracking-tight text-gray-200">Bounce</span>
                     </div>
@@ -277,7 +404,7 @@ export const LandingPage: React.FC = () => {
             </nav>
 
             {/* HERO SECTION */}
-            <section className="relative z-10 pt-32 pb-12 px-6 max-w-7xl mx-auto md:min-h-screen md:flex md:items-center">
+            <section id="hero" className="relative z-10 pt-32 pb-12 px-6 max-w-7xl mx-auto md:min-h-screen md:flex md:items-center">
                 <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center w-full">
 
                     {/* LEFT COLUMN: Text */}
@@ -391,7 +518,7 @@ export const LandingPage: React.FC = () => {
             </section>
 
             {/* COMPARISON SECTION */}
-            <section className="relative z-10 py-16 md:py-24 px-6 bg-[#050507]/50">
+            <section id="comparison" className="relative z-10 py-16 md:py-24 px-6 bg-[#050507]/50">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-12 md:mb-20">
                         <h2 className="text-3xl font-bold mb-4">If habit apps haven't worked for you, you're not alone.</h2>
@@ -476,7 +603,7 @@ export const LandingPage: React.FC = () => {
             </section>
 
             {/* HOW IT WORKS - VISUAL UPGRADE */}
-            <section className="relative z-10 py-24 px-6 border-t border-white/5 bg-[#050507]">
+            <section id="how-it-works" className="relative z-10 py-24 px-6 border-t border-white/5 bg-[#050507]">
                 <div className="max-w-6xl mx-auto">
 
                     {/* HEADER */}
@@ -579,7 +706,7 @@ export const LandingPage: React.FC = () => {
                                         Identity Evolution
                                     </h3>
                                     <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                                        Stop trying to do 10 things at once. We group habits into <strong>Identity Rotations</strong>. Focus on being a "Runner" today and a "Reader" tomorrow.
+                                        Stop trying to do 10 things at once. Bounce builds around a <strong>single Identity</strong>—like becoming a "Runner" or a "Writer". All habits reinforce who you're becoming, not just what you're doing.
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                         <span className="text-[10px] px-2 py-1 rounded bg-purple-900/20 text-purple-300 border border-purple-500/20">Weekly Review</span>
@@ -608,8 +735,7 @@ export const LandingPage: React.FC = () => {
                                         Friction Removal
                                     </h3>
                                     <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                                        Too tired to type? Use <strong>Voice Logging</strong>. Overwhelmed by clutter? The interface simplifies automatically when you are stressed.
-                                    </p>
+                                        Too tired to type? Use <strong>Voice Logging</strong>. Overwhelmed? Set your energy to <strong>Low</strong>, and the app shifts to show only what matters.</p>
                                     <div className="flex flex-wrap gap-2">
                                         <span className="text-[10px] px-2 py-1 rounded bg-emerald-900/20 text-emerald-300 border border-emerald-500/20">Voice AI</span>
                                         <span className="text-[10px] px-2 py-1 rounded bg-white/5 text-gray-400 border border-white/5">Focus Mode</span>
@@ -621,6 +747,8 @@ export const LandingPage: React.FC = () => {
                     </div>
                 </div>
             </section>
+
+            {/* <ScrollStory /> */}
 
             {/* PRICING */}
             <section id="pricing" className="relative z-10 py-16 md:py-24 px-6 border-t border-white/5 bg-gradient-to-b from-transparent to-[#050507]/50">
@@ -642,7 +770,9 @@ export const LandingPage: React.FC = () => {
                                     { label: 'Manual Energy', benefit: 'Set High/Medium/Low days' },
                                     { label: 'Never Miss Twice', benefit: 'Gentle nudge before momentum fades' },
                                     { label: 'Resilience Score', benefit: 'Track bounce rate, not streaks' },
-                                    { label: 'Voice Logging', benefit: 'Quick voice notes' }
+                                    { label: 'Voice Logging', benefit: 'Quick voice notes' },
+                                    { label: 'New Habits On Stage Progression', benefit: 'New habits unlocked as you progress' },
+                                    { label: 'Edit Habits', benefit: 'Edit your habits at any time' },
                                 ].map((item) => (
                                     <li key={item.label} className="flex items-start gap-3">
                                         <div className="p-1 rounded-full bg-white/10 mt-0.5"><Check size={12} /></div>
@@ -675,6 +805,7 @@ export const LandingPage: React.FC = () => {
                                     { label: 'Weekly Clarity', benefit: 'Calm, personalized weekly analysis' },
                                     { label: 'Smart Evolution', benefit: 'Regenerate next week’s habits' },
                                     { label: 'Overreach Recovery', benefit: 'Catches crashes and offers recovery' },
+                                    { label: 'Smart Habits Everyday', benefit: 'Based on long term goal and past performance' },
                                     { label: 'Novelty Injection', benefit: 'Variety to avoid burnout' }
                                 ].map((item) => (
                                     <li key={item.label} className="flex items-start gap-3">
@@ -724,6 +855,74 @@ export const LandingPage: React.FC = () => {
                     </p>
                 </div>
             </section>
+
+            {/* FAQ SECTION */}
+            <section id="faq" className="relative z-10 py-20 px-6 border-t border-white/5 bg-[#050507]">
+                <div className="max-w-3xl mx-auto">
+                    <div className="text-center mb-16">
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            className="inline-block px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs font-medium text-gray-300 mb-6"
+                        >
+                            COMMON QUESTIONS
+                        </motion.div>
+                        <h2 className="text-3xl md:text-4xl font-bold mb-4">How Bounce actually works</h2>
+                        <p className="text-gray-400">
+                            Honest answers to the questions people usually have before starting.
+                        </p>
+                    </div>
+
+                    <div className="space-y-4">
+                        {[
+                            {
+                                q: "Is Bounce just another habit tracker?",
+                                a: "No. Bounce is built around how behavior actually works. Most habit apps assume perfect consistency and rely on streaks or pressure. Bounce assumes missed days, fluctuating energy, and motivation dips. The system adapts to those realities instead of punishing you for them."
+                            },
+                            {
+                                q: "What do you mean by an identity goal?",
+                                a: "Instead of focusing on what you should do today, Bounce starts with who you are trying to become. For example someone who finishes what they start or someone who takes care of their body. Habits are then designed to reinforce that identity even on days when motivation is low."
+                            },
+                            {
+                                q: "What does using Bounce day to day actually look like?",
+                                a: "Each day you choose a version of a habit that matches your energy. Some days that is a lot. Some days it is the smallest possible step. The goal is not intensity but continuity. Over time, Bounce learns how you respond and nudges you in ways that keep you moving without overwhelm."
+                            },
+                            {
+                                q: "What happens when I miss a day or fall off?",
+                                a: "Nothing breaks. Bounce does not reset your progress or treat it as failure. It shifts the system to recovery mode and gives you lighter actions to reconnect. The focus is on returning to the identity you chose, not on making up for lost days."
+                            },
+                            {
+                                q: "How do habits become harder over time?",
+                                a: "As you show sustained consistency, Bounce moves you through stages. At each stage, habits are regenerated to match your capacity. Free users get new habits when they progress through stages. You are never pushed faster than your behavior shows you are ready for."
+                            },
+                            {
+                                q: "Is the free version actually usable long term?",
+                                a: "Yes. Free includes identity based habits, energy levels, stage progression, recovery mode, and daily guidance messages. You can build real consistency without paying and many users do."
+                            },
+                            {
+                                q: "So what does Premium change, exactly?",
+                                a: "Premium makes the system more adaptive and more personal. Bounce responds not just week to week but day to day, using recent behavior to adjust difficulty, tone, and guidance. Daily messages become personalized, reflections are written for you, and psychological patterns like overreach or avoidance are caught earlier."
+                            },
+                            {
+                                q: "Who is Bounce NOT a good fit for?",
+                                a: "If you want strict streaks, punishment for missed days, or constant pressure to do more, Bounce will probably feel too gentle. It is built for people who want consistency without guilt and progress without burnout."
+                            },
+                            {
+                                q: "Is this good for ADHD or inconsistent motivation?",
+                                a: "Yes. Bounce is designed for fluctuating energy and executive dysfunction. It uses low friction actions, flexible difficulty, and supportive messaging instead of pressure. The system is built to work with how your brain actually functions."
+                            },
+                            {
+                                q: "What kind of results should I realistically expect?",
+                                a: "Not instant transformation. What most people notice first is that they stop quitting. Over time, showing up feels less forced and more natural. The identity you chose starts to feel real because your behavior keeps reinforcing it."
+                            }
+                        ].map((item, i) => (
+                            <FAQItem key={i} question={item.q} answer={item.a} />
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+
 
             {/* FINAL CTA */}
             <section className="relative z-10 py-20 px-6 text-center border-t border-white/5 bg-gradient-to-t from-[#0A0A0C] to-[#050507]">
