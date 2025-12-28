@@ -416,7 +416,7 @@ export const LandingPage: React.FC = () => {
                             className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-6 backdrop-blur-sm"
                         >
                             <Sparkles className="w-3 h-3 text-cyan-400" />
-                            <span className="text-xs font-medium text-gray-300 tracking-wide uppercase">For ADHD / Neurodivergent Brains</span>
+                            <span className="text-xs font-medium text-gray-300 tracking-wide uppercase">Built for ADHD. Works for everyone.</span>
                         </motion.div>
 
                         <motion.h1
@@ -771,6 +771,7 @@ export const LandingPage: React.FC = () => {
                                     { label: 'Never Miss Twice', benefit: 'Gentle nudge before momentum fades' },
                                     { label: 'Resilience Score', benefit: 'Track bounce rate, not streaks' },
                                     { label: 'Voice Logging', benefit: 'Quick voice notes' },
+                                    { label: 'Calming Soundscape', benefit: 'Rain, forest, wind & more' },
                                     { label: 'New Habits On Stage Progression', benefit: 'New habits unlocked as you progress' },
                                     { label: 'Edit Habits', benefit: 'Edit your habits at any time' },
                                 ].map((item) => (
@@ -959,7 +960,7 @@ export const LandingPage: React.FC = () => {
                     </div>
 
                     <div className="text-xs text-gray-600">
-                        © {new Date().getFullYear()} Bounce. Built for the neurodivergent brain.
+                        © {new Date().getFullYear()} Bounce. Built for ADHD. Works for everyone.
                     </div>
                 </div>
             </footer>

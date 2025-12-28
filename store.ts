@@ -144,8 +144,18 @@ export const useStore = create<ExtendedUserState>()(
       // User Registration Date (for weekly review skip logic)
       userJoinedAt: null as string | null,
 
+      // Discovery Source (marketing attribution)
+      discoverySource: null as string | null,
+
       // 🛡️ COST SAFETY: Prevent duplicate AI calls during weekly review
       isGeneratingReview: false,
+
+      // Set Discovery Source (from settings)
+      setDiscoverySource: (source: string) => {
+        set({ discoverySource: source, lastUpdated: Date.now() });
+        // Sync to Firebase immediately
+        get().syncToFirebase();
+      },
 
       logout: async () => {
         await auth.signOut();
@@ -369,8 +379,26 @@ export const useStore = create<ExtendedUserState>()(
       logReflection: (dateIso, energy, note) => set((state) => {
         const dateKey = dateIso.split('T')[0];
         const newHistory = { ...state.history };
-        // 🛡️ COST SAFETY: Mark as dirty for incremental sync
-        newHistory[dateKey] = { ...newHistory[dateKey] || { date: dateKey, completedIndices: [] }, energy, note, _dirty: true };
+        const existing = newHistory[dateKey] || { date: dateKey, completedIndices: [] };
+
+        // 🛡️ DATA SAFETY: Only update fields if they are provided (not null/undefined)
+        // For notes, append to existing if present to support multiple logs per day
+        let newNote = existing.note;
+        if (note) {
+          if (existing.note) {
+            const timestamp = new Date(dateIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            newNote = `${existing.note}\n\n[${timestamp}] ${note}`;
+          } else {
+            newNote = note;
+          }
+        }
+
+        newHistory[dateKey] = {
+          ...existing,
+          energy: energy ?? existing.energy, // Only overwrite if energy is provided
+          note: newNote,
+          _dirty: true
+        };
         return { history: newHistory, lastUpdated: Date.now() };
       }),
       setDailyIntention: (dateIso, intention) => set((state) => {
@@ -460,6 +488,13 @@ export const useStore = create<ExtendedUserState>()(
       checkNewDay: async () => {
         const state = get();
         if (!state._hasHydrated) return;
+
+        // 🛡️ RACE FIX: Wait for cloud sync before running daily checks
+        // This prevents duplicate AI calls when logging into a new device
+        if (state.user && !state.initialLoadComplete) {
+          if (import.meta.env.DEV) console.log("🌅 [CHECK NEW DAY] ⏳ Waiting for cloud sync...");
+          return;
+        }
 
         const now = new Date();
         const today = now.toISOString().split('T')[0];
@@ -2007,7 +2042,8 @@ export const useStore = create<ExtendedUserState>()(
           }
 
           const cloudData = userDoc.data();
-          const subscriptionId = cloudData.lastPaymentId;
+          // ✅ FIX: Use subscriptionId field (with fallback to lastPaymentId for legacy)
+          const subscriptionId = cloudData.subscriptionId || cloudData.lastPaymentId;
 
           if (!subscriptionId) {
             throw new Error("No subscription ID found. Contact support.");
@@ -2154,6 +2190,21 @@ export const useStore = create<ExtendedUserState>()(
 
           if (import.meta.env.DEV) console.log("🔧 [ROUTINE OPTIMIZER] Calling AI with mode:", mode);
 
+          // 📝 EXTRACT YESTERDAY'S NOTES: Provide context for the manual optimization
+          const recentNotes: string[] = [];
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayKey = yesterday.toISOString().split('T')[0];
+
+          const yesterdayEntry = state.history[yesterdayKey];
+          if (yesterdayEntry?.note) {
+            const notes = yesterdayEntry.note.split('\n').filter(n => n.trim());
+            for (const note of notes.slice(0, 3)) {
+              const truncated = note.length > 100 ? note.slice(0, 100) + '...' : note;
+              recentNotes.push(truncated);
+            }
+          }
+
           const newRepository = await generateDailyAdaptation(
             state.identity,
             state.identityProfile?.type || 'SKILL', // Add type
@@ -2163,7 +2214,8 @@ export const useStore = create<ExtendedUserState>()(
             state.history[new Date().toISOString().split('T')[0]]?.intention,  // Pass today's intention
             state.userModifiedHabits,  // Pass user-modified habits for protection
             undefined,  // daysMissed - not needed for manual trigger
-            state.identityPattern || undefined  // User's core struggle pattern
+            state.identityPattern || undefined,  // User's core struggle pattern
+            recentNotes.length > 0 ? recentNotes : undefined // 📝 Pass extracted notes to AI
           );
 
           // Validate the returned repository
@@ -2237,7 +2289,8 @@ export const useStore = create<ExtendedUserState>()(
         }
 
         // Guard: Only check subscriptions, not one-time payments
-        if (!state.subscriptionId.startsWith('sub_')) {
+        // Use paymentType which is set correctly by webhook
+        if (state.paymentType === 'one_time') {
           if (import.meta.env.DEV) console.log("💎 [PREMIUM] One-time payment - no renewal check needed");
           return;
         }
@@ -2270,6 +2323,8 @@ export const useStore = create<ExtendedUserState>()(
 
         try {
           // Call secure backend to verify subscription with Dodo API
+          if (import.meta.env.DEV) console.log("💎 [PREMIUM] Calling check-subscription with:", { userId: state.user.uid, subscriptionId: state.subscriptionId });
+
           const response = await fetch('/.netlify/functions/check-subscription', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2279,7 +2334,11 @@ export const useStore = create<ExtendedUserState>()(
             })
           });
 
+          if (import.meta.env.DEV) console.log("💎 [PREMIUM] Dodo response status:", response.status);
+
           const data = await response.json();
+
+          if (import.meta.env.DEV) console.log("💎 [PREMIUM] Dodo response data:", data);
 
           // ✅ FIX #2: CLIENT ONLY READS, NEVER WRITES EXPIRY
           // Server is the only authority for premiumExpiryDate
@@ -2447,12 +2506,19 @@ export const useStore = create<ExtendedUserState>()(
         try {
           const { settings, ...profile } = cloudData;
 
-          // Load logs/history
+          // Load logs/history - Only last 90 days to reduce Firebase reads
+          const ninetyDaysAgo = new Date();
+          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+          const cutoffDate = ninetyDaysAgo.toISOString().split('T')[0];
+
           const logsCollectionRef = collection(db, 'users', state.user.uid, 'logs');
           const logsSnapshot = await getDocs(logsCollectionRef);
           const history: Record<string, DailyLog> = {};
           logsSnapshot.forEach(logDoc => {
-            history[logDoc.id] = logDoc.data() as DailyLog;
+            // Only include logs from last 90 days
+            if (logDoc.id >= cutoffDate) {
+              history[logDoc.id] = logDoc.data() as DailyLog;
+            }
           });
 
           // Get today's completed indices
@@ -2488,8 +2554,10 @@ export const useStore = create<ExtendedUserState>()(
             identityProfile: profile.identityProfile || state.identityProfile,
             // User Registration Date
             userJoinedAt: profile.userJoinedAt || state.userJoinedAt || null,
+            // Discovery Source (marketing attribution)
+            discoverySource: profile.discoverySource || state.discoverySource || null,
             // Subscription Fields (map cloud field names to local)
-            subscriptionId: profile.lastPaymentId || null, // Cloud uses lastPaymentId
+            subscriptionId: profile.subscriptionId || null, // Use actual subscriptionId, not lastPaymentId
             subscriptionStatus: profile.subscriptionStatus || null,
             paymentType: profile.paymentType || null,
             lastSubscriptionCheck: profile.lastSubscriptionCheck || null,
@@ -2553,6 +2621,8 @@ export const useStore = create<ExtendedUserState>()(
             identityProfile: state.identityProfile,
             // User Registration Date
             userJoinedAt: state.userJoinedAt,
+            // Discovery Source (marketing attribution)
+            discoverySource: state.discoverySource,
             settings: {
               theme: state.theme,
               soundEnabled: state.soundEnabled,
@@ -2644,7 +2714,7 @@ export const useStore = create<ExtendedUserState>()(
                   isPremium: true,
                   premiumExpiryDate: cloudExpiry,
                   // Also restore subscription management fields
-                  subscriptionId: cloudData.lastPaymentId || null,
+                  subscriptionId: cloudData.subscriptionId || null,
                   subscriptionStatus: cloudData.subscriptionStatus || null,
                   paymentType: cloudData.paymentType || null,
                   dailyPlanMessage: "💎 Premium restored from cloud sync.",
@@ -2668,6 +2738,12 @@ export const useStore = create<ExtendedUserState>()(
           // 🛡️ SAFETY LOCK: Mark initial load as complete - safe to sync now
           set({ initialLoadComplete: true });
           if (import.meta.env.DEV) console.log("🛡️ [LOAD] Initial load complete - sync unlocked");
+
+          // 🛡️ RACE FIX: Run daily checks now that cloud data is loaded
+          // This ensures we have the correct lastDailyPlanDate before deciding to call AI
+          get().checkNewDay();
+          get().checkMissedDay();
+          get().checkWeeklyReview();
 
           // Now that Firebase data is loaded, check subscription status
           // Cooldown will work correctly since lastSubscriptionCheck is loaded
@@ -2727,6 +2803,8 @@ export const useStore = create<ExtendedUserState>()(
         // Novelty Injection (weekly-count-based)
         weeklyReviewCount: state.weeklyReviewCount,
         lastNoveltyReviewIndex: state.lastNoveltyReviewIndex,
+        // Discovery Source (marketing attribution)
+        discoverySource: state.discoverySource,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
@@ -2764,17 +2842,17 @@ export const useStore = create<ExtendedUserState>()(
           setTimeout(() => {
             const store = useStore.getState();
 
-            // 0. Check subscription status first
+            // 0. Check subscription status first (runs for all users)
             store.checkSubscriptionStatus();
 
-            // 1. First, clean up yesterday's mess (Fixes Orb Color & Ghost Habits)
-            store.checkNewDay();
-
-            // 2. Then, check if we missed yesterday entirely (Fixes Recovery Mode)
-            store.checkMissedDay();
-
-            // 3. Check if it's Sunday/Monday and generate weekly review
-            store.checkWeeklyReview();
+            // 🛡️ RACE FIX: Only run daily checks here for users NOT logged in
+            // Logged-in users get these checks triggered AFTER cloud sync completes in loadFromFirebase
+            if (!store.user) {
+              store.checkNewDay();
+              store.checkMissedDay();
+              store.checkWeeklyReview();
+            }
+            // Logged-in users: checkNewDay/checkMissedDay/checkWeeklyReview are called in loadFromFirebase after sync
 
           }, 1000);
         }

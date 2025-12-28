@@ -137,7 +137,7 @@ export const Orb: React.FC<OrbProps> = ({ state, size = 280, isFractured = false
           transform: 'translateZ(0)' // 🟢 FIX: Force GPU
         }}
         animate={state === 'breathing' ? { scale: [1, 1.1, 1], opacity: isFractured ? [0.2, 0.3, 0.2] : [0.3, 0.5, 0.3] } : undefined}
-        transition={{ duration: 4, repeat: Infinity }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} // 🟢 SYNC: Matches breathing variant (6s)
       />
 
       {/* Pulsing Border Glow */}
@@ -148,8 +148,8 @@ export const Orb: React.FC<OrbProps> = ({ state, size = 280, isFractured = false
           opacity: 0.6,
           transform: 'translateZ(0)' // 🟢 FIX: Force GPU
         }}
-        animate={state === 'breathing' ? { scale: [1, 1.05, 1], opacity: [0.5, 0.8, 0.5] } : undefined}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        animate={state === 'breathing' ? { scale: [1, 1.02, 1], opacity: [0.5, 0.8, 0.5] } : undefined} // 🟢 SYNC: Scale matches main sphere (1.02)
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} // 🟢 SYNC: Matches breathing variant (6s)
       />
 
       {/* Main Sphere Container */}

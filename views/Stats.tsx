@@ -51,39 +51,85 @@ export const Stats: React.FC = () => {
 
         const logs = (Object.values(history) as DailyLog[])
             .filter(log => new Date(log.date) >= ninetyDaysAgo);
+
+        if (logs.length === 0) return ["Start your first bounce today! Your insights will grow with your journey."];
         if (logs.length < 5) return ["Keep bouncing! Insights will appear after a few more days."];
 
         const result = [];
 
+        // Calculate daily score averages
+        const logsWithScores = logs.filter(log => log.dailyScore !== undefined);
+        const avgScore = logsWithScores.length > 0
+            ? logsWithScores.reduce((sum, log) => sum + (log.dailyScore || 0), 0) / logsWithScores.length
+            : 0;
+
+        // Count zero-completion days vs high-completion days
+        const zeroDays = logs.filter(log => !log.completedIndices || log.completedIndices.length === 0).length;
+        const highDays = logs.filter(log => (log.dailyScore || 0) >= 2.5).length;
+        const perfectDays = logs.filter(log => (log.dailyScore || 0) === 3.0).length;
+
+        // Score-based insights
+        if (avgScore >= 2.5) {
+            result.push("You're crushing it! Your average daily score is exceptional.");
+        } else if (avgScore >= 1.5) {
+            result.push("Steady progress! You're building solid momentum.");
+        } else if (avgScore < 1 && logsWithScores.length > 0) {
+            result.push("Every bounce counts. Focus on consistency over perfection.");
+        }
+
+        // Zero-day recovery insights
+        if (zeroDays > logs.length * 0.3) {
+            result.push("Some days are harder than others. Consider using Low Energy mode more often.");
+        }
+
+        // High performance celebration
+        if (perfectDays > 0) {
+            result.push(`You've had ${perfectDays} perfect score day${perfectDays > 1 ? 's' : ''}! Keep that energy.`);
+        }
+
         // Day of week analysis
         const dayCounts = [0, 0, 0, 0, 0, 0, 0];
         let highEnergyCount = 0;
+        let lowEnergyCount = 0;
 
         logs.forEach(log => {
             const day = new Date(log.date).getDay(); // 0 = Sun
-            if (log.completedIndices.length > 0) dayCounts[day]++;
+            if (log.completedIndices && log.completedIndices.length > 0) dayCounts[day]++;
             if (log.energy === 'high') highEnergyCount++;
+            if (log.energy === 'low') lowEnergyCount++;
         });
 
         const maxDays = Math.max(...dayCounts);
+        const minDays = Math.min(...dayCounts.filter(c => c > 0 || logs.length < 30));
         const bestDayIndex = dayCounts.indexOf(maxDays);
+        const worstDayIndex = dayCounts.indexOf(minDays);
         const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-        if (maxDays > 0) {
-            result.push(`You are most consistent on ${daysOfWeek[bestDayIndex]}s.`);
+        if (maxDays > 0 && logs.length >= 14) {
+            result.push(`${daysOfWeek[bestDayIndex]}s are your power day – you're most consistent then.`);
         }
 
         if (highEnergyCount / logs.length > 0.4) {
-            result.push("You report high energy in over 40% of your sessions. Great vitality!");
+            result.push("You report high energy in over 40% of sessions. Great vitality!");
+        } else if (lowEnergyCount / logs.length > 0.5) {
+            result.push("You often work with low energy – and that's okay. You're still showing up.");
         }
 
-        // Time analysis (Using completion time from logs if available, currently just referencing lastCompletedDate for simplistic 'Morning/Evening' check if we stored time, but we store 'date'. 
-        // Assuming pattern based on 'streak' stability)
-        if (state.streak > 7) {
-            result.push("Your current streak indicates a strong habit formation.");
+        // Streak insights
+        if (state.streak > 21) {
+            result.push("Three weeks strong! Your habit is becoming automatic.");
+        } else if (state.streak > 7) {
+            result.push("Your current streak shows a strong habit forming.");
+        } else if (state.streak > 0 && state.streak <= 3) {
+            result.push("Fresh start! The first few days are the hardest – keep going.");
         }
 
-        return result;
+        // Fallback if no insights generated
+        if (result.length === 0) {
+            result.push("Keep tracking your progress. Patterns will emerge over time.");
+        }
+
+        return result.slice(0, 4); // Limit to 4 insights max
     }, [history, state.streak]);
 
     return (
@@ -231,11 +277,11 @@ export const Stats: React.FC = () => {
                 <section>
                     <div className="flex items-center gap-2 mb-4 text-orange-400">
                         <Activity size={20} />
-                        <h2 className="text-sm font-bold uppercase tracking-wider">Recent Echoes</h2>
+                        <h2 className="text-sm font-bold uppercase tracking-wider">Journal & Voice Logs</h2>
                     </div>
                     <div className="space-y-3">
                         {recentLogs.length === 0 && (
-                            <p className="text-center text-gray-400 dark:text-white/30 text-sm py-4 italic">No reflections yet.</p>
+                            <p className="text-center text-gray-400 dark:text-white/30 text-sm py-4 italic">No voice logs or notes yet.</p>
                         )}
                         {recentLogs.map((log, i) => (
                             <div key={i} className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-gray-200 dark:border-white/10">
@@ -251,7 +297,7 @@ export const Stats: React.FC = () => {
                                     </div>
                                 </div>
                                 {log.note && (
-                                    <p className="text-sm text-gray-800 dark:text-white/80 leading-relaxed">"{log.note}"</p>
+                                    <p className="text-sm text-gray-800 dark:text-white/80 leading-relaxed whitespace-pre-wrap">"{log.note}"</p>
                                 )}
                             </div>
                         ))}

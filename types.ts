@@ -3,7 +3,7 @@ export type ResilienceStatus = 'ACTIVE' | 'CRACKED' | 'BOUNCED' | 'FROZEN' | 'RE
 export type RecoveryOption = 'one-minute-reset' | 'use-shield' | 'gentle-restart';
 export type Theme = 'dark' | 'light' | 'system';
 export type EnergyLevel = 'low' | 'medium' | 'high';
-export type SoundType = 'rain' | 'forest' | 'stream' | 'volcano' | 'wind';
+export type SoundType = 'rain' | 'forest' | 'volcano' | 'wind';
 export type BreathPattern = 'coherence' | 'box' | '478' | 'sigh';
 export type WeeklyPersona = 'TITAN' | 'GRINDER' | 'SURVIVOR' | 'GHOST';
 
@@ -296,6 +296,9 @@ export interface UserState {
   // User Registration Date (for weekly review skip logic)
   userJoinedAt: string | null; // ISO date (YYYY-MM-DD)
 
+  // Discovery Source (marketing attribution)
+  discoverySource: string | null;
+
   // Actions
   setIdentity: (identity: string) => void;
   setIdentityPattern: (pattern: string) => void;
@@ -327,6 +330,7 @@ export interface UserState {
   markReviewViewed: (id: string) => void;
   handleVoiceLog: (text: string, type: 'note' | 'reflection' | 'intention') => void;
   addMicroHabit: (habit: string) => void;
+  setDiscoverySource: (source: string) => void;
 
   // Identity Evolution Engine Actions
   setIdentityProfile: (profile: Partial<IdentityProfile>) => void;

@@ -107,7 +107,8 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         }
 
         const userData = userDoc.data();
-        const storedSubId = userData?.lastPaymentId; // Database uses lastPaymentId
+        // ✅ FIX: Validate against subscriptionId field (with fallback to lastPaymentId for legacy)
+        const storedSubId = userData?.subscriptionId || userData?.lastPaymentId;
         if (storedSubId !== subscriptionId) {
             if (process.env.NETLIFY_DEV === 'true') console.warn(`⚠️ [CANCEL] Mismatch! Authed User Sub: ${storedSubId} vs Request: ${subscriptionId}`);
             // Proceed with caution: legacy users might not have subId stored yet, 
@@ -155,6 +156,8 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
                     // Update local status anyway
                     await db.collection('users').doc(userId).set({
                         subscriptionStatus: 'cancelled',
+                        subscriptionCancelled: true,
+                        cancellationDate: Date.now(),
                         lastUpdated: Date.now()
                     }, { merge: true });
 
@@ -187,6 +190,8 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         // We optimistically update status even though webhook will verify it later
         await db.collection('users').doc(userId).set({
             subscriptionStatus: 'cancelled',
+            subscriptionCancelled: true,
+            cancellationDate: Date.now(),
             lastUpdated: Date.now()
         }, { merge: true });
 

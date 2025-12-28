@@ -24,6 +24,7 @@ import { PremiumModal } from '../components/PremiumModal';
 import { Preferences } from '@capacitor/preferences';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { ProfileEditorModal } from '../components/ProfileEditorModal';
+import { TutorialModal } from '../components/TutorialModal';
 
 // Daily Plan Toast Component - Floating Glass Pill Design
 const DailyPlanToast: React.FC<{ message: string; mode: 'GROWTH' | 'STEADY' | 'RECOVERY' | null; onDismiss: () => void }> = ({ message, mode, onDismiss }) => {
@@ -123,7 +124,7 @@ const EditHabitModal: React.FC<{
     onClose: () => void;
 }> = ({ isOpen, habitText, identity, onSave, onClose }) => {
     const [text, setText] = useState(habitText);
-    const maxLength = 100;
+    const maxLength = 150;
 
     useEffect(() => {
         setText(habitText);
@@ -136,107 +137,109 @@ const EditHabitModal: React.FC<{
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-4"
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-4"
             onClick={onClose}
         >
-            <motion.div
-                initial={{ y: 50, opacity: 0, scale: 0.95 }}
-                animate={{
-                    y: 0,
-                    opacity: 1,
-                    scale: 1,
-                    boxShadow: [
-                        '0 0 40px rgba(6, 182, 212, 0.15), 0 0 80px rgba(59, 130, 246, 0.1)',
-                        '0 0 60px rgba(6, 182, 212, 0.25), 0 0 100px rgba(59, 130, 246, 0.15)',
-                        '0 0 40px rgba(6, 182, 212, 0.15), 0 0 80px rgba(59, 130, 246, 0.1)'
-                    ]
-                }}
-                exit={{ y: 50, opacity: 0, scale: 0.95 }}
-                transition={{
-                    type: "spring",
-                    damping: 25,
-                    stiffness: 300,
-                    boxShadow: { duration: 3, repeat: Infinity, ease: "easeInOut" }
-                }}
-                className="relative bg-gradient-to-br from-white/95 via-white/90 to-gray-100/95 dark:from-gray-900/95 dark:via-gray-800/90 dark:to-gray-900/95 rounded-3xl p-6 max-w-md w-full border border-primary-cyan/20 dark:border-primary-cyan/10 overflow-hidden"
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Gradient accent line */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-cyan via-blue-500 to-purple-500" />
+            {/* Outer glow wrapper */}
+            <div className="relative w-full max-w-md">
+                {/* Ambient cyan glow behind card */}
+                <div className="absolute inset-0 bg-cyan-500/15 blur-2xl rounded-3xl" />
 
-                {/* Header */}
-                <div className="flex items-center gap-3 mb-5">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-cyan/20 to-blue-500/20 flex items-center justify-center">
-                        <Pencil size={20} className="text-primary-cyan" />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                            Customize Habit
-                        </h3>
-                        <p className="text-xs text-gray-500 dark:text-white/50">
-                            Make it work for you
+                <motion.div
+                    initial={{ y: 50, opacity: 0, scale: 0.95 }}
+                    animate={{ y: 0, opacity: 1, scale: 1 }}
+                    exit={{ y: 50, opacity: 0, scale: 0.95 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                    className="relative bg-white dark:bg-[#050A0F] rounded-3xl border border-gray-200 dark:border-cyan-500/30 shadow-2xl shadow-gray-200/50 dark:shadow-cyan-900/20 overflow-hidden"
+                    onClick={e => e.stopPropagation()}
+                >
+                    {/* Subtle inner glow at top */}
+                    <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-cyan-500/10 to-transparent pointer-events-none" />
+
+                    <div className="relative p-6">
+                        {/* Header */}
+                        <div className="flex items-center gap-3 mb-5">
+                            <div className="relative">
+                                {/* Pulsing glow behind icon */}
+                                <motion.div
+                                    animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }}
+                                    transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                                    className="absolute inset-0 rounded-xl bg-cyan-500/40 blur-xl"
+                                />
+                                <div className="relative w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                                    <Pencil size={20} className="text-cyan-400" />
+                                </div>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                                    Customize Habit
+                                </h3>
+                                <p className="text-xs text-cyan-600 dark:text-cyan-200/50">
+                                    Make it work for you
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Textarea */}
+                        <div className="mb-4">
+                            <textarea
+                                value={text}
+                                onChange={e => setText(e.target.value.slice(0, maxLength))}
+                                className="w-full p-4 rounded-2xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:border-cyan-500/50 text-gray-900 dark:text-white resize-none focus:outline-none transition-all text-base leading-relaxed placeholder:text-gray-400 dark:placeholder:text-white/30"
+                                rows={3}
+                                placeholder="Enter your habit..."
+                                autoFocus
+                            />
+                            <div className="flex justify-end mt-2">
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${text.length > 80
+                                    ? 'bg-orange-500/20 text-orange-400'
+                                    : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/40'
+                                    }`}>
+                                    {text.length}/{maxLength}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Identity reminder */}
+                        <div className="bg-cyan-500/5 rounded-xl p-3 mb-4 border border-cyan-500/20">
+                            <p className="text-xs text-cyan-700 dark:text-cyan-200/70 flex items-start gap-2">
+                                <span className="text-base">✨</span>
+                                <span>
+                                    Keep it aligned with your identity as <strong className="text-cyan-400">"{identity}"</strong>
+                                </span>
+                            </p>
+                        </div>
+
+                        {/* Expiry info */}
+                        <p className="text-[11px] text-gray-500 dark:text-white/40 mb-5 flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-[10px]">📅</span>
+                            Resets on your next Weekly Review
                         </p>
+
+                        {/* Buttons */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={onClose}
+                                className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 font-semibold border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-[0.98]"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (text.trim()) {
+                                        onSave(text.trim());
+                                        onClose();
+                                    }
+                                }}
+                                disabled={!text.trim() || text.trim() === habitText}
+                                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/30 transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed"
+                            >
+                                Save Changes
+                            </button>
+                        </div>
                     </div>
-                </div>
-
-                {/* Textarea */}
-                <div className="mb-4">
-                    <textarea
-                        value={text}
-                        onChange={e => setText(e.target.value.slice(0, maxLength))}
-                        className="w-full p-4 rounded-2xl bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-primary-cyan/50 text-gray-900 dark:text-white resize-none focus:outline-none transition-all text-base leading-relaxed placeholder:text-gray-400 dark:placeholder:text-white/30"
-                        rows={3}
-                        placeholder="Enter your habit..."
-                        autoFocus
-                    />
-                    <div className="flex justify-end mt-2">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${text.length > 80
-                            ? 'bg-orange-500/10 text-orange-500'
-                            : 'bg-gray-200/50 dark:bg-white/10 text-gray-400 dark:text-white/40'
-                            }`}>
-                            {text.length}/{maxLength}
-                        </span>
-                    </div>
-                </div>
-
-                {/* Identity reminder */}
-                <div className="bg-gradient-to-r from-primary-cyan/5 to-blue-500/5 dark:from-primary-cyan/10 dark:to-blue-500/10 rounded-xl p-3 mb-4 border border-primary-cyan/10">
-                    <p className="text-xs text-gray-600 dark:text-white/70 flex items-start gap-2">
-                        <span className="text-base">✨</span>
-                        <span>
-                            Keep it aligned with your identity as <strong className="text-primary-cyan">"{identity}"</strong>
-                        </span>
-                    </p>
-                </div>
-
-                {/* Expiry info */}
-                <p className="text-[11px] text-gray-400 dark:text-white/40 mb-5 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-gray-200/50 dark:bg-white/10 flex items-center justify-center text-[10px]">📅</span>
-                    Resets on your next Weekly Review
-                </p>
-
-                {/* Buttons */}
-                <div className="flex gap-3">
-                    <button
-                        onClick={onClose}
-                        className="flex-1 py-3 rounded-xl bg-gray-200/50 dark:bg-white/5 text-gray-600 dark:text-white/60 font-semibold hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-[0.98]"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={() => {
-                            if (text.trim()) {
-                                onSave(text.trim());
-                                onClose();
-                            }
-                        }}
-                        disabled={!text.trim() || text.trim() === habitText}
-                        className="flex-1 py-3 rounded-xl bg-gradient-to-r from-primary-cyan to-blue-500 text-white font-semibold shadow-lg shadow-primary-cyan/25 hover:shadow-xl hover:shadow-primary-cyan/30 transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed"
-                    >
-                        Save Changes
-                    </button>
-                </div>
-            </motion.div>
+                </motion.div>
+            </div>
         </motion.div>
     );
 };
@@ -279,7 +282,6 @@ export const Dashboard: React.FC = () => {
         forest: 'https://assets.mixkit.co/active_storage/sfx/2434/2434-preview.mp3',
         wind: 'https://assets.mixkit.co/active_storage/sfx/2658/2658-preview.mp3',
         volcano: 'https://assets.mixkit.co/active_storage/sfx/2443/2443-preview.mp3',
-        stream: 'https://assets.mixkit.co/active_storage/sfx/207/207-preview.mp3',
     };
 
     const { isNative } = usePlatform();
@@ -581,6 +583,9 @@ export const Dashboard: React.FC = () => {
             {/* Premium Modal */}
             <PremiumModal isOpen={showPremiumModal} onClose={() => setShowPremiumModal(false)} />
 
+            {/* First-Time Tutorial Modal */}
+            <TutorialModal />
+
             {/* Edit Habit Modal */}
             <AnimatePresence>
                 {isEditHabitOpen && (
@@ -626,6 +631,7 @@ export const Dashboard: React.FC = () => {
                                 <div className="flex items-center gap-2 relative">
                                     <button
                                         onClick={() => setIsEnergyOpen(true)}
+                                        data-tutorial="energy-button"
                                         className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors relative z-50 ${currentEnergyLevel
                                             ? currentEnergyLevel === 'low' ? 'bg-red-500/20 text-red-500' : currentEnergyLevel === 'high' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'
                                             : 'bg-black/5 dark:bg-white/5 text-gray-400'
@@ -680,12 +686,11 @@ export const Dashboard: React.FC = () => {
                                                     />
                                                 </div>
 
-                                                <div className="grid grid-cols-5 gap-2">
+                                                <div className="grid grid-cols-4 gap-2">
                                                     {[
                                                         { id: 'rain', icon: <CloudRain size={14} /> },
                                                         { id: 'forest', icon: <Trees size={14} /> },
                                                         { id: 'wind', icon: <Wind size={14} /> },
-                                                        { id: 'stream', icon: <Waves size={14} /> },
                                                         { id: 'volcano', icon: <Flame size={14} /> },
                                                     ].map((s) => (
                                                         <button
@@ -734,7 +739,7 @@ export const Dashboard: React.FC = () => {
                                     </button>
                                 </div>
 
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3" data-tutorial="resilience-score">
                                     <div className="flex flex-col items-end pr-1">
                                         <span className="text-sm font-bold text-gray-800 dark:text-white">{resilienceScore}%</span>
                                         <span className="text-[10px] text-gray-400 dark:text-white/50 uppercase tracking-wider">Resilience</span>
@@ -818,9 +823,9 @@ export const Dashboard: React.FC = () => {
                             {/* Subtle Gradient Border */}
                             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-cyan-400/30 to-blue-500/30 blur-sm" />
 
-                            <div className="relative bg-[#0F0F10]/90 backdrop-blur-md rounded-[11px] py-2 px-4 flex items-center justify-center gap-2">
+                            <div className="relative bg-white/90 dark:bg-[#0F0F10]/90 backdrop-blur-md rounded-[11px] py-2 px-4 flex items-center justify-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-                                <span className="text-xs font-medium text-cyan-100/90 tracking-wide">
+                                <span className="text-xs font-medium text-cyan-800 dark:text-cyan-100/90 tracking-wide">
                                     {engineState.difficultyMessage}
                                 </span>
                             </div>
@@ -909,6 +914,7 @@ export const Dashboard: React.FC = () => {
                                 animate={{ rotateX: 0, opacity: 1 }}
                                 exit={{ rotateX: 90, opacity: 0 }}
                                 transition={{ duration: 0.3 }}
+                                data-tutorial="habit-card"
                                 className={`backdrop-blur-xl border rounded-3xl p-5 shadow-xl transition-colors ${zenMode
                                     ? 'bg-transparent border-transparent shadow-none text-center'
                                     : 'bg-white/60 dark:bg-white/5 border-gray-200 dark:border-white/10'
@@ -930,6 +936,7 @@ export const Dashboard: React.FC = () => {
                                         )}
                                         <h3
                                             className={`text-lg font-bold text-gray-800 dark:text-white leading-tight flex items-center gap-2 cursor-pointer select-none ${zenMode ? 'justify-center text-2xl' : ''}`}
+                                            data-tutorial="habit-text"
                                             onTouchStart={() => {
                                                 const timer = setTimeout(() => setIsEditHabitOpen(true), 500);
                                                 (window as any).__editHabitTimer = timer;
@@ -955,6 +962,7 @@ export const Dashboard: React.FC = () => {
                                             <button
                                                 onClick={handleShuffle}
                                                 disabled={engineState.isFrozen}
+                                                data-tutorial="shuffle-button"
                                                 className="p-2 rounded-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-primary-cyan transition-colors disabled:opacity-30"
                                             >
                                                 <Dices size={20} />
@@ -975,6 +983,7 @@ export const Dashboard: React.FC = () => {
                         onMouseLeave={stopHold}
                         onTouchStart={startHold}
                         onTouchEnd={stopHold}
+                        data-tutorial="complete-button"
                         animate={{ opacity: zenMode && isCurrentHabitDone ? 0 : 1 }}
                         className={`
                     relative w-64 h-16 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 overflow-hidden shadow-lg
@@ -1014,7 +1023,7 @@ export const Dashboard: React.FC = () => {
                                 <motion.button
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                                     onClick={handleUndo}
-                                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-dark-800 dark:bg-white/10 text-white backdrop-blur-xl border border-white/10 shadow-xl text-sm font-medium hover:bg-dark-700 dark:hover:bg-white/20 transition-colors"
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gray-100 dark:bg-dark-800 dark:bg-white/10 text-gray-700 dark:text-white backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-dark-700 dark:hover:bg-white/20 transition-colors"
                                 >
                                     <Undo2 size={16} className="text-primary-cyan" /> Undo
                                 </motion.button>

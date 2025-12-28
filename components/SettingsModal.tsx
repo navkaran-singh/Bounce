@@ -25,7 +25,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         user, logout,
         getExportData, importData,
         isPremium, premiumExpiryDate,
-        subscriptionStatus, cancelSubscription // Simplified
+        subscriptionStatus, cancelSubscription,
+        discoverySource, setDiscoverySource
     } = useStore();
 
     if (import.meta.env.DEV) console.log("Current Store User:", user);
@@ -43,6 +44,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const { isWeb, isIOS, isAndroid, isNative } = usePlatform();
 
     const [isChangeIdentityOpen, setIsChangeIdentityOpen] = useState(false);
+
+    // Discovery & Feedback States
+    const [showDiscoveryModal, setShowDiscoveryModal] = useState(false);
+    const [discoveryThankYou, setDiscoveryThankYou] = useState(false);
+
+    const DISCOVERY_OPTIONS = [
+        { id: 'twitter', label: 'Twitter / X', emoji: '🐦' },
+        { id: 'instagram', label: 'Instagram', emoji: '📸' },
+        { id: 'youtube', label: 'YouTube', emoji: '▶️' },
+        { id: 'reddit', label: 'Reddit', emoji: '🤖' },
+        { id: 'friend', label: 'Friend referral', emoji: '👋' },
+        { id: 'google', label: 'Google Search', emoji: '🔍' },
+        { id: 'appstore', label: 'App Store', emoji: '📱' },
+        { id: 'other', label: 'Other', emoji: '✨' }
+    ];
+
+    const handleDiscoverySelect = (source: string) => {
+        setDiscoverySource(source);
+        setShowDiscoveryModal(false);
+        setDiscoveryThankYou(true);
+        setTimeout(() => setDiscoveryThankYou(false), 3000);
+    };
 
     const { requestPermission, scheduleReminder, clearReminders } = useNotifications();
     const [reminderTime, setReminderTime] = useState(localStorage.getItem('bounce_reminder') || '');
@@ -140,7 +163,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const sounds: { id: SoundType; label: string; icon: React.ReactNode }[] = [
         { id: 'rain', label: 'Rain', icon: <CloudRain size={18} /> },
         { id: 'forest', label: 'Forest', icon: <Trees size={18} /> },
-        { id: 'stream', label: 'Stream', icon: <Waves size={18} /> },
     ];
 
     return (
@@ -169,7 +191,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         dragConstraints={{ top: 0 }}
                         onDragEnd={handleDragEnd}
 
-                        className="bg-dark-800 flex flex-col dark:bg-dark-800 bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl pointer-events-auto relative overflow-y-auto max-h-[85vh]"
+                        className="bg-white dark:bg-dark-800 flex flex-col w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl pointer-events-auto relative overflow-y-auto max-h-[85vh]"
                     >
                         {/* 👇 ADD DRAG HANDLE */}
                         <div className="w-full flex justify-center mb-4 cursor-grab active:cursor-grabbing flex-none">
@@ -235,7 +257,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                                         onClick={() => {
                                             setIsChangeIdentityOpen(true);
                                         }}
-                                        className="w-full flex items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors text-white/60 hover:text-white/80"
+                                        className="w-full flex items-center justify-center gap-2 p-3 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-gray-600 dark:text-white/60 hover:text-gray-800 dark:hover:text-white/80"
                                     >
                                         <RefreshCw size={16} />
                                         <span className="text-sm font-medium">Change Identity</span>
@@ -494,6 +516,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
 
 
+                            {/* Feedback & Support Section */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-500 dark:text-white/40 uppercase tracking-wider mb-4">Feedback & Support</h3>
+                                <div className="flex flex-col gap-3">
+                                    {/* Where did you find us? - Only show if not answered yet */}
+                                    {!discoverySource && (
+                                        <button
+                                            onClick={() => setShowDiscoveryModal(true)}
+                                            className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <svg className="w-4 h-4 text-gray-500 dark:text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                </svg>
+                                                <span className="text-sm font-medium text-gray-700 dark:text-white/80">Where did you find us?</span>
+                                            </div>
+                                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </button>
+                                    )}
+
+                                    {/* Give Feedback */}
+                                    <a
+                                        href="https://docs.google.com/forms/d/e/1FAIpQLSfCVYcb32A4uasw93u3Iu3NeRzn1-50SQYWCmAq_gHhFEO0jA/viewform?usp=dialog"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-gray-500 dark:text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                            </svg>
+                                            <span className="text-sm font-medium text-gray-700 dark:text-white/80">Give Feedback</span>
+                                        </div>
+                                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
+
                             {/* Footer */}
                             <div className="text-center mt-8">
                                 <p className="text-xs text-gray-400 dark:text-white/20">Bounce v0.1 • {isWeb ? 'Web' : 'Native'} • {isIOS ? 'iOS' : isAndroid ? 'Android' : 'Desktop'}</p>
@@ -504,6 +568,79 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
                         </div>
                     </motion.div>
+
+                    {/* Discovery Modal */}
+                    <AnimatePresence>
+                        {showDiscoveryModal && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-auto"
+                            >
+                                <div
+                                    className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto"
+                                    onClick={() => setShowDiscoveryModal(false)}
+                                />
+                                <motion.div
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0.9, opacity: 0 }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="relative bg-white dark:bg-dark-800 rounded-2xl p-6 mx-4 w-full max-w-sm shadow-2xl pointer-events-auto z-10"
+                                >
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                                        Where did you find us?
+                                    </h3>
+                                    <p className="text-sm text-gray-500 dark:text-white/50 mb-4">
+                                        This helps us understand how people discover Bounce.
+                                    </p>
+                                    <div className="flex flex-col gap-2">
+                                        {DISCOVERY_OPTIONS.map((option) => (
+                                            <button
+                                                key={option.id}
+                                                onClick={() => handleDiscoverySelect(option.label)}
+                                                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${discoverySource === option.label
+                                                    ? 'bg-primary-cyan/10 border-primary-cyan/50 text-primary-cyan'
+                                                    : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10'
+                                                    }`}
+                                            >
+                                                <span className="text-lg">{option.emoji}</span>
+                                                <span className="text-sm font-medium">{option.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowDiscoveryModal(false);
+                                        }}
+                                        className="mt-4 w-full p-2 text-sm text-gray-500 dark:text-white/40 hover:text-gray-700 dark:hover:text-white/60 transition-colors relative z-10"
+                                    >
+                                        Skip for now
+                                    </button>
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Discovery Thank You Toast */}
+                    <AnimatePresence>
+                        {discoveryThankYou && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 50 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 50 }}
+                                className="fixed bottom-24 left-4 right-4 z-[70] flex justify-center pointer-events-none"
+                            >
+                                <div className="bg-dark-800 dark:bg-white text-white dark:text-dark-800 px-4 py-3 rounded-2xl shadow-lg flex items-center gap-2">
+                                    <span className="text-lg">💚</span>
+                                    <p className="text-sm font-medium">Thanks! This helps us build Bounce more intentionally.</p>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             )}
         </AnimatePresence>

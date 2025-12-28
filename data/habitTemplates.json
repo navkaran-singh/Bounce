@@ -257,9 +257,13 @@
             },
             "the-scholar": {
                 "identityType": "SKILL",
-                "displayName": "A Scholar",
+                "displayName": "A Student / Scholar",
                 "keywords": [
                     "student",
+                    "studying",
+                    "exam",
+                    "test prep",
+                    "certification",
                     "researcher",
                     "academic",
                     "learner",
@@ -267,24 +271,33 @@
                     "phd",
                     "grad student",
                     "undergrad",
+                    "high schooler",
+                    "college",
+                    "university",
                     "self-taught",
-                    "polyglot"
+                    "polyglot",
+                    "med school",
+                    "law school",
+                    "mba",
+                    "homework",
+                    "thesis",
+                    "dissertation"
                 ],
                 "habits": {
                     "high": [
-                        "Explain a complex concept simply (Feynman Technique)",
-                        "Do a practice test/problem set with a timer running",
-                        "Write the first draft of a section (ugly draft)"
+                        "Race the clock: 30-min focused study sprint (phone in another room)",
+                        "Complete one practice test or problem set—no peeking at answers",
+                        "Teach one concept out loud as if explaining to a 10-year-old (Feynman Technique)"
                     ],
                     "medium": [
-                        "Turn raw notes into questions (Active Recall prep)",
-                        "Review the 3 hardest concepts from yesterday",
-                        "Find one primary source for your current topic"
+                        "Turn 10 notes into flashcard questions (Active Recall prep)",
+                        "Review yesterday's 3 hardest concepts using spaced repetition",
+                        "Organize study materials for tomorrow's session (mise-en-place)"
                     ],
                     "low": [
-                        "Read just the abstract or summary of the text",
-                        "Write down one question you want to answer today",
-                        "Organize your digital workspace for 5 minutes"
+                        "Write one question you need to answer in today's study session",
+                        "Open your notes/textbook and highlight one key term",
+                        "Set a timer for your next study block (commitment device)"
                     ]
                 }
             },
@@ -318,6 +331,93 @@
                         "Stand in your performance posture for 1 minute",
                         "Play/Speak the very first line",
                         "Check your equipment cables/batteries"
+                    ]
+                }
+            },
+            "the-rainmaker": {
+                "identityType": "SKILL",
+                "displayName": "A Rainmaker (Sales/Growth)",
+                "keywords": [
+                    "sales",
+                    "salesperson",
+                    "closer",
+                    "marketing",
+                    "marketer",
+                    "growth",
+                    "biz dev",
+                    "business development",
+                    "realtor",
+                    "real estate agent",
+                    "agency owner",
+                    "recruiter",
+                    "account executive",
+                    "sdr",
+                    "bdm",
+                    "partnerships",
+                    "revenue",
+                    "quota",
+                    "commission",
+                    "cold calling",
+                    "outreach"
+                ],
+                "habits": {
+                    "high": [
+                        "Make 5 outreach calls/messages before checking inbox (Offense First)",
+                        "Close one deal or advance one prospect to next stage",
+                        "Run a 30-min discovery call with full presence (no multitasking)"
+                    ],
+                    "medium": [
+                        "Update CRM with 3 contacts you spoke to today",
+                        "Draft 3 personalized follow-up messages (not templates)",
+                        "Role-play your pitch with a timer for 10 minutes"
+                    ],
+                    "low": [
+                        "Send one 'just checking in' text to a warm lead",
+                        "Add one new contact to your pipeline",
+                        "Write down the name of the person you'll call first tomorrow"
+                    ]
+                }
+            },
+            "the-healer": {
+                "identityType": "SKILL",
+                "displayName": "A Healer (Care Professional)",
+                "keywords": [
+                    "doctor",
+                    "nurse",
+                    "therapist",
+                    "counselor",
+                    "psychologist",
+                    "psychiatrist",
+                    "medical",
+                    "healthcare",
+                    "caregiver",
+                    "social worker",
+                    "emt",
+                    "paramedic",
+                    "physical therapist",
+                    "occupational therapist",
+                    "dentist",
+                    "pharmacist",
+                    "veterinarian",
+                    "midwife",
+                    "hospice",
+                    "clinical"
+                ],
+                "habits": {
+                    "high": [
+                        "Complete one patient note within 10 mins of session end (no backlog)",
+                        "Do 30 mins of focused CE/training without interruption",
+                        "Debrief a difficult case with a peer or in writing"
+                    ],
+                    "medium": [
+                        "Review tomorrow's patient list and flag complex cases",
+                        "Organize your bag/supplies for the next shift",
+                        "Journal one win and one lesson from today's work"
+                    ],
+                    "low": [
+                        "Set one boundary: 'I will leave on time today'",
+                        "Stretch your shoulders and neck for 60 seconds",
+                        "Write down one thing you did well for a patient today"
                     ]
                 }
             }
@@ -388,6 +488,44 @@
                         "Throw away 3 pieces of obvious trash",
                         "Take one cup/plate to the kitchen",
                         "Straighten one item (e.g., a rug or picture frame)"
+                    ]
+                }
+            },
+            "the-minimalist": {
+                "identityType": "CHARACTER",
+                "displayName": "A Minimalist",
+                "keywords": [
+                    "minimalist",
+                    "declutter",
+                    "simple living",
+                    "less is more",
+                    "konmari",
+                    "essentialism",
+                    "simplify",
+                    "capsule wardrobe",
+                    "zero waste",
+                    "downsizing",
+                    "tiny house",
+                    "intentional living",
+                    "slow living",
+                    "frugal",
+                    "anti-consumerist"
+                ],
+                "habits": {
+                    "high": [
+                        "Fill one bag with items to donate/trash (30-minute blitz)",
+                        "Audit one category (books, clothes, tools) and keep only the best",
+                        "Unsubscribe from 10 emails or delete 20 unused apps"
+                    ],
+                    "medium": [
+                        "Apply the 'One In, One Out' rule: remove something before adding new",
+                        "Clear and wipe one drawer or shelf completely",
+                        "Review 5 recurring subscriptions—cancel one you don't use"
+                    ],
+                    "low": [
+                        "Put one item in the donation box (no debate, just drop)",
+                        "Throw away one expired item from fridge or pantry",
+                        "Unfollow one account that drains your energy"
                     ]
                 }
             },

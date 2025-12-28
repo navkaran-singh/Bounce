@@ -49,16 +49,25 @@
   </script>
 
   <style>
-    /* 1. FORCE SOLID BACKGROUND (Fixes Transparency Glitches) */
+    /* 1. SOLID BACKGROUND - Theme Aware */
     html,
     body,
     #root {
-      background-color: #0F0F10 !important;
       height: 100%;
       width: 100%;
       -webkit-font-smoothing: antialiased;
       margin: 0;
       padding: 0;
+    }
+
+    /* Dark mode background (default) */
+    html.dark, html.dark body, html.dark #root {
+      background-color: #0F0F10 !important;
+    }
+
+    /* Light mode background */
+    html:not(.dark), html:not(.dark) body, html:not(.dark) #root {
+      background-color: #F8FAFC !important;
     }
 
     /* 2. SAFE AREA (Status Bar) */
@@ -73,18 +82,26 @@
       will-change: transform;
     }
 
-    /* 4. KILL THE BLUR (Fixes Rendering Artifacts on Modals) */
-    .backdrop-blur-sm,
-    .backdrop-blur-md,
-    .backdrop-blur-xl,
-    .backdrop-blur-\[2px\] {
+    /* 4. KILL THE BLUR - Theme Aware (Fixes Rendering Artifacts on Modals) */
+    html.dark .backdrop-blur-sm,
+    html.dark .backdrop-blur-md,
+    html.dark .backdrop-blur-xl,
+    html.dark .backdrop-blur-\[2px\] {
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
-      /* Replace blur with a solid dark overlay */
       background-color: rgba(10, 10, 10, 0.96) !important;
     }
 
-    /* Scrollbar & Tap Highlight */
+    html:not(.dark) .backdrop-blur-sm,
+    html:not(.dark) .backdrop-blur-md,
+    html:not(.dark) .backdrop-blur-xl,
+    html:not(.dark) .backdrop-blur-\[2px\] {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      background-color: rgba(248, 250, 252, 0.96) !important;
+    }
+
+    /* Scrollbar - Theme Aware */
     ::-webkit-scrollbar {
       width: 4px;
     }
@@ -93,8 +110,13 @@
       background: transparent;
     }
 
-    ::-webkit-scrollbar-thumb {
+    html.dark ::-webkit-scrollbar-thumb {
       background: #27272A;
+      border-radius: 2px;
+    }
+
+    html:not(.dark) ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
       border-radius: 2px;
     }
 
@@ -122,7 +144,7 @@
   <link rel="stylesheet" href="/index.css">
 </head>
 
-<body class="antialiased transition-colors duration-300 bg-dark-900 text-white selection:bg-primary-cyan/30">
+<body class="antialiased transition-colors duration-300 bg-light-50 dark:bg-dark-900 text-gray-900 dark:text-white selection:bg-primary-cyan/30">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

@@ -128,6 +128,12 @@ export const generateHabits = async (identity: string, identityPattern?: string)
     - "CHARACTER": User wants to BECOME a type of person (be calm, be disciplined, be confident, etc.)
     - "RECOVERY": User wants to STOP/REDUCE/FIX something (stop procrastinating, quit smoking, fix sleep, etc.)
 
+    SAFETY & INCLUSIVITY PROTOCOLS (CRITICAL):
+    - ⚠️ PHYSICAL LIMITATIONS: If the identity is physical (e.g., "Runner", "Lifter") but the user mentions ANY limitation in their struggle (e.g., "Asthma", "Bad knees", "Chronic pain"), you MUST adapt for safety.
+    - 🛡️ ACCESSIBILITY DEFAULT: Even if no limitation is mentioned, for "Initation" stage, assume the user is de-conditioned. 
+    - 🚫 NEVER suggest habits that require high cardiovascular output or heavy lifting for LOW/MEDIUM habits unless explicitly requested.
+    - ✅ USE "Scaling Options": Instead of "Run 1 mile", suggest "Walk/Run intervals" or "Move for 10 mins".
+
     CRITICAL RULES FOR HABIT DESIGN (Anti-Churn Protocols):
     
     1. 🛑 NO "PASSIVE PREP": Never generate habits like "Open the app," "Put on shoes," or "Get ready." 
@@ -438,6 +444,11 @@ export const generateDailyAdaptation = async (
        - INTEGRATION: Moderate challenge. Focus on rhythm, not breakthroughs.
        - EXPANSION: Push harder on HIGH. User can handle progressive overload.
        - MAINTENANCE: Efficiency focus. Avoid burnout. Sustainable habits only.
+
+    5. 🛡️ SAFETY CHECK:
+       - Check ${recentNotes} for ANY mention of pain, illness, or physical limitation.
+       - IF FOUND: Immediately downgrade physical intensity. Switch to "Mobility", "Stretching", or "Gentle Movement".
+       - IF UNCERTAIN: Always default to the safer, lower-impact option. Better to under-train than injure.
 
     CRITICAL CONSTRAINTS:
     - Output EXACTLY 3 habits per energy level (9 total)
