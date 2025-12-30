@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Sparkles, Shield, Zap, ArrowRight, Anchor, RefreshCw, Activity, Brain, Check, Info, X, RotateCcw, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Particles } from '../components/Particles';
 import ScrollStory from './ScrollStory';
+import { trackLandingViewed, trackAppEntered } from '../services/analytics';
 
 // --- 1. THE ORB COMPONENT (Matched to your Orb.tsx) ---
 interface OrbProps {
@@ -354,6 +355,18 @@ export const LandingPage: React.FC = () => {
     const [orbState, setOrbState] = useState<'frozen' | 'healing' | 'success'>('frozen');
     const [showInfoTooltip, setShowInfoTooltip] = useState(false);
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    const navigate = useNavigate();
+
+    // 📊 ANALYTICS: Track landing page view on mount
+    useEffect(() => {
+        trackLandingViewed();
+    }, []);
+
+    // Handle CTA click with analytics
+    const handleCtaClick = () => {
+        trackAppEntered('cta_click');
+        navigate('/app');
+    };
 
     // Cycle through states to tell the story visually
     useEffect(() => {
@@ -448,12 +461,12 @@ export const LandingPage: React.FC = () => {
                             variants={fadeInUp}
                             className="hidden md:flex flex-col sm:flex-row items-center md:items-start gap-4"
                         >
-                            <Link
-                                to="/app"
+                            <button
+                                onClick={handleCtaClick}
                                 className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full text-white font-bold text-lg shadow-[0_0_50px_-10px_rgba(139,92,246,0.3)] hover:shadow-[0_0_50px_-5px_rgba(6,182,212,0.4)] transition-all transform hover:scale-105"
                             >
                                 Try It Free
-                            </Link>
+                            </button>
                             <div className="flex items-center gap-2 px-4 py-4 text-sm text-gray-500">
                                 <Check size={16} className="text-emerald-500" />
                                 <span>No credit card required</span>
@@ -506,12 +519,12 @@ export const LandingPage: React.FC = () => {
 
                     {/* MOBILE BUTTON (Visible only on Mobile, below Orb) */}
                     <div className="w-full md:hidden order-3 mt-10 flex justify-center pb-8 relative z-30">
-                        <Link
-                            to="/app"
+                        <button
+                            onClick={handleCtaClick}
                             className="w-full max-w-xs px-10 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full text-white font-bold text-lg shadow-[0_0_40px_-10px_rgba(139,92,246,0.4)] text-center"
                         >
                             Try It Free
-                        </Link>
+                        </button>
                     </div>
 
                 </div>

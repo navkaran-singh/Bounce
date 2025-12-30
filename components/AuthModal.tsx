@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { auth, googleProvider, sendSignInLinkToEmail, actionCodeSettings, nativeRedirectUrl } from '../services/firebase';
@@ -7,6 +7,7 @@ import { signInWithPopup, signInWithCredential, GoogleAuthProvider } from 'fireb
 import { useStore } from '../store';
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+import { trackSignInPromptShown, trackSignInClicked } from '../services/analytics';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -19,9 +20,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [error, setError] = useState('');
   const { user } = useStore();
 
+  // 📊 ANALYTICS: Track when sign-in modal is shown
+  useEffect(() => {
+    if (isOpen && !user) {
+      trackSignInPromptShown('settings');
+    }
+  }, [isOpen, user]);
+
   const handleMagicLinkSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    trackSignInClicked('magic_link'); // 📊 Track sign-in intent
     try {
       const isNative = Capacitor.isNativePlatform();
       const redirectUrl = isNative ? nativeRedirectUrl : window.location.origin;
@@ -45,6 +54,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const handleGoogleSignIn = async () => {
     setError('');
     setIsLoading(true);
+    trackSignInClicked('google'); // 📊 Track sign-in intent
     const isNative = Capacitor.isNativePlatform();
 
     try {
@@ -166,8 +176,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                     Check your inbox!
                   </h2>
-                  <p className="text-sm text-gray-500 dark:text-white/60">
+                  <p className="text-sm text-gray-500 dark:text-white/60 mb-3">
                     We've sent a magic link to <strong>{email}</strong>. Click the link to sign in.
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-3 py-2 rounded-lg">
+                    📧 Don't see it? Check your spam folder!
                   </p>
                 </>
               )}

@@ -58,6 +58,7 @@ export {
   app,
   auth,
   db,
+  analytics,
   googleProvider,
   sendSignInLinkToEmail,
   isSignInWithEmailLink,

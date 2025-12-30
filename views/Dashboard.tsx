@@ -2,7 +2,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { usePlatform } from '../hooks/usePlatform';
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, BarChart3, List, Zap, ThermometerSnowflake, Dices, Check, Wind, Volume2, VolumeX, Eye, EyeOff, Hammer, Shield, Timer, Undo2, CloudRain, Trees, Waves, Flame, X, Calendar, PenLine, Sprout, Anchor, Battery, Mic, Pencil } from 'lucide-react';
+import { Settings, BarChart3, List, Zap, ThermometerSnowflake, Dices, Check, Wind, Volume2, VolumeX, Eye, EyeOff, Hammer, Shield, Timer, Undo2, CloudRain, Trees, Waves, Flame, X, Calendar, PenLine, Sprout, Anchor, Battery, Mic, Pencil, Cloud } from 'lucide-react';
 import { useStore } from '../store';
 import { useResilienceEngine } from '../hooks/useResilienceEngine';
 import { Orb } from '../components/Orb';
@@ -25,6 +25,8 @@ import { Preferences } from '@capacitor/preferences';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { ProfileEditorModal } from '../components/ProfileEditorModal';
 import { TutorialModal } from '../components/TutorialModal';
+import { AuthModal } from '../components/AuthModal';
+import { trackSignInPromptShown } from '../services/analytics';
 
 // Daily Plan Toast Component - Floating Glass Pill Design
 const DailyPlanToast: React.FC<{ message: string; mode: 'GROWTH' | 'STEADY' | 'RECOVERY' | null; onDismiss: () => void }> = ({ message, mode, onDismiss }) => {
@@ -270,6 +272,15 @@ export const Dashboard: React.FC = () => {
     const [showPostCompletionActions, setShowPostCompletionActions] = useState(false);
     const [showSoundControls, setShowSoundControls] = useState(false);
     const [showNeverMissTwice, setShowNeverMissTwice] = useState(false);
+
+    // Sync prompt state (for non-authenticated users)
+    const [showSyncCard, setShowSyncCard] = useState(() => {
+        // Only show if user hasn't permanently dismissed it
+        const dismissed = localStorage.getItem('bounce_sync_prompt_dismissed');
+        return !dismissed;
+    });
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [dismissToast, setDismissToast] = useState<string | null>(null);
 
     const todayKey = new Date().toISOString().split('T')[0];
     const [intentionInput, setIntentionInput] = useState(history[todayKey]?.intention || '');
@@ -586,6 +597,9 @@ export const Dashboard: React.FC = () => {
             {/* First-Time Tutorial Modal */}
             <TutorialModal />
 
+            {/* Auth Modal (for sync card) */}
+            <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
             {/* Edit Habit Modal */}
             <AnimatePresence>
                 {isEditHabitOpen && (
@@ -782,6 +796,66 @@ export const Dashboard: React.FC = () => {
                                 </div>
                             )}
                         </motion.div>
+
+                        {/* Sync Progress Card - For non-authenticated users */}
+                        <AnimatePresence>
+                            {!user && showSyncCard && !zenMode && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="mt-3"
+                                >
+                                    <div
+                                        onClick={() => {
+                                            trackSignInPromptShown('settings');
+                                            setIsAuthModalOpen(true);
+                                        }}
+                                        className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-primary-cyan/5 to-primary-purple/5 border border-primary-cyan/20 rounded-xl cursor-pointer hover:border-primary-cyan/40 transition-all group"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-primary-cyan/20 flex items-center justify-center shrink-0">
+                                            <Cloud size={16} className="text-primary-cyan" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
+                                                Never lose your progress
+                                            </p>
+                                            <p className="text-[10px] text-gray-500 dark:text-white/50 truncate">
+                                                Sign in to backup your progress
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                localStorage.setItem('bounce_sync_prompt_dismissed', 'true');
+                                                setShowSyncCard(false);
+                                                setDismissToast('You can sign up anytime from Settings → Data Sovereignty');
+                                                setTimeout(() => setDismissToast(null), 4000);
+                                            }}
+                                            className="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-white/70 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* Dismiss Toast */}
+                        <AnimatePresence>
+                            {dismissToast && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="mt-2 px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg"
+                                >
+                                    <p className="text-[11px] text-gray-500 dark:text-white/50 text-center">
+                                        {dismissToast}
+                                    </p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                     </motion.div>
                 )}

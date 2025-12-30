@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import { Message, IdentityType, InitialFamiliarity } from '../types';
 import { generateHabits, GenerateHabitsResult } from '../services/ai';
 import { getHabitsFromTemplate } from '../services/habitTemplateService';
+import { trackFirstAction } from '../services/analytics';
 
 // Familiarity options for v8 behavior-based stage initialization
 const FAMILIARITY_OPTIONS: { label: string; value: InitialFamiliarity; emoji: string }[] = [
@@ -144,6 +145,9 @@ export const Onboarding: React.FC = () => {
         if (import.meta.env.DEV) console.log("🪄 [ONBOARDING] Setting habit inputs to:", newInputs);
         setHabitInputs(newInputs);
         setGeneratedHabits(suggestions);
+
+        // 📊 ANALYTICS: Track first meaningful action (habits generated)
+        trackFirstAction('habits_generated');
 
         // Store identityType if AI detected it (v8: preserve stage from familiarity step)
         if (suggestions.identityType) {
@@ -388,9 +392,9 @@ export const Onboarding: React.FC = () => {
       <div className="absolute top-[-20%] left-[-20%] w-[300px] h-[300px] bg-primary-purple rounded-full blur-[100px] opacity-10 dark:opacity-20 pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[250px] h-[250px] bg-primary-cyan rounded-full blur-[100px] opacity-10 dark:opacity-20 pointer-events-none" />
 
-      {/* Header Progress - 3 steps: Identity, Familiarity, Habits */}
+      {/* Header Progress - 4 steps: Pattern, Identity, Familiarity, Habits */}
       <div className="flex justify-center gap-2 pt-8 pb-4 relative z-10">
-        {[0, 1, 2].map((i) => (
+        {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
             className={`h-1.5 rounded-full transition-all duration-500 ${i <= step ? 'w-6 bg-dark-900 dark:bg-white' : 'w-1.5 bg-dark-900/20 dark:bg-white/20'}`}

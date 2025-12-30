@@ -15,12 +15,13 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { usePlatform } from './hooks/usePlatform';
 import { auth, isSignInWithEmailLink, signInWithEmailLink } from './services/firebase';
 import { getRedirectResult } from 'firebase/auth';
+import { trackAppEntered, checkAndTrackReturnVisit, setAnalyticsUserProperties } from './services/analytics';
 
 // Payment verification state type
 type PaymentStatus = 'idle' | 'verifying' | 'success' | 'error';
 
 const WebApp: React.FC = () => {
-  const { currentView, theme, setView, identity, _hasHydrated, setHasHydrated, initializeAuth, user } = useStore();
+  const { currentView, theme, setView, identity, _hasHydrated, setHasHydrated, initializeAuth, user, isPremium } = useStore();
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('idle');
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const { isNative } = usePlatform();
@@ -31,6 +32,23 @@ const WebApp: React.FC = () => {
       if (unsubscribe) unsubscribe();
     };
   }, []);
+
+  // 📊 ANALYTICS: Track app entry and return visits
+  useEffect(() => {
+    if (!_hasHydrated) return;
+
+    // Check for return visit (user came back after >1 hour)
+    const isReturning = checkAndTrackReturnVisit();
+
+    // Track app entry with source
+    trackAppEntered(isReturning ? 'returning' : 'direct');
+
+    // Set user properties for segmentation
+    setAnalyticsUserProperties({
+      isPremium: isPremium,
+      hasIdentity: !!identity
+    });
+  }, [_hasHydrated]);
 
   // Handle SECURE payment verification via serverless function
   useEffect(() => {
@@ -311,9 +329,17 @@ const WebApp: React.FC = () => {
                 <h2 className="text-xl font-bold mb-2 text-green-600 dark:text-green-400">
                   Welcome to Premium! 🚀
                 </h2>
-                <p className="text-gray-500 dark:text-gray-400">
+                <p className="text-gray-500 dark:text-gray-400 mb-3">
                   Your payment was verified. Enjoy all premium features!
                 </p>
+                <div className="bg-primary-cyan/10 border border-primary-cyan/20 rounded-xl p-3 text-left">
+                  <p className="text-xs font-medium text-primary-cyan mb-2">✨ Starting now:</p>
+                  <ul className="text-xs text-gray-600 dark:text-gray-300 space-y-1.5">
+                    <li>• <b>Habits evolve daily</b> based on your logs & patterns</li>
+                    <li>• <b>Burnout protection</b> — AI detects overreach before you feel it</li>
+                    <li>• <b>Weekly AI reflection</b> on your identity growth journey</li>
+                  </ul>
+                </div>
               </>
             )}
 
