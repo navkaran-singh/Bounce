@@ -45,6 +45,17 @@ export function findHabitTemplate(identity: string): {
 } {
     const normalizedIdentity = identity.toLowerCase().trim();
 
+    // 🧠 COMPLEX IDENTITY CHECK: If identity implies multiple things, skip templates entirely
+    // This forces AI usage which can blend concepts better than simple keyword matching
+    if (normalizedIdentity.includes('and') || normalizedIdentity.includes(',')) {
+        if (import.meta.env.DEV) console.log(`📋 [TEMPLATE] Complex identity detected ("${identity}") - skipping templates to force AI`);
+        return {
+            template: null,
+            identityType: null,
+            matchedKeyword: null
+        };
+    }
+
     // Search through all identity types
     for (const type of ['SKILL', 'CHARACTER', 'RECOVERY'] as const) {
         const templates = habitTemplates.templates[type];

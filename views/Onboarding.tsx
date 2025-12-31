@@ -129,15 +129,69 @@ export const Onboarding: React.FC = () => {
 
   const shouldShowTooltip = (id: string) => !dismissedTooltips.includes(id);
 
+  // 🛡️ RATE LIMIT: AI Auto-Fill limit per day (prevents misuse)
+  const AI_AUTOFILL_LIMIT = 2;
+  const AI_AUTOFILL_KEY = 'bounce_autofill_usage';
+
+  const getAutoFillUsage = (): { count: number; date: string } => {
+    try {
+      const stored = localStorage.getItem(AI_AUTOFILL_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('Failed to read autofill usage from localStorage');
+    }
+    return { count: 0, date: '' };
+  };
+
+  const incrementAutoFillUsage = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const usage = getAutoFillUsage();
+
+    // Reset count if it's a new day
+    if (usage.date !== today) {
+      localStorage.setItem(AI_AUTOFILL_KEY, JSON.stringify({ count: 1, date: today }));
+    } else {
+      localStorage.setItem(AI_AUTOFILL_KEY, JSON.stringify({ count: usage.count + 1, date: today }));
+    }
+  };
+
+  const canUseAutoFill = (): boolean => {
+    const today = new Date().toISOString().split('T')[0];
+    const usage = getAutoFillUsage();
+
+    // Reset if new day
+    if (usage.date !== today) {
+      return true;
+    }
+
+    return usage.count < AI_AUTOFILL_LIMIT;
+  };
+
+
+
   const handleMagicWand = async () => {
+    // 🛡️ RATE LIMIT CHECK
+    if (!canUseAutoFill()) {
+      if (import.meta.env.DEV) console.log('🚫 [ONBOARDING] Auto-fill limit reached for today');
+      // Use fallback instead of AI
+      fallbackSuggestions();
+      return;
+    }
+
     setIsGenerating(true);
     try {
+      // Track usage BEFORE the call (in case of errors, we still count it)
+      incrementAutoFillUsage();
+
       const suggestions = await generateHabits(identity);
 
       if (import.meta.env.DEV) console.log("🪄 [ONBOARDING] AI returned suggestions:", suggestions);
       if (import.meta.env.DEV) console.log("🪄 [ONBOARDING] High array:", suggestions.high);
       if (import.meta.env.DEV) console.log("🪄 [ONBOARDING] Medium array:", suggestions.medium);
       if (import.meta.env.DEV) console.log("🪄 [ONBOARDING] Low array:", suggestions.low);
+
 
       // Populate inputs with one habit per energy level: [high, medium, low]
       if (suggestions.high?.length > 0 && suggestions.medium?.length > 0 && suggestions.low?.length > 0) {
@@ -172,28 +226,17 @@ export const Onboarding: React.FC = () => {
 
 
   const fallbackSuggestions = () => {
-    const idLower = identity.toLowerCase();
-    let high = ["Drink 1 glass of water", "Take 3 deep breaths", "Stretch for 1 minute"];
-    let medium = ["Drink 1/2 glass", "Take 1 deep breath", "Stretch 30s"];
-    let low = ["Sip water", "Close eyes", "Stand up"];
-
-    if (idLower.includes("write") || idLower.includes("author")) {
-      high = ["Write 500 words", "Edit 1 chapter", "Outline next scene"];
-      medium = ["Write 1 paragraph", "Edit 1 page", "Review notes"];
-      low = ["Write 1 sentence", "Open document", "Read last sentence"];
-    } else if (idLower.includes("run") || idLower.includes("athlete") || idLower.includes("fit")) {
-      high = ["Run 5km", "Sprint intervals", "Gym session"];
-      medium = ["Run 1km", "Jog 10 mins", "Home workout"];
-      low = ["Put on shoes", "Do 5 jumping jacks", "Fill water bottle"];
-    } else if (idLower.includes("code") || idLower.includes("dev")) {
-      high = ["Code 1 hour", "Solve 1 LeetCode", "Build feature"];
-      medium = ["Code 15 mins", "Refactor function", "Read docs"];
-      low = ["Open VS Code", "Write one comment", "Review one function"];
-    }
+    // Use centralized habit template service (includes fallback)
+    const templateResult = getHabitsFromTemplate(identity);
+    if (import.meta.env.DEV) console.log("📋 [ONBOARDING] Using template fallback:", templateResult.isTemplateMatch ? 'matched' : 'fallback');
 
     // Populate with one habit per energy level: [high, medium, low]
-    setHabitInputs([high[0], medium[0], low[0]]);
-    setGeneratedHabits({ high, medium, low });
+    setHabitInputs([templateResult.high[0], templateResult.medium[0], templateResult.low[0]]);
+    setGeneratedHabits({
+      high: templateResult.high,
+      medium: templateResult.medium,
+      low: templateResult.low
+    });
   };
 
 
@@ -228,7 +271,7 @@ export const Onboarding: React.FC = () => {
           const domainMsg: Message = {
             id: 'bot-domain',
             sender: 'bot',
-            text: "Who do you want to become through this?",
+            text: "Who do you want to become through this?\n\n(Focus on one identity at a time to avoid overwhelm)",
             type: 'text'
           };
           setMessages(prev => [...prev, domainMsg]);
@@ -370,18 +413,18 @@ export const Onboarding: React.FC = () => {
     <div className="flex flex-col h-full relative">
       {/* Tooltips Overlay */}
       <AnimatePresence>
-        {step === 0 && shouldShowTooltip('identity') && (
+        {/* {step === 0 && shouldShowTooltip('identity') && (
           <Tooltip
             key="t1"
             text="Pick something you're actually willing to work on — not what sounds good."
             onClose={() => dismissTooltip('identity')}
             delay={1}
           />
-        )}
+        )} */}
         {step === 2 && shouldShowTooltip('micro') && (
           <Tooltip
             key="t2"
-            text="Why so small? To prevent burnout. On bad days, the smallest version keeps the streak alive."
+            text="High, Normal, Low - match your habit to your energy. This keeps you consistent even on hard days."
             onClose={() => dismissTooltip('micro')}
             delay={0.5}
           />
@@ -562,7 +605,7 @@ export const Onboarding: React.FC = () => {
 
                 {/* Seriousness Nudge */}
                 <p className="text-xs text-center text-gray-500 dark:text-white/40">
-                  Pick something you're actually willing to work on — not what sounds good.
+                  Pick something you're willing to work on!
                 </p>
               </>
             )}

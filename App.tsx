@@ -7,6 +7,18 @@ import { TermsOfService } from './views/Legal/TermsOfService';
 import { RefundPolicy } from './views/Legal/RefundPolicy';
 import { Contact } from './views/Legal/Contact';
 
+// 🚀 PWA OPTIMIZATION: Instant route decision (no flash)
+const isPWA = typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true
+);
+
+const PWAOrLanding: React.FC = () => {
+    // If running as PWA, skip landing instantly
+    if (isPWA) return <Navigate to="/app" replace />;
+    return <LandingPage />;
+};
+
 // Redirect component to handle payment/auth callbacks
 const RedirectHandler: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const location = useLocation();
@@ -14,6 +26,16 @@ const RedirectHandler: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
+
+        // 🚀 PWA OPTIMIZATION: Skip landing page for installed PWA users
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+            (window.navigator as any).standalone === true; // iOS Safari
+
+        if (isPWA && location.pathname === '/') {
+            console.log('[ROUTER] PWA detected, skipping landing page');
+            navigate('/app', { replace: true });
+            return;
+        }
 
         // Check for payment callback params
         const hasPaymentId = params.has('payment_id') || params.has('subscription_id');
@@ -40,7 +62,8 @@ const App: React.FC = () => {
         <BrowserRouter>
             <RedirectHandler>
                 <Routes>
-                    <Route path="/" element={<LandingPage />} />
+                    {/* PWA users skip landing page entirely */}
+                    <Route path="/" element={<PWAOrLanding />} />
                     <Route path="/app" element={<WebApp />} />
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/terms" element={<TermsOfService />} />

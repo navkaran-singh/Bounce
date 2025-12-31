@@ -1,7 +1,10 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { EnergyLevel, IdentityType } from "../types";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+// Initialize the new Google GenAI client
+const genAI = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
 // Model fallback order for handling 503 overload errors
 const MODEL_FALLBACK_ORDER = [
@@ -13,43 +16,59 @@ const MODEL_FALLBACK_ORDER = [
 
 /**
  * Centralized safe AI request helper
- * 🛡️ CIRCUIT BREAKER: Max 3 total attempts across all models
- * Prevents "Retry Storm" that could cause 8+ API calls on failure
+ * 🛡️ CIRCUIT BREAKER: Max 2 total attempts across models
+ * 🛡️ COST SAFETY: Uses thinkingBudget: 0 to disable thinking tokens
  */
 async function safeAIRequest(
   prompt: string,
-  preferredModels: string[] = MODEL_FALLBACK_ORDER
+  preferredModels: string[] = MODEL_FALLBACK_ORDER,
+  jsonMode: boolean = true  // Set to false for plain text responses
 ): Promise<string> {
-  if (!API_KEY) throw new Error("Missing API key");
+  if (!genAI) throw new Error("Missing API key");
 
-  const genAI = new GoogleGenerativeAI(API_KEY);
-
-  // 🛡️ COST SAFETY: Hard limit of 3 total API calls (not 8)
-  const MAX_TOTAL_ATTEMPTS = 3;
+  const MAX_TOTAL_ATTEMPTS = 2;
   const BACKOFF_MS = 1000;
 
   for (let attempt = 0; attempt < MAX_TOTAL_ATTEMPTS; attempt++) {
-    // Rotate through models: attempt 0 -> model 0, attempt 1 -> model 1, etc.
     const modelName = preferredModels[attempt % preferredModels.length];
 
     try {
       if (import.meta.env.DEV) console.log(`🤖 [AI] Attempt ${attempt + 1}/${MAX_TOTAL_ATTEMPTS} using ${modelName}...`);
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+
+      const response = await genAI.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          maxOutputTokens: 1024,
+          thinkingConfig: { thinkingBudget: 0 },  // 🛡️ Disable thinking tokens
+          ...(jsonMode && { responseMimeType: "application/json" })
+        }
+      });
+
+      const text = response.text || "";
+
+      // 📊 TOKEN USAGE LOGGING
+      const usage = (response as any).usageMetadata;
+      if (usage) {
+        console.log(`📊 [TOKEN USAGE] ${modelName}:`, {
+          input: usage.promptTokenCount || 0,
+          output: usage.candidatesTokenCount || 0,
+          thinking: usage.thoughtsTokenCount || 0,
+          total: usage.totalTokenCount || 0
+        });
+      }
+
       if (import.meta.env.DEV) console.log(`🤖 [AI] ✅ Success with ${modelName} on attempt ${attempt + 1}`);
       return text;
     } catch (err: any) {
       const errorMsg = err?.message || String(err);
       console.warn(`🤖 [AI ERROR] Attempt ${attempt + 1}/${MAX_TOTAL_ATTEMPTS} (${modelName}):`, errorMsg);
 
-      // 🛡️ CIRCUIT BREAKER: Don't retry on last attempt
       if (attempt === MAX_TOTAL_ATTEMPTS - 1) {
         console.error(`🤖 [AI] ❌ Circuit breaker tripped after ${MAX_TOTAL_ATTEMPTS} attempts`);
         break;
       }
 
-      // Backoff before next attempt
       if (import.meta.env.DEV) console.log(`🤖 [AI] Waiting ${BACKOFF_MS}ms before retry...`);
       await new Promise(r => setTimeout(r, BACKOFF_MS));
     }
@@ -57,6 +76,7 @@ async function safeAIRequest(
 
   throw new Error(`AI request failed after ${MAX_TOTAL_ATTEMPTS} attempts (circuit breaker).`);
 }
+
 
 
 // Extended return type for identity classification
@@ -84,23 +104,39 @@ export const generateHabits = async (identity: string, identityPattern?: string)
     };
   }
 
-  // No template match - fall back to AI
-  if (import.meta.env.DEV) console.log("🤖 [HABITS] No template match - using AI generation");
+  // 🧠 SMART BYPASS: If identity implies multiple things ("Writer and Runner", "Coder, Athlete")
+  // we MUST use AI to blend them. Templates are too simple for boolean logic.
+  const isComplexIdentity = identity.toLowerCase().includes('and') || identity.includes(',');
+
+  if (!isComplexIdentity && hasTemplateMatch(identity)) {
+    if (import.meta.env.DEV) console.log("📋 [HABITS] Simple identity matched template (using fast path)");
+    const templateResult = getHabitsFromTemplate(identity);
+    return {
+      high: templateResult.high,
+      medium: templateResult.medium,
+      low: templateResult.low,
+      identityType: templateResult.identityType,
+      identityReason: templateResult.identityReason
+    };
+  }
+
+  // No template match OR Complex Identity - use AI
+  if (import.meta.env.DEV) console.log(`🤖 [HABITS] ${isComplexIdentity ? 'Complex identity detected' : 'No template match'} - using AI generation`);
 
   if (!API_KEY) {
-    console.warn("Missing GEMINI_API_KEY - using fallback habits");
+    if (import.meta.env.DEV) console.warn("🤖 [HABITS] Missing GEMINI_API_KEY - using template fallback");
     const fallbackResult = getHabitsFromTemplate(identity);
     return {
       high: fallbackResult.high,
       medium: fallbackResult.medium,
       low: fallbackResult.low,
-      identityType: null,
-      identityReason: "API key missing - using fallback"
+      identityType: fallbackResult.identityType,
+      identityReason: "API key missing - using fallback template"
     };
   }
 
-  const genAI = new GoogleGenerativeAI(API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  // Use global genAI client
+  if (import.meta.env.DEV) console.log("🤖 [HABITS] Attempting AI generation for:", identity);
 
   // THE ADHD-OPTIMIZED PROMPT WITH IDENTITY CLASSIFICATION
   const prompt = `
@@ -181,9 +217,27 @@ export const generateHabits = async (identity: string, identityPattern?: string)
     `;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await genAI!.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        maxOutputTokens: 1024,
+        thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: "application/json"
+      }
+    });
+    const text = result.text || "";
+
+    // 📊 TOKEN USAGE LOGGING
+    const usage = (result as any).usageMetadata;
+    if (usage) {
+      console.log(`📊 [TOKEN USAGE] generateHabits:`, {
+        input: usage.promptTokenCount || 0,
+        output: usage.candidatesTokenCount || 0,
+        thinking: usage.thoughtsTokenCount || 0,
+        total: usage.totalTokenCount || 0
+      });
+    }
 
     if (import.meta.env.DEV) console.log("🤖 [AI] Raw response:", text);
 
@@ -270,8 +324,7 @@ export const generateDailyAdaptation = async (
     return { ...currentRepository, toastMessage: fallbackToasts[performanceMode] };
   }
 
-  const genAI = new GoogleGenerativeAI(API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  // Use global genAI client
 
   // 1. MACRO CONTEXT (The Stage - Long Term)
   // This tells AI "How hard can we push this user generally?"
@@ -471,9 +524,28 @@ export const generateDailyAdaptation = async (
 
   try {
     if (import.meta.env.DEV) console.log("🤖 [AI SERVICE] Calling Gemini API for full spectrum...");
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const result = await genAI!.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        maxOutputTokens: 1024,
+        thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: "application/json"
+      }
+    });
+    const text = result.text || "";
+
+    // 📊 TOKEN USAGE LOGGING
+    const usage = (result as any).usageMetadata;
+    if (usage) {
+      console.log(`📊 [TOKEN USAGE] generateDailyAdaptation:`, {
+        input: usage.promptTokenCount || 0,
+        output: usage.candidatesTokenCount || 0,
+        thinking: usage.thoughtsTokenCount || 0,
+        total: usage.totalTokenCount || 0
+      });
+    }
+
     if (import.meta.env.DEV) console.log("🤖 [AI SERVICE] Raw Response:", text);
 
     const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -863,8 +935,7 @@ export const generateWeeklyEvolutionPlan = async (
     return { ...currentRepository, narrative: "Keep building your habits." };
   }
 
-  const genAI = new GoogleGenerativeAI(API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  // Use global genAI client
 
   const evolutionContext = {
     'INCREASE_DIFFICULTY': `The user has mastered their current habits. Apply PROGRESSIVE OVERLOAD: increase duration/intensity by 15-25% for HIGH habits.`,
@@ -1007,7 +1078,7 @@ Return ONLY the reflection text.
   `;
 
   try {
-    const text = await safeAIRequest(prompt);
+    const text = await safeAIRequest(prompt, MODEL_FALLBACK_ORDER, false);  // Plain text, not JSON
     if (import.meta.env.DEV) console.log("🪞 [REFLECTION AI] ✅ Generated:", text.substring(0, 100) + "...");
     return text.trim();
   } catch (error) {

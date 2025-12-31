@@ -7,7 +7,11 @@ interface OrbProps {
   isFractured?: boolean;
 }
 
+import { useStore } from '../store';
+
 export const Orb: React.FC<OrbProps> = ({ state, size = 280, isFractured = false }) => {
+  const { theme } = useStore();
+  const isLight = theme === 'light';
 
   // Dynamic styles based on state
   const getColors = () => {
@@ -128,27 +132,32 @@ export const Orb: React.FC<OrbProps> = ({ state, size = 280, isFractured = false
         )}
       </AnimatePresence>
 
-      {/* Ambient Background Glow */}
+      {/* Ambient Background Glow - Dimmed in Light Mode */}
       <motion.div
         className="absolute inset-0 rounded-full blur-[60px] z-0"
         style={{
           background: `radial-gradient(circle, ${colors[0]}, ${colors[2]})`,
-          opacity: isFractured ? 0.3 : 0.4,
+          opacity: isFractured ? (isLight ? 0.15 : 0.3) : (isLight ? 0.2 : 0.4),
           transform: 'translateZ(0)' // 🟢 FIX: Force GPU
         }}
-        animate={state === 'breathing' ? { scale: [1, 1.1, 1], opacity: isFractured ? [0.2, 0.3, 0.2] : [0.3, 0.5, 0.3] } : undefined}
+        animate={state === 'breathing' ? {
+          scale: [1, 1.1, 1],
+          opacity: isFractured
+            ? [isLight ? 0.1 : 0.2, isLight ? 0.15 : 0.3, isLight ? 0.1 : 0.2]
+            : [isLight ? 0.15 : 0.3, isLight ? 0.25 : 0.5, isLight ? 0.15 : 0.3]
+        } : undefined}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} // 🟢 SYNC: Matches breathing variant (6s)
       />
 
-      {/* Pulsing Border Glow */}
+      {/* Pulsing Border Glow - Dimmed in Light Mode */}
       <motion.div
         className="absolute inset-0 rounded-full z-0"
         style={{
-          boxShadow: `0 0 20px 5px ${colors[0]}80`,
-          opacity: 0.6,
+          boxShadow: `0 0 20px 5px ${colors[0]}${isLight ? '40' : '80'}`, // Hex opacity: 40=25%, 80=50%
+          opacity: isLight ? 0.4 : 0.6,
           transform: 'translateZ(0)' // 🟢 FIX: Force GPU
         }}
-        animate={state === 'breathing' ? { scale: [1, 1.02, 1], opacity: [0.5, 0.8, 0.5] } : undefined} // 🟢 SYNC: Scale matches main sphere (1.02)
+        animate={state === 'breathing' ? { scale: [1, 1.02, 1], opacity: isLight ? [0.3, 0.5, 0.3] : [0.5, 0.8, 0.5] } : undefined} // 🟢 SYNC: Scale matches main sphere (1.02)
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} // 🟢 SYNC: Matches breathing variant (6s)
       />
 

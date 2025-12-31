@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft, X, Sparkles } from 'lucide-react';
 
@@ -44,10 +44,28 @@ const TUTORIAL_STEPS: TutorialStep[] = [
         id: 'complete-button',
         target: '[data-tutorial="complete-button"]',
         title: 'Hold to Complete',
-        description: 'Press and hold this button to mark your habit done. Feel the satisfying haptic feedback!',
+        description: 'Press and hold this button to mark your habit done. Feel the satisfying animation!',
         position: 'top',
         emoji: '✋',
         color: 'emerald',
+    },
+    {
+        id: 'voice-button',
+        target: '[data-tutorial="voice-button"]',
+        title: 'Voice Logging',
+        description: 'Prefer speaking? Tap here to log your reflections and thoughts using just your voice.',
+        position: 'left',
+        emoji: '🎙️',
+        color: 'blue',
+    },
+    {
+        id: 'sound-button',
+        target: '[data-tutorial="sound-button"]',
+        title: 'Soundscapes',
+        description: 'Tap to control ambient sounds. focus with rain, waves, or white noise.',
+        position: 'left',
+        emoji: '🎵',
+        color: 'cyan',
     },
     {
         id: 'shuffle-button',
@@ -62,7 +80,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
         id: 'energy-button',
         target: '[data-tutorial="energy-button"]',
         title: 'Set Your Energy',
-        description: 'How are you feeling today? Pick High, Medium, or Low — we\'ll serve the right habit for your state.',
+        description: 'How are you feeling today? Pick High, Medium, or Low - we\'ll serve the right habit for your state.',
         position: 'bottom',
         emoji: '🔋',
         color: 'yellow',
@@ -90,20 +108,20 @@ const TUTORIAL_STEPS: TutorialStep[] = [
 const STORAGE_KEY = 'bounce_tutorial_completed';
 
 // Get element position on screen
-const getElementPosition = (selector: string) => {
+const getElementPosition = (selector: string, containerOffset: { x: number, y: number } = { x: 0, y: 0 }) => {
     if (!selector) return null;
     const element = document.querySelector(selector);
     if (!element) return null;
     const rect = element.getBoundingClientRect();
     return {
-        top: rect.top,
-        left: rect.left,
-        right: rect.right,
-        bottom: rect.bottom,
+        top: rect.top - containerOffset.y,
+        left: rect.left - containerOffset.x,
+        right: rect.right - containerOffset.x,
+        bottom: rect.bottom - containerOffset.y,
         width: rect.width,
         height: rect.height,
-        centerX: rect.left + rect.width / 2,
-        centerY: rect.top + rect.height / 2,
+        centerX: (rect.left - containerOffset.x) + rect.width / 2,
+        centerY: (rect.top - containerOffset.y) + rect.height / 2,
     };
 };
 
@@ -111,6 +129,7 @@ export const TutorialModal: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
     const [targetRect, setTargetRect] = useState<ReturnType<typeof getElementPosition>>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const step = TUTORIAL_STEPS[currentStep];
     const isFirstStep = currentStep === 0;
@@ -175,7 +194,12 @@ export const TutorialModal: React.FC = () => {
     // Update target element position
     const updateTargetPosition = useCallback(() => {
         if (step.target) {
-            const rect = getElementPosition(step.target);
+            let offset = { x: 0, y: 0 };
+            if (containerRef.current) {
+                const cRect = containerRef.current.getBoundingClientRect();
+                offset = { x: cRect.left, y: cRect.top };
+            }
+            const rect = getElementPosition(step.target, offset);
             setTargetRect(rect);
         } else {
             setTargetRect(null);
@@ -192,20 +216,36 @@ export const TutorialModal: React.FC = () => {
     }, []);
 
     // Update position when step changes or on resize
+    // Also auto-scroll to bring target element into view
     useEffect(() => {
         if (!isOpen) return;
 
+        // First, immediately update target position (for smooth animation start)
         updateTargetPosition();
 
-        // Update on resize/scroll
+        // Then scroll element into view if needed
+        if (step.target) {
+            const element = document.querySelector(step.target);
+            if (element) {
+                // Check if element is visible with padding (100px from edges)
+                const rect = element.getBoundingClientRect();
+                const isVisible = rect.top >= 100 && rect.bottom <= window.innerHeight - 100;
+
+                if (!isVisible) {
+                    // Scroll into view, then update position after animation
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(updateTargetPosition, 350);
+                }
+            }
+        }
+
+        // Only listen to resize
         window.addEventListener('resize', updateTargetPosition);
-        window.addEventListener('scroll', updateTargetPosition, true);
 
         return () => {
             window.removeEventListener('resize', updateTargetPosition);
-            window.removeEventListener('scroll', updateTargetPosition, true);
         };
-    }, [isOpen, currentStep, updateTargetPosition]);
+    }, [isOpen, currentStep, updateTargetPosition, step.target]);
 
     const completeTutorial = () => {
         localStorage.setItem(STORAGE_KEY, 'true');
@@ -230,13 +270,13 @@ export const TutorialModal: React.FC = () => {
         completeTutorial();
     };
 
-    // Calculate tooltip position with improved mobile handling
+    // SIMPLIFIED: Always position tooltip at bottom center for reliability across all devices
+    // The spotlight still highlights the target element correctly
     const getTooltipStyle = (): React.CSSProperties => {
-        const padding = 16;
-        const tooltipWidth = Math.min(320, window.innerWidth - padding * 2);
+        const padding = 20;
 
-        // For center steps or when no target, center the tooltip using flexbox
-        if (!targetRect || isCenterStep) {
+        // For center steps (welcome/done), truly center
+        if (isCenterStep) {
             return {
                 position: 'fixed',
                 inset: 0,
@@ -248,94 +288,22 @@ export const TutorialModal: React.FC = () => {
             };
         }
 
-        // Calculate safe horizontal position (always within viewport)
-        const safeLeft = Math.max(
-            padding,
-            Math.min(
-                targetRect.centerX - tooltipWidth / 2,
-                window.innerWidth - tooltipWidth - padding
-            )
-        );
+        // For steps with targets, position tooltip above or below depending on target position
+        // If target is in bottom half of CONTAINER, put tooltip in top area
+        // If target is in top half, put tooltip in bottom area
+        const containerHeight = containerRef.current?.offsetHeight || window.innerHeight;
+        const isTargetInBottomHalf = targetRect && targetRect.centerY > containerHeight / 2;
 
-        // For mobile, prefer top/bottom positioning over left/right
-        const isMobile = window.innerWidth < 640;
-        let effectivePosition = step.position;
-
-        // On mobile, convert left/right to top/bottom based on available space
-        if (isMobile && (step.position === 'left' || step.position === 'right')) {
-            // If element is in top half, show tooltip below; otherwise above
-            effectivePosition = targetRect.centerY < window.innerHeight / 2 ? 'bottom' : 'top';
-        }
-
-        switch (effectivePosition) {
-            case 'top':
-                return {
-                    position: 'fixed',
-                    bottom: `${window.innerHeight - targetRect.top + padding}px`,
-                    left: `${safeLeft}px`,
-                    width: tooltipWidth,
-                    maxWidth: `calc(100vw - ${padding * 2}px)`,
-                };
-            case 'bottom':
-                return {
-                    position: 'fixed',
-                    top: `${targetRect.bottom + padding}px`,
-                    left: `${safeLeft}px`,
-                    width: tooltipWidth,
-                    maxWidth: `calc(100vw - ${padding * 2}px)`,
-                };
-            case 'left': {
-                // Check if there's enough space on the left
-                const spaceLeft = targetRect.left - padding;
-                if (spaceLeft < tooltipWidth) {
-                    // Not enough space, position below instead
-                    return {
-                        position: 'fixed',
-                        top: `${targetRect.bottom + padding}px`,
-                        left: `${safeLeft}px`,
-                        width: tooltipWidth,
-                        maxWidth: `calc(100vw - ${padding * 2}px)`,
-                    };
-                }
-                return {
-                    position: 'fixed',
-                    top: `${Math.max(padding, Math.min(targetRect.centerY - 100, window.innerHeight - 220))}px`,
-                    right: `${window.innerWidth - targetRect.left + padding}px`,
-                    width: Math.min(tooltipWidth, spaceLeft - padding),
-                    maxWidth: `calc(100vw - ${padding * 2}px)`,
-                };
-            }
-            case 'right': {
-                // Check if there's enough space on the right
-                const spaceRight = window.innerWidth - targetRect.right - padding;
-                if (spaceRight < tooltipWidth) {
-                    // Not enough space, position below instead
-                    return {
-                        position: 'fixed',
-                        top: `${targetRect.bottom + padding}px`,
-                        left: `${safeLeft}px`,
-                        width: tooltipWidth,
-                        maxWidth: `calc(100vw - ${padding * 2}px)`,
-                    };
-                }
-                return {
-                    position: 'fixed',
-                    top: `${Math.max(padding, Math.min(targetRect.centerY - 100, window.innerHeight - 220))}px`,
-                    left: `${targetRect.right + padding}px`,
-                    width: Math.min(tooltipWidth, spaceRight - padding),
-                    maxWidth: `calc(100vw - ${padding * 2}px)`,
-                };
-            }
-            default:
-                return {
-                    position: 'fixed',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: tooltipWidth,
-                    maxWidth: `calc(100vw - ${padding * 2}px)`,
-                };
-        }
+        return {
+            position: 'fixed',
+            top: isTargetInBottomHalf ? '15%' : undefined,
+            bottom: isTargetInBottomHalf ? undefined : '45%',
+            left: padding,
+            right: padding,
+            display: 'flex',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+        };
     };
 
     if (!isOpen) return null;
@@ -343,6 +311,7 @@ export const TutorialModal: React.FC = () => {
     return (
         <AnimatePresence>
             <motion.div
+                ref={containerRef}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -355,12 +324,14 @@ export const TutorialModal: React.FC = () => {
                             <rect x="0" y="0" width="100%" height="100%" fill="white" />
                             {targetRect && !isCenterStep && (
                                 <motion.ellipse
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    cx={targetRect.centerX}
-                                    cy={targetRect.centerY}
-                                    rx={Math.max(targetRect.width, 60) / 2 + 20}
-                                    ry={Math.max(targetRect.height, 60) / 2 + 20}
+                                    animate={{
+                                        opacity: 1,
+                                        cx: targetRect.centerX,
+                                        cy: targetRect.centerY,
+                                        rx: Math.max(targetRect.width, 60) / 2 + 20,
+                                        ry: Math.max(targetRect.height, 60) / 2 + 20
+                                    }}
+                                    transition={{ duration: 0.4, ease: "easeInOut" }}
                                     fill="black"
                                 />
                             )}
@@ -394,16 +365,17 @@ export const TutorialModal: React.FC = () => {
                         animate={{
                             opacity: [0.4, 0.8, 0.4],
                             scale: [1, 1.05, 1],
+                            left: targetRect.centerX - Math.max(targetRect.width, 60) / 2 - 24,
+                            top: targetRect.centerY - Math.max(targetRect.height, 60) / 2 - 24,
                         }}
                         transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
+                            left: { duration: 0.3, ease: 'easeOut' },
+                            top: { duration: 0.3, ease: 'easeOut' },
+                            opacity: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
+                            scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
                         }}
                         className="absolute pointer-events-none"
                         style={{
-                            left: targetRect.centerX - Math.max(targetRect.width, 60) / 2 - 24,
-                            top: targetRect.centerY - Math.max(targetRect.height, 60) / 2 - 24,
                             width: Math.max(targetRect.width, 60) + 48,
                             height: Math.max(targetRect.height, 60) + 48,
                             borderRadius: '50%',
@@ -433,8 +405,8 @@ export const TutorialModal: React.FC = () => {
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                     style={getTooltipStyle()}
                 >
-                    {/* Outer glow wrapper */}
-                    <div className="relative">
+                    {/* Outer glow wrapper - constrained width */}
+                    <div className="relative w-full max-w-xs mx-auto" style={{ pointerEvents: 'auto' }}>
                         {/* Ambient glow behind card - dynamic color */}
                         <div className={`absolute inset-0 ${colors.glow} blur-2xl rounded-3xl`} />
 

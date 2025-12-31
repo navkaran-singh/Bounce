@@ -27,6 +27,10 @@ import { ProfileEditorModal } from '../components/ProfileEditorModal';
 import { TutorialModal } from '../components/TutorialModal';
 import { AuthModal } from '../components/AuthModal';
 import { trackSignInPromptShown } from '../services/analytics';
+import { usePWAInstall } from '../hooks/usePWAInstall';
+import { Download, Share } from 'lucide-react';
+
+// PWAInstallCard removed - now handled by InstallPrompt.tsx in WebApp
 
 // Daily Plan Toast Component - Floating Glass Pill Design
 const DailyPlanToast: React.FC<{ message: string; mode: 'GROWTH' | 'STEADY' | 'RECOVERY' | null; onDismiss: () => void }> = ({ message, mode, onDismiss }) => {
@@ -250,13 +254,13 @@ export const Dashboard: React.FC = () => {
     const { state: engineState, actions: engineActions } = useResilienceEngine();
 
     // 👇 GET 'dailyCompletedIndices' DIRECTLY
-    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak, dailyPlanMessage, dailyPlanMode, dismissDailyPlanMessage, isPremium, user, editHabit, userModifiedHabits, showPremiumModal, setShowPremiumModal } = useStore();
+    const { identity, microHabits, currentHabitIndex, cycleMicroHabit, setView, logReflection, setDailyIntention, toggleSound, soundEnabled, soundType, soundVolume, setSoundVolume, setSoundType, history, goal, currentEnergyLevel, addMicroHabit, completeHabit, dailyCompletedIndices, resilienceScore, streak, dailyPlanMessage, dailyPlanMode, dismissDailyPlanMessage, isPremium, user, editHabit, userModifiedHabits, showPremiumModal, setShowPremiumModal, zenMode, setZenMode } = useStore();
 
     const [showCelebration, setShowCelebration] = useState(false);
     const [milestoneReached, setMilestoneReached] = useState<number | null>(null);
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [isBreathingOpen, setIsBreathingOpen] = useState(false);
+    const { isBreathingOpen, setIsBreathingOpen } = useStore(); // Global state for BottomNav hiding
     const [isReflectionOpen, setIsReflectionOpen] = useState(false);
     const [isFocusOpen, setIsFocusOpen] = useState(false);
     const [isGoalsOpen, setIsGoalsOpen] = useState(false);
@@ -264,7 +268,11 @@ export const Dashboard: React.FC = () => {
     const [isVoiceOpen, setIsVoiceOpen] = useState(false);
     // Note: isPremiumOpen is now controlled by global store (showPremiumModal)
     const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
-    const [zenMode, setZenMode] = useState(false);
+
+    // 🎓 TUTORIAL FIX: Keep UI visible during tutorial so spotlights work
+    const [isTutorialActive] = useState(() =>
+        !localStorage.getItem('bounce_tutorial_completed')
+    );
 
     // Edit Habit Modal State
     const [isEditHabitOpen, setIsEditHabitOpen] = useState(false);
@@ -298,19 +306,27 @@ export const Dashboard: React.FC = () => {
     const { isNative } = usePlatform();
 
     const triggerHaptic = async (type: 'click' | 'success' | 'failure' | 'hold' = 'click') => {
-        if (!isNative) return;
         try {
-            switch (type) {
-                case 'click': await Haptics.impact({ style: ImpactStyle.Medium }); break;
-                case 'hold': await Haptics.impact({ style: ImpactStyle.Heavy }); break;
-                case 'success': await Haptics.notification({ type: NotificationType.Success }); break;
-                case 'failure': await Haptics.notification({ type: NotificationType.Error }); break;
+            if (isNative) {
+                // Native: Use Capacitor Haptics
+                switch (type) {
+                    case 'click': await Haptics.impact({ style: ImpactStyle.Medium }); break;
+                    case 'hold': await Haptics.impact({ style: ImpactStyle.Heavy }); break;
+                    case 'success': await Haptics.notification({ type: NotificationType.Success }); break;
+                    case 'failure': await Haptics.notification({ type: NotificationType.Error }); break;
+                }
+            } else if (navigator.vibrate) {
+                // PWA/Web: Use Vibration API
+                switch (type) {
+                    case 'click': navigator.vibrate(15); break;
+                    case 'hold': navigator.vibrate(40); break;
+                    case 'success': navigator.vibrate([50, 30, 100]); break;
+                    case 'failure': navigator.vibrate([100, 50, 100]); break;
+                }
             }
         } catch (e) {
-            if (navigator.vibrate) {
-                if (type === 'success') navigator.vibrate([50, 30, 100]);
-                else navigator.vibrate(20);
-            }
+            // Fallback vibration
+            if (navigator.vibrate) navigator.vibrate(20);
         }
     };
 
@@ -656,6 +672,7 @@ export const Dashboard: React.FC = () => {
 
                                     <button
                                         onClick={() => setIsVoiceOpen(true)}
+                                        data-tutorial="voice-button"
                                         className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 dark:bg-white/5 text-gray-400 hover:text-primary-cyan transition-colors"
                                     >
                                         <Mic size={16} />
@@ -663,6 +680,7 @@ export const Dashboard: React.FC = () => {
 
                                     <button
                                         onClick={() => setShowSoundControls(!showSoundControls)}
+                                        data-tutorial="sound-button"
                                         className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors relative z-50 ${soundEnabled
                                             ? 'bg-primary-cyan/20 text-primary-cyan'
                                             : 'bg-black/5 dark:bg-white/5 text-gray-400'
@@ -798,6 +816,9 @@ export const Dashboard: React.FC = () => {
                         </motion.div>
 
                         {/* Sync Progress Card - For non-authenticated users */}
+
+                        {/* PWA Install Banner now handled by InstallPrompt in WebApp */}
+
                         <AnimatePresence>
                             {!user && showSyncCard && !zenMode && (
                                 <motion.div
@@ -1031,7 +1052,8 @@ export const Dashboard: React.FC = () => {
                                             )}
                                         </h3>
                                     </div>
-                                    {!zenMode && (
+                                    {/* Show shuffle button if: not zenMode OR tutorial is active */}
+                                    {(!zenMode || isTutorialActive) && (
                                         <div className="flex gap-1">
                                             <button
                                                 onClick={handleShuffle}
@@ -1116,45 +1138,6 @@ export const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            <AnimatePresence>
-                {!zenMode && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-                        className="px-6 py-4 border-t border-gray-200 dark:border-white/10 bg-white/80 dark:bg-dark-900/80 backdrop-blur-md flex justify-between items-center z-10"
-                    >
-                        <NavItem
-                            icon={<List size={24} />}
-                            label="Habits"
-                            active
-                            onClick={() => triggerHaptic()}
-                        />
-                        <NavItem
-                            icon={<Sprout size={24} />}
-                            label="Growth"
-                            onClick={() => {
-                                triggerHaptic();
-                                setView('growth');
-                            }}
-                        />
-                        <NavItem
-                            icon={<BarChart3 size={24} />}
-                            label="Stats"
-                            onClick={() => {
-                                triggerHaptic();
-                                setView('stats');
-                            }}
-                        />
-                        <button
-                            onClick={() => engineActions.toggleFreeze(true)}
-                            className="flex flex-col items-center gap-1 text-red-500 dark:text-red-400 opacity-80 hover:opacity-100"
-                        >
-                            <ThermometerSnowflake size={24} />
-                            <span className="text-[10px]">Freeze</span>
-                        </button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
             {/* Never Miss Twice Sheet - Shows after 7 PM if streak at risk */}
             <NeverMissTwiceSheet
                 isOpen={showNeverMissTwice}
@@ -1169,13 +1152,3 @@ export const Dashboard: React.FC = () => {
         </div>
     );
 };
-
-const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick?: () => void }) => (
-    <button
-        onClick={onClick}
-        className={`flex flex-col items-center gap-1 ${active ? 'text-primary-cyan' : 'text-gray-400 dark:text-white/40'}`}
-    >
-        {icon}
-        <span className="text-[10px] font-medium">{label}</span>
-    </button>
-);

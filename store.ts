@@ -48,6 +48,12 @@ interface ExtendedUserState extends UserState {
   // 🔥 Premium Modal Global State
   showPremiumModal: boolean;
   setShowPremiumModal: (show: boolean) => void;
+  // 🧘 Zen Mode
+  zenMode: boolean;
+  setZenMode: (mode: boolean) => void;
+  // 🌬️ Breathing Modal
+  isBreathingOpen: boolean;
+  setIsBreathingOpen: (open: boolean) => void;
 }
 
 export const useStore = create<ExtendedUserState>()(
@@ -105,6 +111,15 @@ export const useStore = create<ExtendedUserState>()(
       // 🔥 Premium Modal Global State (for cross-component access)
       showPremiumModal: false,
       setShowPremiumModal: (show: boolean) => set({ showPremiumModal: show }),
+
+      // 🧘 ZEN MODE (Global Navigation State)
+      // Controls visibility of the persistent BottomNav
+      zenMode: false,
+      setZenMode: (zenMode: boolean) => set({ zenMode }),
+
+      // 🌬️ Breathing Modal State
+      isBreathingOpen: false,
+      setIsBreathingOpen: (isBreathingOpen: boolean) => set({ isBreathingOpen }),
 
       // Recovery Mode (Resilience Engine 2.0)
       recoveryMode: false,

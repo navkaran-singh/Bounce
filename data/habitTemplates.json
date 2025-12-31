@@ -172,7 +172,7 @@
                 "habits": {
                     "high": [
                         "Ship/Submit a project that is 80% perfect (Kill perfectionism)",
-                        "Delete a project from your list that you know you won't finish",
+                        "Commit to shipping one stalled project by end of day",
                         "Do the final 10% of a task (the polishing) in one sitting"
                     ],
                     "medium": [
@@ -215,7 +215,7 @@
                     ],
                     "low": [
                         "Log one transaction from today",
-                        "Check your balance without judging yourself",
+                        "Open your investment app and note your balance",
                         "Read one financial headline"
                     ]
                 }
@@ -290,7 +290,7 @@
                         "Teach one concept out loud as if explaining to a 10-year-old (Feynman Technique)"
                     ],
                     "medium": [
-                        "Turn 10 notes into flashcard questions (Active Recall prep)",
+                        "Turn 3 notes into flashcard questions (Active Recall prep)",
                         "Review yesterday's 3 hardest concepts using spaced repetition",
                         "Organize study materials for tomorrow's session (mise-en-place)"
                     ],
@@ -588,7 +588,7 @@
                         "Ask a question instead of talking about yourself"
                     ],
                     "low": [
-                        "Make eye contact and smile at someone",
+                        "Send a message to a 'weak tie' you haven't spoken to in months",
                         "Send a quick 'thinking of you' emoji",
                         "Put your phone away during a meal"
                     ]
@@ -693,37 +693,104 @@
             }
         },
         "RECOVERY": {
+            "the-runner": {
+                "identityType": "RECOVERY",
+                "displayName": "A Runner",
+                "keywords": [
+                    "runner",
+                    "running",
+                    "jogging",
+                    "sprinter",
+                    "marathoner",
+                    "5k",
+                    "10k",
+                    "half marathon",
+                    "track",
+                    "cross country",
+                    "cardio"
+                ],
+                "habits": {
+                    "high": [
+                        "Run your planned workout with negative splits or interval target",
+                        "Complete a 'Long Run' focused purely on endurance",
+                        "Run a new route to challenge your navigation"
+                    ],
+                    "medium": [
+                        "Track today's run distance and pace in your log",
+                        "Do a 10-minute dynamic warm-up before heading out",
+                        "Stretch major running muscles (calves, quads, hips) for 5 mins"
+                    ],
+                    "low": [
+                        "Lay out tomorrow's running clothes and route plan",
+                        "Put on your running shoes",
+                        "Walk for 2 minutes (just to start)"
+                    ]
+                }
+            },
+            "the-lifter": {
+                "identityType": "RECOVERY",
+                "displayName": "A Lifter",
+                "keywords": [
+                    "lifter",
+                    "gym-goer",
+                    "gym",
+                    "weightlifter",
+                    "bodybuilder",
+                    "powerlifter",
+                    "crossfit",
+                    "strength training",
+                    "gains",
+                    "bulk",
+                    "cut"
+                ],
+                "habits": {
+                    "high": [
+                        "Hit a new PR or complete progressive overload on main lift",
+                        "Complete the workout with strict form (no ego lifting)",
+                        "Push to 90% effort on your working sets"
+                    ],
+                    "medium": [
+                        "Video one working set to check your form",
+                        "Do a 10-minute mobility/stretch routine",
+                        "Log your workout stats (don't ignore the data)"
+                    ],
+                    "low": [
+                        "Log yesterday's lifts and set today's target weight",
+                        "Put on your workout clothes",
+                        "Fill your water bottle"
+                    ]
+                }
+            },
             "the-athlete": {
                 "identityType": "RECOVERY",
                 "displayName": "An Athlete",
                 "keywords": [
-                    "runner",
-                    "lifter",
-                    "gym-goer",
-                    "crossfit",
                     "athlete",
-                    "sprinter",
-                    "marathoner",
                     "cyclist",
                     "swimmer",
                     "training",
-                    "fitness"
+                    "fitness",
+                    "sports",
+                    "tennis",
+                    "basketball",
+                    "soccer",
+                    "football"
                 ],
                 "habits": {
                     "high": [
-                        "Complete the workout even if it's 'ugly'",
-                        "Push to 90% effort on one set/interval",
-                        "Prep healthy meals for 3 days"
+                        "Compete in a scrimmage or timed drill and track your stats",
+                        "Complete training session at competition intensity",
+                        "Practice one specific skill for 20 focused minutes"
                     ],
                     "medium": [
-                        "Do a 10-minute mobility/stretch routine",
-                        "Log your workout stats (don't ignore the data)",
-                        "Pack your gym bag for tomorrow"
+                        "Practice the weakest skill in your game for 15 minutes",
+                        "Do a sport-specific warm-up",
+                        "Review your training plan for the week"
                     ],
                     "low": [
-                        "Put on your workout shoes (The Threshold Rule)",
-                        "Fill your water bottle",
-                        "Do 5 air squats right now"
+                        "Watch 2 minutes of pro footage for technique study",
+                        "Put on your training clothes",
+                        "Visualize your next performance for 2 minutes"
                     ]
                 }
             },
@@ -837,19 +904,19 @@
                 ],
                 "habits": {
                     "high": [
-                        "Get in bed 8 hours before wake-up time (Phone away)",
-                        "Wake up at first alarm (No Snooze)",
+                        "Complete a full 60-minute wind-down routine without screens",
+                        "Get in bed 8 hours before wake-up time",
                         "Get 10 minutes of morning sunlight"
                     ],
                     "medium": [
+                        "Wake up at first alarm (No Snooze)",
                         "Turn off overhead lights 1 hour before bed",
-                        "Write a 'Brain Dump' list to clear thoughts",
-                        "Make the bedroom cool and dark"
+                        "Write a 'Brain Dump' list to clear thoughts"
                     ],
                     "low": [
+                        "Put phone charger across the room",
                         "Set your alarm for tomorrow",
-                        "Drink a glass of water upon waking",
-                        "Put phone charger across the room"
+                        "Drink a glass of water upon waking"
                     ]
                 }
             },

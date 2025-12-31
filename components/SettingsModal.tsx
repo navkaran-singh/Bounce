@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Moon, Sun, Monitor, X, CloudRain, Trees, Waves, Save, Download, Upload, Check, Cloud, LogOut, User, RefreshCw, Bell, BellOff } from 'lucide-react';
+import { Moon, Sun, Monitor, X, CloudRain, Trees, Waves, Save, Download, Upload, Check, Cloud, LogOut, User, RefreshCw, Bell, BellOff, Wind, Flame } from 'lucide-react';
 import { useStore } from '../store';
 import { Theme, SoundType } from '../types';
 import { AuthModal } from './AuthModal';
@@ -163,6 +163,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const sounds: { id: SoundType; label: string; icon: React.ReactNode }[] = [
         { id: 'rain', label: 'Rain', icon: <CloudRain size={18} /> },
         { id: 'forest', label: 'Forest', icon: <Trees size={18} /> },
+        { id: 'wind', label: 'Mid-Air', icon: <Wind size={18} /> },
+        { id: 'volcano', label: 'Inferno', icon: <Flame size={18} /> },
     ];
 
     return (

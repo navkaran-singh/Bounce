@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Sparkles, Shield, Zap, ArrowRight, Anchor, RefreshCw, Activity, Brain, Check, Info, X, RotateCcw, TrendingUp } from 'lucide-react';
+import { Sparkles, Shield, Zap, ArrowRight, Anchor, RefreshCw, Activity, Brain, Check, Info, X, RotateCcw, TrendingUp, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Particles } from '../components/Particles';
 import ScrollStory from './ScrollStory';
@@ -348,6 +348,292 @@ const MobileNav: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen,
     );
 };
 
+// --- THE BOUNCE MOMENT: Auto-playing Animation Demo ---
+
+// --- THE BOUNCE MOMENT: Auto-playing Animation Demo ---
+
+const DEMO_DATA: Record<string, { label: string, icon: string, habits: { high: string, medium: string, low: string } }> = {
+    writer: {
+        label: 'Writer',
+        icon: '✍️',
+        habits: {
+            high: 'Write 500 words of "garbage" draft',
+            medium: 'Outline 3 key beats for the next section',
+            low: 'Write 3 potential headlines'
+        }
+    },
+    builder: {
+        label: 'Builder',
+        icon: '🛠️',
+        habits: {
+            high: 'Commit code that closes a ticket',
+            medium: 'Review your code from yesterday',
+            low: 'Write one comment in the code'
+        }
+    },
+    athlete: {
+        label: 'Athlete',
+        icon: '💪',
+        habits: {
+            high: 'Compete in a scrimmage or timed drill',
+            medium: 'Practice your weakest skill for 15m',
+            low: 'Watch 2 mins of pro footage'
+        }
+    },
+    learner: {
+        label: 'Student',
+        icon: '📚',
+        habits: {
+            high: '30-min focused study sprint (No Phone)',
+            medium: 'Turn 3 notes into flashcards',
+            low: 'Write one question you need to answer'
+        }
+    },
+};
+
+const BounceMomentAnimation: React.FC = () => {
+    const [currentDay, setCurrentDay] = useState(0);
+    const [isPlaying, setIsPlaying] = useState(true);
+    const [activeIdentity, setActiveIdentity] = useState('writer');
+
+    // The story: 5 days showing the Bounce difference
+    const getDays = (identityKey: string) => {
+        const habits = DEMO_DATA[identityKey].habits;
+        return [
+            { day: 1, status: 'complete', energy: 'high', habit: habits.high, emoji: '🔥' },
+            { day: 2, status: 'complete', energy: 'medium', habit: habits.medium, emoji: '⚡' },
+            { day: 3, status: 'missed', energy: null, habit: null, emoji: '💤' },
+            { day: 4, status: 'recovery', energy: 'low', habit: habits.low, emoji: '🌱' },
+            { day: 5, status: 'complete', energy: 'high', habit: habits.high, emoji: '🚀' },
+        ];
+    };
+
+    const days = getDays(activeIdentity);
+
+    // Auto-advance animation
+    useEffect(() => {
+        if (!isPlaying) return;
+        const timer = setInterval(() => {
+            setCurrentDay((prev) => (prev + 1) % (days.length + 1)); // +1 for pause at end
+        }, 2000);
+        return () => clearInterval(timer);
+    }, [isPlaying, activeIdentity]);
+
+    // Reset when changing identity
+    const handleIdentityChange = (id: string) => {
+        setActiveIdentity(id);
+        setCurrentDay(0);
+        setIsPlaying(true);
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'complete': return 'bg-green-500';
+            case 'missed': return 'bg-red-500/50';
+            case 'recovery': return 'bg-cyan-500';
+            default: return 'bg-white/20';
+        }
+    };
+
+    const getStatusBorder = (status: string) => {
+        switch (status) {
+            case 'complete': return 'border-green-500/50';
+            case 'missed': return 'border-red-500/30';
+            case 'recovery': return 'border-cyan-500/50';
+            default: return 'border-white/10';
+        }
+    };
+
+    return (
+        <div className="w-full max-w-lg mx-auto">
+            {/* The "Phone" Frame */}
+            <div className="relative bg-gradient-to-b from-[#0A0A0C] to-[#0D0D10] border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl overflow-hidden">
+                {/* Background Glow */}
+                <div className="absolute top-0 right-0 w-48 h-48 bg-cyan-500/20 blur-[80px]" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/15 blur-[80px]" />
+
+                {/* Header with Identity Switcher */}
+                <div className="relative z-10 flex flex-col gap-4 mb-8">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            {/* <img src="/pwa-192x192.png" alt="Bounce" className="w-6 h-6 rounded-lg" /> */}
+                            <span className="text-sm font-semibold text-white">A Week in Bounce</span>
+                        </div>
+                        <button
+                            onClick={() => setIsPlaying(!isPlaying)}
+                            className="text-xs text-gray-500 hover:text-white transition-colors"
+                        >
+                            {isPlaying ? 'PAUSE' : 'PLAY'}
+                        </button>
+                    </div>
+
+                    {/* Identity Tabs */}
+                    <div className="flex p-1 bg-white/5 rounded-xl border border-white/5">
+                        {Object.entries(DEMO_DATA).map(([key, data]) => (
+                            <button
+                                key={key}
+                                onClick={() => handleIdentityChange(key)}
+                                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${activeIdentity === key
+                                    ? 'bg-white/10 text-white shadow-sm ring-1 ring-white/10'
+                                    : 'text-gray-500 hover:text-gray-300'
+                                    }`}
+                            >
+                                <span>{data.icon}</span>
+                                <span className={activeIdentity === key ? '' : 'hidden sm:inline'}>{data.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Timeline */}
+                <div className="relative z-10 mb-8">
+                    {/* Progress Line */}
+                    <div className="absolute top-4 left-4 right-4 h-0.5 bg-white/10 rounded-full" />
+                    <motion.div
+                        className="absolute top-4 left-4 h-0.5 bg-gradient-to-r from-green-500 via-cyan-500 to-purple-500 rounded-full"
+                        initial={{ width: '0%' }}
+                        animate={{ width: `${Math.min(currentDay / days.length * 100, 100)}%` }}
+                        transition={{ duration: 0.5 }}
+                    />
+
+                    {/* Day Dots */}
+                    <div className="flex justify-between relative">
+                        {days.map((day, index) => (
+                            <motion.div
+                                key={day.day}
+                                className="flex flex-col items-center"
+                                initial={{ opacity: 0.5 }}
+                                animate={{
+                                    opacity: index <= currentDay ? 1 : 0.4,
+                                    scale: index === currentDay ? 1.1 : 1
+                                }}
+                            >
+                                <motion.div
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 ${index < currentDay
+                                        ? `${getStatusColor(day.status)} border-transparent`
+                                        : index === currentDay
+                                            ? `bg-white/10 ${getStatusBorder(day.status)} animate-pulse`
+                                            : 'bg-white/5 border-white/10'
+                                        }`}
+                                    animate={index === currentDay ? { scale: [1, 1.1, 1] } : {}}
+                                    transition={{ duration: 0.5, repeat: index === currentDay ? Infinity : 0, repeatDelay: 1 }}
+                                >
+                                    {index < currentDay ? (
+                                        day.status === 'missed' ? '✕' : '✓'
+                                    ) : (
+                                        <span className="text-xs text-gray-500">{day.day}</span>
+                                    )}
+                                </motion.div>
+                                <span className="text-[10px] text-gray-600 mt-2">Day {day.day}</span>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Active Day Card */}
+                <AnimatePresence mode="wait">
+                    {currentDay < days.length && (
+                        <motion.div
+                            key={currentDay}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.4 }}
+                            className={`relative z-10 p-5 rounded-2xl border ${getStatusBorder(days[currentDay].status)} bg-white/[0.03] backdrop-blur-sm`}
+                        >
+                            {days[currentDay].status === 'missed' ? (
+                                // MISSED DAY - The Key Moment
+                                <div className="text-center py-4">
+                                    <motion.div
+                                        className="text-4xl mb-3"
+                                        animate={{ rotate: [0, -10, 10, 0] }}
+                                        transition={{ duration: 0.5 }}
+                                    >
+                                        💤
+                                    </motion.div>
+                                    <div className="text-red-400 font-semibold mb-2">Life happened.</div>
+                                    <div className="text-gray-500 text-sm mb-4">You missed a day. No shame.</div>
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: 0.5 }}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/30"
+                                    >
+                                        <RefreshCw size={14} className="text-cyan-400" />
+                                        <span className="text-cyan-400 text-sm font-medium">System adapting...</span>
+                                    </motion.div>
+                                </div>
+                            ) : days[currentDay].status === 'recovery' ? (
+                                // RECOVERY DAY - The Bounce
+                                <div>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="text-2xl">{days[currentDay].emoji}</div>
+                                        <div>
+                                            <div className="text-xs text-cyan-400 font-medium uppercase tracking-wider">Recovery Mode</div>
+                                            <div className="text-white font-semibold">{days[currentDay].habit}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                                        <div className="flex gap-0.5">
+                                            <div className="w-1.5 h-3 bg-cyan-500 rounded-full" />
+                                            <div className="w-1.5 h-3 bg-white/20 rounded-full" />
+                                            <div className="w-1.5 h-3 bg-white/20 rounded-full" />
+                                        </div>
+                                        <span>Low energy task • Just show up</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                // NORMAL COMPLETE DAY
+                                <div>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="text-2xl">{days[currentDay].emoji}</div>
+                                        <div>
+                                            <div className="text-xs text-green-400 font-medium uppercase tracking-wider">{days[currentDay].energy} Energy</div>
+                                            <div className="text-white font-semibold">{days[currentDay].habit}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Check size={14} className="text-green-500" />
+                                        <span className="text-sm text-green-400">Completed</span>
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+
+                    {/* End State - Loop Complete */}
+                    {currentDay >= days.length && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="relative z-10 p-6 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-cyan-500/10 text-center"
+                        >
+                            <div className="text-3xl mb-3">🎯</div>
+                            <div className="text-white font-bold text-lg mb-2">5 days. 1 miss. Still on track.</div>
+                            <div className="text-gray-400 text-sm">That's the Bounce difference.</div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+            </div>
+
+            {/* Disclaimer Caption - Outside the card for cleaner look */}
+            {/* <div className="mt-6 text-center">
+                <div className="inline-flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm">
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-cyan-400">
+                        <span>ℹ️</span>
+                        <span>Demo shows Premium AI features</span>
+                    </div>
+                    <div className="text-[10px] text-gray-400 font-medium">
+                        <div>Free: Choose From Curated Habits</div>
+                        <div>Premium: Let AI Personalize</div>
+                    </div>
+                </div>
+            </div> */}
+        </div>
+    );
+};
+
 
 // --- 3. MAIN PAGE ---
 
@@ -412,130 +698,113 @@ export const LandingPage: React.FC = () => {
                         <img src="/pwa-192x192.png" alt="Bounce" className="w-8 h-8 rounded-lg" />
                         <span className="font-bold tracking-tight text-gray-200">Bounce</span>
                     </div>
-                    <Link to="/app" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Open App</Link>
+                    <Link to="/app" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Launch</Link>
                 </div>
             </nav>
 
-            {/* HERO SECTION */}
-            <section id="hero" className="relative z-10 pt-32 pb-12 px-6 max-w-7xl mx-auto md:min-h-screen md:flex md:items-center">
-                <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center w-full">
+            {/* HERO SECTION - THE NUCLEAR OPTION */}
+            <section id="hero" className="relative z-10 pt-24 pb-12 md:pt-36 md:pb-24 px-6 max-w-7xl mx-auto">
 
-                    {/* LEFT COLUMN: Text */}
-                    <div className="text-center md:text-left w-full md:w-1/2 relative z-20 order-1">
-                        <motion.div
-                            initial="hidden"
-                            animate="visible"
-                            variants={fadeInUp}
-                            className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-6 backdrop-blur-sm"
-                        >
-                            <Sparkles className="w-3 h-3 text-cyan-400" />
-                            <span className="text-xs font-medium text-gray-300 tracking-wide uppercase">Built for ADHD. Works for everyone.</span>
-                        </motion.div>
+                <div className="flex flex-col lg:flex-row gap-16 lg:gap-24 items-center">
 
-                        <motion.h1
-                            initial="hidden"
-                            animate="visible"
-                            variants={fadeInUp}
-                            className="text-5xl lg:text-7xl font-bold mb-6 tracking-tight leading-[1.1]"
-                        >
-                            Building habits is easy. <br />
-                            <span className="bg-gradient-to-r from-cyan-200 via-white to-purple-200 bg-clip-text text-transparent">
-                                Until you miss a day.
-                            </span>
-                        </motion.h1>
+                    {/* LEFT COLUMN: Headlines */}
+                    <div className="text-center lg:text-left w-full lg:w-1/2 order-1 space-y-8">
 
-                        <motion.p
-                            initial="hidden"
-                            animate="visible"
-                            variants={fadeInUp}
-                            className="text-xl text-gray-400 mb-8 max-w-xl mx-auto md:mx-0 leading-relaxed"
-                        >
-                            Most apps treat a slip-up like a failure. <br className="hidden md:block" />
-                            Bounce treats it like data.
-                        </motion.p>
-
-                        {/* DESKTOP BUTTON */}
-                        <motion.div
-                            initial="hidden"
-                            animate="visible"
-                            variants={fadeInUp}
-                            className="hidden md:flex flex-col sm:flex-row items-center md:items-start gap-4"
-                        >
-                            <button
-                                onClick={handleCtaClick}
-                                className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full text-white font-bold text-lg shadow-[0_0_50px_-10px_rgba(139,92,246,0.3)] hover:shadow-[0_0_50px_-5px_rgba(6,182,212,0.4)] transition-all transform hover:scale-105"
+                        <div>
+                            {/* ADHD Badge - Now prominent */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full mb-8"
                             >
-                                Try It Free
-                            </button>
-                            <div className="flex items-center gap-2 px-4 py-4 text-sm text-gray-500">
-                                <Check size={16} className="text-emerald-500" />
-                                <span>No credit card required</span>
-                            </div>
-                        </motion.div>
-                    </div>
+                                <Brain className="w-4 h-4 text-cyan-400" />
+                                <span className="text-sm font-semibold text-cyan-300">Built for ADHD brains</span>
+                            </motion.div>
 
-                    {/* RIGHT COLUMN: Orb (Middle on Mobile) */}
-                    <div className="w-full md:w-1/2 flex flex-col items-center justify-center relative z-10 order-2">
-                        {/* Layout Adjustment: 
-                           On Mobile: Negative margins pull it closer to text above and button below.
-                           On Desktop: Standard padding.
-                        */}
-                        <div className="relative scale-90 md:scale-100 lg:scale-110 -my-4 md:my-0">
-                            <IntegratedOrb
-                                state={orbState}
-                                isFractured={orbState === 'frozen'}
-                                size={window.innerWidth < 768 ? 260 : 400}
-                            />
+                            <motion.h1
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
+                                className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-6 tracking-tight leading-[1.1]"
+                            >
+                                Quit 5 habit apps?{' '}
+                                <span className="bg-gradient-to-r from-cyan-300 via-white to-purple-300 bg-clip-text text-transparent">
+                                    Try the one built for quitters.
+                                </span>
+                            </motion.h1>
 
-                            {/* Status Pill */}
-                            <div className="absolute -bottom-14 md:-bottom-12 left-0 right-0 flex justify-center z-20">
-                                <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full border border-white/10 bg-black/40 backdrop-blur-md shadow-2xl">
-                                    <div className="relative w-2 h-2">
-                                        <AnimatePresence mode="wait">
-                                            {orbState === 'frozen' && <motion.div key="f" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="absolute inset-0 rounded-full bg-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.8)]" />}
-                                            {orbState === 'healing' && <motion.div key="h" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="absolute inset-0 rounded-full bg-purple-400 shadow-[0_0_10px_rgba(192,132,252,0.8)]" />}
-                                            {orbState === 'success' && <motion.div key="s" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="absolute inset-0 rounded-full bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.8)]" />}
-                                        </AnimatePresence>
+                            <motion.p
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="text-lg sm:text-xl text-gray-400 max-w-lg mx-auto lg:mx-0 leading-relaxed"
+                            >
+                                Pick your energy. Choose from <span className="text-white">expert-curated habits</span>.<br className="hidden sm:block" />
+                                Miss a day? Recovery mode activates. <strong className="text-white">No streak resets.</strong>
+                            </motion.p>
+                        </div>
+
+                        {/* CTA Container */}
+                        <div className="space-y-4">
+                            {/* Helper text for CTA */}
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.25 }}
+                                className="text-center lg:text-left"
+                            >
+                                <span className="text-sm font-medium text-cyan-400">
+                                    ✨ Pick one core identity to start
+                                </span>
+                            </motion.div>
+
+                            {/* CTA - Visible on all devices now */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 }}
+                                className="flex flex-col sm:flex-row items-center lg:items-start gap-4 justify-center lg:justify-start w-full lg:w-auto"
+                            >
+                                <button
+                                    onClick={handleCtaClick}
+                                    className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full text-white font-bold text-lg shadow-[0_0_50px_-10px_rgba(139,92,246,0.4)] hover:shadow-[0_0_60px_-5px_rgba(6,182,212,0.5)] transition-all transform hover:scale-105"
+                                >
+                                    See your first habit in 30s
+                                </button>
+                                <div className="flex flex-col gap-1 text-sm text-gray-500 py-2">
+                                    <div className="flex items-center gap-2">
+                                        <Check size={14} className="text-emerald-500" />
+                                        <span>No signup required</span>
                                     </div>
-
-                                    <div className="h-4 overflow-hidden relative w-32 flex items-center justify-start">
-                                        <AnimatePresence mode="wait">
-                                            <motion.span
-                                                key={orbState}
-                                                initial={{ y: 20, opacity: 0 }}
-                                                animate={{ y: 0, opacity: 1 }}
-                                                exit={{ y: -20, opacity: 0 }}
-                                                transition={{ duration: 0.4, ease: "backOut" }}
-                                                className="text-xs font-mono tracking-widest uppercase text-gray-300 absolute left-0"
-                                            >
-                                                State: {orbState}
-                                            </motion.span>
-                                        </AnimatePresence>
+                                    <div className="flex items-center gap-2">
+                                        <Check size={14} className="text-emerald-500" />
+                                        <span>Free forever tier</span>
                                     </div>
                                 </div>
-                            </div>
+                            </motion.div>
                         </div>
                     </div>
 
-                    {/* MOBILE BUTTON (Visible only on Mobile, below Orb) */}
-                    <div className="w-full md:hidden order-3 mt-10 flex justify-center pb-8 relative z-30">
-                        <button
-                            onClick={handleCtaClick}
-                            className="w-full max-w-xs px-10 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full text-white font-bold text-lg shadow-[0_0_40px_-10px_rgba(139,92,246,0.4)] text-center"
-                        >
-                            Try It Free
-                        </button>
-                    </div>
-
+                    {/* RIGHT COLUMN: Bounce Moment Animation */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="w-full lg:w-1/2 order-2"
+                    >
+                        <BounceMomentAnimation />
+                    </motion.div>
                 </div>
+
+                {/* Mobile CTA removed to reduce clutter - Demo is effectively the CTA */}
             </section>
 
-            {/* COMPARISON SECTION */}
+            {/* COMPARISON SECTION - Why you quit + How Bounce is different */}
             <section id="comparison" className="relative z-10 py-16 md:py-24 px-6 bg-[#050507]/50">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-12 md:mb-20">
-                        <h2 className="text-3xl font-bold mb-4">If habit apps haven't worked for you, you're not alone.</h2>
-                        <p className="text-gray-400">Most were designed for consistency — not fluctuation.</p>
+                        <h2 className="text-3xl font-bold mb-4">Why you quit your last habit app</h2>
+                        <p className="text-gray-400">Those apps weren't broken. They just weren't built for how your brain works.</p>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-8 lg:gap-16">
@@ -545,17 +814,20 @@ export const LandingPage: React.FC = () => {
                             <div className="relative p-6 md:p-8 rounded-3xl border border-red-500/20 bg-[#0A0505] backdrop-blur-xl h-full flex flex-col">
                                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-red-500/20">
                                     <div className="flex items-center gap-2 text-red-400 font-mono text-sm">
-                                        <Activity size={16} /> SYSTEM FAILURE
+                                        <Activity size={16} /> THE STREAK TRAP
                                     </div>
                                     <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
                                 </div>
-                                <h3 className="text-2xl font-bold text-white mb-2">The Streak Method</h3>
-                                <p className="text-red-300/60 mb-8 text-sm">Works for some, breaks for others</p>
                                 <div className="space-y-4 flex-1">
-                                    {['"I missed yesterday, so why even try today?"', 'Opening the app after a bad week feels heavy', 'Tracking can start to feel like evidence against you'].map((item, i) => (
+                                    {[
+                                        { icon: '💔', text: 'Streak resets crush motivation after one missed day' },
+                                        { icon: '😓', text: 'Same difficulty whether energized or exhausted' },
+                                        { icon: '😔', text: 'Opening the app after falling off feels shameful' },
+                                        { icon: '📋', text: 'Just another to-do list, not identity building' },
+                                    ].map((item, i) => (
                                         <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-red-900/10 border border-red-500/10">
-                                            <X size={18} className="text-red-500 shrink-0" />
-                                            <span className="text-gray-400 text-sm">{item}</span>
+                                            <span className="text-xl">{item.icon}</span>
+                                            <span className="text-gray-400 text-sm">{item.text}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -568,7 +840,7 @@ export const LandingPage: React.FC = () => {
                             <div className="relative p-6 md:p-8 rounded-3xl border border-cyan-500/40 bg-[#050A0F] backdrop-blur-xl h-full flex flex-col shadow-2xl shadow-cyan-900/20">
                                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-cyan-500/20">
                                     <div className="flex items-center gap-2 text-cyan-400 font-mono text-sm">
-                                        <Shield size={16} /> SYSTEM OPTIMAL
+                                        <Shield size={16} /> THE BOUNCE METHOD
                                     </div>
                                     <div className="flex gap-1">
                                         <div className="h-1.5 w-1.5 rounded-full bg-cyan-500" />
@@ -576,18 +848,15 @@ export const LandingPage: React.FC = () => {
                                         <div className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-pulse" />
                                     </div>
                                 </div>
-                                <h3 className="text-2xl font-bold text-white mb-2">The Resilience Method</h3>
-                                <p className="text-cyan-300/60 mb-8 text-sm">Bounce</p>
                                 <div className="space-y-4 flex-1">
                                     {[
-                                        { text: 'Missing a day opens a gentle restart flow', icon: RefreshCw },
-                                        { text: 'On harder days, the app quietly asks less', icon: Zap },
-                                        { text: '"I\'m becoming someone who does this."', icon: Anchor }
+                                        { icon: '✨', text: 'Expects missed days. No resets, no shame.' },
+                                        { icon: '⚡', text: 'Pick High, Medium, or Low energy daily' },
+                                        { icon: '🌱', text: 'Recovery Mode offers a gentler restart' },
+                                        { icon: '🎯', text: 'Identity-first: habits match who you want to be' },
                                     ].map((item, i) => (
-                                        <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-cyan-900/20 border border-cyan-500/20 group-hover:border-cyan-500/40 transition-colors">
-                                            <div className="p-1 rounded bg-cyan-500/20 text-cyan-400">
-                                                <item.icon size={14} />
-                                            </div>
+                                        <div key={i} className="flex items-center gap-4 p-4 rounded-lg bg-cyan-900/20 border border-cyan-500/20">
+                                            <span className="text-xl">{item.icon}</span>
                                             <span className="text-white text-sm font-medium">{item.text}</span>
                                         </div>
                                     ))}
@@ -595,23 +864,6 @@ export const LandingPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    {/* NEW: The Bridge / Micro-CTA */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        whileInView={{ opacity: 1 }}
-                        transition={{ delay: 0.5 }}
-                        className="flex justify-center mt-16"
-                    >
-                        <button
-                            onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
-                            className="group flex flex-col items-center gap-3 text-sm font-medium text-gray-500 hover:text-white transition-colors"
-                        >
-                            <span>See how the system adapts</span>
-                            <div className="p-2 rounded-full bg-white/5 border border-white/10 group-hover:border-cyan-500/50 group-hover:bg-cyan-500/10 transition-all">
-                                <ArrowRight className="w-4 h-4 rotate-90 text-gray-400 group-hover:text-cyan-400" />
-                            </div>
-                        </button>
-                    </motion.div>
                 </div>
             </section>
 
@@ -759,7 +1011,7 @@ export const LandingPage: React.FC = () => {
 
                     </div>
                 </div>
-            </section>
+            </section >
 
             {/* <ScrollStory /> */}
 
@@ -890,36 +1142,33 @@ export const LandingPage: React.FC = () => {
                     <div className="space-y-4">
                         {[
                             {
+                                q: "How long does this take each day?",
+                                a: "30 seconds to choose your energy level. 2-20 minutes to complete your habit (you decide). That's it. The system is designed to take less time than other habit apps, not more."
+                            },
+                            {
+                                q: "What's the difference between Free and Premium habits?",
+                                a: "Free gives you 9 expert-curated habits (3 per energy level) based on your identity. Premium uses AI to generate unique habits specifically for you based on your history, patterns, and specific goals. Free is a great framework; Premium is a personal coach."
+                            },
+                            {
+                                q: "Do I need to create an account?",
+                                a: "No. You can start using Bounce immediately without signing up. Your data saves locally. If you want to sync across devices or access premium features, you can sign in later with Google."
+                            },
+                            {
+                                q: "Can I cancel premium anytime?",
+                                a: "Yes. Cancel in one click from settings. You keep premium until the end of your billing period, then drop back to free. No tricks, no retention games."
+                            },
+                            {
+                                q: "What if I forget to open the app?",
+                                a: "Bounce can send one optional reminder per day. No streak anxiety, no guilt trips. If you miss it completely, the next time you open the app, it adapts to where you are."
+                            },
+                            // EXISTING PHILOSOPHY QUESTIONS
+                            {
                                 q: "Is Bounce just another habit tracker?",
                                 a: "No. Bounce is built around how behavior actually works. Most habit apps assume perfect consistency and rely on streaks or pressure. Bounce assumes missed days, fluctuating energy, and motivation dips. The system adapts to those realities instead of punishing you for them."
                             },
                             {
-                                q: "What do you mean by an identity goal?",
-                                a: "Instead of focusing on what you should do today, Bounce starts with who you are trying to become. For example someone who finishes what they start or someone who takes care of their body. Habits are then designed to reinforce that identity even on days when motivation is low."
-                            },
-                            {
-                                q: "What does using Bounce day to day actually look like?",
-                                a: "Each day you choose a version of a habit that matches your energy. Some days that is a lot. Some days it is the smallest possible step. The goal is not intensity but continuity. Over time, Bounce learns how you respond and nudges you in ways that keep you moving without overwhelm."
-                            },
-                            {
                                 q: "What happens when I miss a day or fall off?",
                                 a: "Nothing breaks. Bounce does not reset your progress or treat it as failure. It shifts the system to recovery mode and gives you lighter actions to reconnect. The focus is on returning to the identity you chose, not on making up for lost days."
-                            },
-                            {
-                                q: "How do habits become harder over time?",
-                                a: "As you show sustained consistency, Bounce moves you through stages. At each stage, habits are regenerated to match your capacity. Free users get new habits when they progress through stages. You are never pushed faster than your behavior shows you are ready for."
-                            },
-                            {
-                                q: "Is the free version actually usable long term?",
-                                a: "Yes. Free includes identity based habits, energy levels, stage progression, recovery mode, and daily guidance messages. You can build real consistency without paying and many users do."
-                            },
-                            {
-                                q: "So what does Premium change, exactly?",
-                                a: "Premium makes the system more adaptive and more personal. Bounce responds not just week to week but day to day, using recent behavior to adjust difficulty, tone, and guidance. Daily messages become personalized, reflections are written for you, and psychological patterns like overreach or avoidance are caught earlier."
-                            },
-                            {
-                                q: "Who is Bounce NOT a good fit for?",
-                                a: "If you want strict streaks, punishment for missed days, or constant pressure to do more, Bounce will probably feel too gentle. It is built for people who want consistency without guilt and progress without burnout."
                             },
                             {
                                 q: "Is this good for ADHD or inconsistent motivation?",
@@ -943,7 +1192,8 @@ export const LandingPage: React.FC = () => {
                 <div className="max-w-2xl mx-auto">
                     <h2 className="text-3xl md:text-4xl font-bold mb-6">Restart. Slip. Try again.</h2>
                     <p className="text-gray-400 mb-10 text-lg">
-                        If that sounds familiar, Bounce might be a good fit. It's built around that pattern — not against it.
+                        Sound familiar? Bounce is built around that pattern, not against it. <br className="hidden md:block" />
+                        Start free. Miss days guilt-free.
                     </p>
                     <Link
                         to="/app"
@@ -977,6 +1227,6 @@ export const LandingPage: React.FC = () => {
                     </div>
                 </div>
             </footer>
-        </div>
+        </div >
     );
 };

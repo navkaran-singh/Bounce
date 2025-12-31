@@ -135,13 +135,7 @@ export const Stats: React.FC = () => {
     return (
         <div className="h-full flex flex-col relative bg-light-50 dark:bg-[#0F0F10] overflow-y-auto custom-scrollbar">
             {/* Header */}
-            <div className="p-6 sticky top-0 bg-light-50/90 dark:bg-[#0F0F10]/90 backdrop-blur-md z-20 flex items-center gap-4 border-b border-gray-200 dark:border-white/5">
-                <button
-                    onClick={() => setView('dashboard')}
-                    className="p-2 -ml-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-gray-800 dark:text-white"
-                >
-                    <ArrowLeft size={24} />
-                </button>
+            <div className="p-6 sticky top-0 bg-light-50/90 dark:bg-[#0F0F10]/90 backdrop-blur-md z-20 flex justify-center items-center border-b border-gray-200 dark:border-white/5">
                 <h1 className="text-xl font-bold text-gray-800 dark:text-white">Resilience Data</h1>
             </div>
 

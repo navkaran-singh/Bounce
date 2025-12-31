@@ -1,5 +1,6 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { useStore } from './store';
 import { Onboarding } from './views/Onboarding';
@@ -10,6 +11,7 @@ import { Growth } from './views/Growth';
 import { PanicModal } from './components/PanicModal';
 import { Particles } from './components/Particles';
 import { InstallPrompt } from './components/InstallPrompt';
+import { BottomNav } from './components/BottomNav';
 import { App as CapacitorApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { usePlatform } from './hooks/usePlatform';
@@ -21,7 +23,7 @@ import { trackAppEntered, checkAndTrackReturnVisit, setAnalyticsUserProperties }
 type PaymentStatus = 'idle' | 'verifying' | 'success' | 'error';
 
 const WebApp: React.FC = () => {
-  const { currentView, theme, setView, identity, _hasHydrated, setHasHydrated, initializeAuth, user, isPremium } = useStore();
+  const { currentView, theme, setView, identity, _hasHydrated, setHasHydrated, initializeAuth, user, isPremium, isFrozen, isBreathingOpen } = useStore();
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('idle');
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const { isNative } = usePlatform();
@@ -226,6 +228,29 @@ const WebApp: React.FC = () => {
 
   const { microHabits } = useStore();
 
+  // Tab Order for Slide Transitions
+  const VIEW_ORDER = ['dashboard', 'growth', 'stats'];
+  const prevViewRef = useRef(currentView);
+
+  // Calculate direction synchronously during render to avoid state lag
+  const prevIndex = VIEW_ORDER.indexOf(prevViewRef.current);
+  const currIndex = VIEW_ORDER.indexOf(currentView);
+  let direction = 0;
+
+  if (prevIndex !== -1 && currIndex !== -1 && prevIndex !== currIndex) {
+    direction = currIndex > prevIndex ? 1 : -1;
+  }
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Reset scroll on view change
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+    // Update ref after render
+    prevViewRef.current = currentView;
+  }, [currentView]);
+
   useEffect(() => {
     if (!_hasHydrated) return;
 
@@ -257,7 +282,16 @@ const WebApp: React.FC = () => {
       configureStatusBar();
 
       CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-        if (canGoBack) window.history.back();
+        // Prevent navigation back to landing page
+        // Only allow back if we're in a sub-route or modal within the app
+        const currentPath = window.location.pathname;
+        if (canGoBack && currentPath !== '/app' && !currentPath.startsWith('/app')) {
+          // We're in a sub-route, allow back
+          window.history.back();
+        } else {
+          // We're at the main app route - minimize instead of going back
+          CapacitorApp.minimizeApp();
+        }
       });
     }
   }, [isNative]);
@@ -271,6 +305,29 @@ const WebApp: React.FC = () => {
       root.classList.remove('dark');
     }
   }, [theme]);
+
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? '100%' : direction < 0 ? '-100%' : 0,
+      opacity: direction === 0 ? 0 : 1,
+      scale: direction === 0 ? 0.95 : 1,
+      position: 'absolute' as any // Force overlap during transition
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+      scale: 1,
+      position: 'relative' as any
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? '100%' : direction > 0 ? '-100%' : 0,
+      opacity: direction === 0 ? 0 : 1,
+      scale: direction === 0 ? 0.95 : 1,
+      position: 'absolute' as any
+    })
+  };
 
   const renderView = () => {
     switch (currentView) {
@@ -293,17 +350,45 @@ const WebApp: React.FC = () => {
   }
 
   return (
-    <div className="relative w-full h-[100dvh] bg-light-50 dark:bg-[#0F0F10] text-gray-900 dark:text-white overflow-hidden font-sans selection:bg-primary-cyan/30 transition-colors duration-300">
+    <div className="relative w-full h-[100dvh] bg-stone-200 dark:bg-[#0F0F10] text-gray-900 dark:text-white overflow-hidden font-sans selection:bg-primary-cyan/30 transition-colors duration-300">
       <Particles />
-      <main className="w-full h-full max-w-md mx-auto relative shadow-2xl bg-light-50 dark:bg-[#0F0F10]/80 backdrop-blur-sm">
-        {renderView()}
-      </main>
-      <PanicModal />
-      <InstallPrompt />
+      {/* Main App Container - On desktop, behaves like a floating phone frame */}
+      <main className="w-full h-full md:h-[calc(100vh-2rem)] md:my-4 md:rounded-[32px] md:border md:border-stone-300 dark:md:border-white/10 md:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] dark:md:shadow-[0_0_100px_-20px_rgba(6,182,212,0.15)] md:[transform:translateZ(0)] md:overflow-hidden max-w-lg mx-auto relative shadow-2xl bg-[#FDFCF8] dark:bg-[#0F0F10]/80 backdrop-blur-sm transition-all duration-300">
 
-      {/* Payment Verification Overlay */}
+        {/* Scrollable Content Area */}
+        <div ref={scrollContainerRef} className="absolute inset-0 overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth">
+          <AnimatePresence mode="popLayout" custom={direction} initial={false}>
+            <motion.div
+              key={currentView}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{
+                x: { type: "spring", stiffness: 300, damping: 30 },
+                opacity: { duration: 0.2 },
+                scale: { duration: 0.2 }
+              }}
+              className="w-full h-full"
+            >
+              {renderView()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        <PanicModal />
+
+        {/* Only show install prompt after onboarding (when on dashboard/growth/stats) */}
+        {(currentView === 'dashboard' || currentView === 'growth' || currentView === 'stats') && <InstallPrompt />}
+
+        {/* Navigation Bar */}
+        {(currentView === 'dashboard' || currentView === 'growth' || currentView === 'stats') && !isFrozen && !isBreathingOpen && <BottomNav />}
+      </main>
+
+      {/* Payment Verification Overlay - Can remain global or be inside. Let's keep it global for now to ensure visibility */}
       {paymentStatus !== 'idle' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm scale-100">
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 max-w-sm mx-4 text-center shadow-2xl">
             {paymentStatus === 'verifying' && (
               <>
