@@ -705,10 +705,10 @@ export const LandingPage: React.FC = () => {
             {/* HERO SECTION - THE NUCLEAR OPTION */}
             <section id="hero" className="relative z-10 pt-24 pb-12 md:pt-36 md:pb-24 px-6 max-w-7xl mx-auto">
 
-                <div className="flex flex-col lg:flex-row gap-16 lg:gap-24 items-center">
+                <div className="flex flex-col lg:flex-row gap-8 lg:gap-24 items-center">
 
                     {/* LEFT COLUMN: Headlines */}
-                    <div className="text-center lg:text-left w-full lg:w-1/2 order-1 space-y-8">
+                    <div className="text-center lg:text-left w-full lg:w-1/2 space-y-8">
 
                         <div>
                             {/* ADHD Badge - Now prominent */}
@@ -739,9 +739,14 @@ export const LandingPage: React.FC = () => {
                                 transition={{ delay: 0.2 }}
                                 className="text-lg sm:text-xl text-gray-400 max-w-lg mx-auto lg:mx-0 leading-relaxed"
                             >
-                                Pick your energy. Choose from <span className="text-white">expert-curated habits</span>.<br className="hidden sm:block" />
+                                Pick your energy. Choose from <span className="text-white">habits that match. </span><br className="hidden sm:block" />
                                 Miss a day? Recovery mode activates. <strong className="text-white">No streak resets.</strong>
                             </motion.p>
+                        </div>
+
+                        {/* MOBILE ONLY: Animation moved here */}
+                        <div className="w-full lg:hidden py-4">
+                            <BounceMomentAnimation />
                         </div>
 
                         {/* CTA Container */}
@@ -785,12 +790,12 @@ export const LandingPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN: Bounce Moment Animation */}
+                    {/* RIGHT COLUMN: Desktop Animation Only */}
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.3 }}
-                        className="w-full lg:w-1/2 order-2"
+                        className="hidden lg:block w-full lg:w-1/2"
                     >
                         <BounceMomentAnimation />
                     </motion.div>
@@ -803,7 +808,7 @@ export const LandingPage: React.FC = () => {
             <section id="comparison" className="relative z-10 py-16 md:py-24 px-6 bg-[#050507]/50">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-12 md:mb-20">
-                        <h2 className="text-3xl font-bold mb-4">Why you quit your last habit app</h2>
+                        <h2 className="text-3xl font-bold mb-4">Every habit app does these 4 things that make you quit</h2>
                         <p className="text-gray-400">Those apps weren't broken. They just weren't built for how your brain works.</p>
                     </div>
 
@@ -820,9 +825,9 @@ export const LandingPage: React.FC = () => {
                                 </div>
                                 <div className="space-y-4 flex-1">
                                     {[
-                                        { icon: '💔', text: 'Streak resets crush motivation after one missed day' },
-                                        { icon: '😓', text: 'Same difficulty whether energized or exhausted' },
-                                        { icon: '😔', text: 'Opening the app after falling off feels shameful' },
+                                        { icon: '💔', text: 'Miss day 17 → streak resets to 0 → you delete the app in rage.' },
+                                        { icon: '🥱', text: 'Same difficulty whether energized or exhausted' },
+                                        { icon: '😔', text: 'Your cute pixel pet dies because you had a bad week. Guilt: activated.' },
                                         { icon: '📋', text: 'Just another to-do list, not identity building' },
                                     ].map((item, i) => (
                                         <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-red-900/10 border border-red-500/10">
@@ -971,7 +976,7 @@ export const LandingPage: React.FC = () => {
                                         Identity Evolution
                                     </h3>
                                     <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                                        Stop trying to do 10 things at once. Bounce builds around a <strong>single Identity</strong>—like becoming a "Runner" or a "Writer". All habits reinforce who you're becoming, not just what you're doing.
+                                        Stop trying to do 10 things at once. Bounce builds around a <strong>single Identity</strong> - like becoming a "Runner" or a "Writer". All habits reinforce who you're becoming, not just what you're doing.
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                         <span className="text-[10px] px-2 py-1 rounded bg-purple-900/20 text-purple-300 border border-purple-500/20">Weekly Review</span>
@@ -1147,7 +1152,7 @@ export const LandingPage: React.FC = () => {
                             },
                             {
                                 q: "What's the difference between Free and Premium habits?",
-                                a: "Free gives you 9 expert-curated habits (3 per energy level) based on your identity. Premium uses AI to generate unique habits specifically for you based on your history, patterns, and specific goals. Free is a great framework; Premium is a personal coach."
+                                a: "Free gives you 9 personalized habits (3 per energy level) based on your identity. Premium uses AI to generate unique habits specifically for you based on your history, patterns, and specific goals. Free is a great framework; Premium is a personal system."
                             },
                             {
                                 q: "Do I need to create an account?",

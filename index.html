@@ -1,10 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 
 <head>
+  <!-- 🚀 Prevent light mode flash: Set dark mode BEFORE any content renders -->
+  <script>document.documentElement.classList.add('dark');</script>
+
   <meta charset="UTF-8" />
   <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
 
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -61,12 +64,16 @@
     }
 
     /* Dark mode background (default) */
-    html.dark, html.dark body, html.dark #root {
+    html.dark,
+    html.dark body,
+    html.dark #root {
       background-color: #0F0F10 !important;
     }
 
     /* Light mode background */
-    html:not(.dark), html:not(.dark) body, html:not(.dark) #root {
+    html:not(.dark),
+    html:not(.dark) body,
+    html:not(.dark) #root {
       background-color: #F8FAFC !important;
     }
 
@@ -127,6 +134,19 @@
     body {
       overscroll-behavior-y: none;
     }
+
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Hide scrollbar for IE, Edge and Firefox */
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      /* IE and Edge */
+      scrollbar-width: none;
+      /* Firefox */
+    }
   </style>
 
   <script type="importmap">
@@ -144,7 +164,8 @@
   <link rel="stylesheet" href="/index.css">
 </head>
 
-<body class="antialiased transition-colors duration-300 bg-light-50 dark:bg-dark-900 text-gray-900 dark:text-white selection:bg-primary-cyan/30">
+<body
+  class="antialiased transition-colors duration-300 bg-light-50 dark:bg-dark-900 text-gray-900 dark:text-white selection:bg-primary-cyan/30">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

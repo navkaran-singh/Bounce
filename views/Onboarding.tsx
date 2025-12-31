@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Sparkles, Plus, Info, X, Loader2 } from 'lucide-react';
+import { ArrowRight, Sparkles, Plus, Info, X, Loader2, ChevronLeft } from 'lucide-react';
 import { useStore } from '../store';
 import { Message, IdentityType, InitialFamiliarity } from '../types';
 import { generateHabits, GenerateHabitsResult } from '../services/ai';
@@ -410,7 +410,7 @@ export const Onboarding: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-[100dvh] relative overflow-hidden bg-dark-900">
       {/* Tooltips Overlay */}
       <AnimatePresence>
         {/* {step === 0 && shouldShowTooltip('identity') && (
@@ -436,226 +436,276 @@ export const Onboarding: React.FC = () => {
       <div className="absolute bottom-[-10%] right-[-10%] w-[250px] h-[250px] bg-primary-cyan rounded-full blur-[100px] opacity-10 dark:opacity-20 pointer-events-none" />
 
       {/* Header Progress - 4 steps: Pattern, Identity, Familiarity, Habits */}
-      <div className="flex justify-center gap-2 pt-8 pb-4 relative z-10">
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className={`h-1.5 rounded-full transition-all duration-500 ${i <= step ? 'w-6 bg-dark-900 dark:bg-white' : 'w-1.5 bg-dark-900/20 dark:bg-white/20'}`}
-          />
-        ))}
-      </div>
+      {/* displayStep accounts for the two-part step 0 (pattern → identity) */}
+      {(() => {
+        const displayStep = step === 0 && showDomainSelection ? 1 : (step === 0 ? 0 : step + 1);
+        const totalSteps = 4;
+        return (
+          <div className="flex flex-col items-center pt-6 pb-3 relative z-10">
+            {/* Progress Capsules - Larger and more visible */}
+            <div className="flex justify-center gap-2 mb-2">
+              {[0, 1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className={`h-2.5 rounded-full transition-all duration-500 ${i <= displayStep ? 'w-8 bg-primary-cyan shadow-[0_0_8px_rgba(13,204,242,0.4)]' : 'w-2.5 bg-dark-900/20 dark:bg-white/20'}`}
+                />
+              ))}
+            </div>
+            {/* Step Label */}
+            <p className="text-xs text-gray-500 dark:text-white/40 font-medium">
+              Step {displayStep + 1} of {totalSteps}{displayStep === totalSteps - 1 && ' · Last step!'}
+            </p>
+            {/* Context on first view */}
+            {displayStep === 0 && (
+              <p className="text-xs text-white/30 mt-1">4 quick questions to personalize your habit</p>
+            )}
+          </div>
+        );
+      })()}
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 custom-scrollbar relative z-0">
-        <AnimatePresence>
-          {messages.map((msg) => (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              className={`flex w-full ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+      {/* All Steps: Sticky Question + Content area */}
+      <div className="flex-1 flex flex-col relative z-0 overflow-hidden">
+        {/* Sticky Question Header with Back Button */}
+        <div className="px-4 pt-6 pb-4 relative z-10">
+          {/* Back Button */}
+          {(step > 0 || showDomainSelection) && (
+            <button
+              onClick={() => {
+                if (showDomainSelection) {
+                  setShowDomainSelection(false);
+                  setSelectedPattern(null);
+                } else if (step > 0) {
+                  setStep(step - 1);
+                }
+              }}
+              className="absolute left-4 top-6 p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
             >
-              <div className="flex gap-3 max-w-[85%]">
-                {msg.sender === 'bot' && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-cyan to-primary-purple shrink-0 shadow-[0_0_10px_rgba(13,204,242,0.3)]" />
-                )}
-                <div className={`p-4 rounded-2xl backdrop-blur-md border border-white/10 whitespace-pre-wrap shadow-sm ${msg.sender === 'user'
-                  ? 'bg-dark-800/10 dark:bg-white/10 text-dark-900 dark:text-white'
-                  : 'bg-white dark:bg-dark-800/80 text-dark-700 dark:text-white/90'
-                  }`}>
-                  <p className="text-[15px] leading-relaxed">{msg.text}</p>
+              <ChevronLeft size={24} className="text-white/60" />
+            </button>
+          )}
+          <AnimatePresence mode='wait'>
+            <motion.div
+              key={step === 0 ? (showDomainSelection ? 'q2' : 'q1') : step === 1 ? 'q3' : 'q4'}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="text-center px-8"
+            >
+              <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-lg">
+                {step === 0
+                  ? (showDomainSelection
+                    ? "Who do you want to become through this?"
+                    : "What's one thing in your life that actually bothers you enough to fix?")
+                  : step === 1
+                    ? "How familiar are you already with this?"
+                    : "Create your micro-habit deck"
+                }
+              </h2>
+              {step === 0 && showDomainSelection && (
+                <motion.p
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="text-sm text-white/50 mt-3 font-medium"
+                >
+                  (Focus on one identity at a time)
+                </motion.p>
+              )}
+              {step === 2 && (
+                <motion.p
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="text-sm text-white/50 mt-3 font-medium"
+                >
+                  One habit for each energy level
+                </motion.p>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Content Area */}
+        <div className={`flex-1 w-full ${step >= 1 ? 'overflow-y-auto custom-scrollbar px-4 pb-4' : ''}`}>
+
+          {/* Step 0: Horizontal Scrolling Chips - with peek hint */}
+          {step === 0 && !showDomainSelection && (
+            <div className="h-full flex flex-col justify-end pb-4">
+              <div className="w-full overflow-x-auto no-scrollbar">
+                {/* Gradient hint that more content exists */}
+                <div className="flex gap-3 w-max py-2 pl-2 pr-8">
+                  {IDENTITY_EXAMPLES.map((ex, idx) => (
+                    <motion.button
+                      key={idx}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      onClick={() => setInputValue(ex.label)}
+                      className={`px-4 py-3 rounded-2xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${inputValue === ex.label
+                        ? 'bg-primary-cyan/20 border-primary-cyan text-white shadow-[0_0_20px_rgba(13,204,242,0.3)] ring-1 ring-primary-cyan/50'
+                        : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                        } border backdrop-blur-md`}
+                    >
+                      <span className="text-xl">{ex.emoji}</span>
+                      <span>{ex.label}</span>
+                    </motion.button>
+                  ))}
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+              {/* Scroll hint */}
+              <p className="text-xs text-center text-white/30 mt-2">← Swipe to see more →</p>
+            </div>
+          )}
 
-        {/* Options for Step 1 (Familiarity) */}
-        {step === 1 && messages[messages.length - 1].sender === 'bot' && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="flex flex-col gap-2 w-full"
-          >
-            {FAMILIARITY_OPTIONS.map((opt, idx) => (
+          {/* Step 1: Vertical Familiarity Options */}
+          {step === 1 && (
+            <div className="flex flex-col gap-3 py-2">
+              {FAMILIARITY_OPTIONS.map((opt, idx) => (
+                <motion.button
+                  key={opt.value}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.08 }}
+                  onClick={() => handleSend(opt.value)}
+                  className="w-full px-5 py-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-primary-cyan/10 hover:border-primary-cyan/30 transition-all text-left flex items-center gap-4 group"
+                >
+                  <span className="text-3xl group-hover:scale-110 transition-transform duration-300">{opt.emoji}</span>
+                  <span className="text-base font-medium text-white/90">{opt.label}</span>
+                </motion.button>
+              ))}
+            </div>
+          )}
+
+          {/* Step 2: Habit Input Cards */}
+          {step === 2 && (
+            <div className="flex flex-col gap-4 py-2">
+              {/* Auto-Fill Button - Original compact style */}
+              <div className="flex justify-between items-center px-1">
+                <span className="text-xs text-white/40 font-medium uppercase tracking-wider">Your Deck</span>
+                <button
+                  onClick={handleMagicWand}
+                  disabled={isGenerating}
+                  className="flex items-center gap-1 text-xs text-primary-purple hover:text-primary-cyan transition-colors disabled:opacity-50"
+                >
+                  {isGenerating ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={12} />
+                  )}
+                  <span>{isGenerating ? 'Generating...' : 'Auto-Fill'}</span>
+                </button>
+              </div>
+
+              {/* Habit Input Fields as Cards */}
+              {habitInputs.map((habit, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{idx === 0 ? '🔥' : idx === 1 ? '⚡' : '🌱'}</span>
+                    <span className="text-sm font-medium text-white/60">
+                      {idx === 0 ? 'High Energy Day' : idx === 1 ? 'Normal Day' : 'Low Energy Day'}
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={habit}
+                    onChange={(e) => {
+                      const newInputs = [...habitInputs];
+                      newInputs[idx] = e.target.value;
+                      setHabitInputs(newInputs);
+                    }}
+                    placeholder={idx === 0 ? "e.g. Write 500 words" : idx === 1 ? "e.g. Write 1 paragraph" : "e.g. Write 1 sentence"}
+                    className="w-full bg-transparent border-b border-white/10 pb-2 text-white placeholder-white/30 focus:outline-none focus:border-primary-cyan/50 transition-colors"
+                  />
+                </motion.div>
+              ))}
+
+              {/* Confirm Button */}
               <motion.button
-                key={opt.value}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.08 }}
-                onClick={() => handleSend(opt.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-white/5 border border-dark-900/10 dark:border-white/20 hover:bg-primary-cyan/10 dark:hover:bg-primary-cyan/10 hover:border-primary-cyan/30 transition-all text-left text-sm font-medium text-dark-900 dark:text-white flex items-center gap-3"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                onClick={() => handleSend(habitInputs)}
+                disabled={!habitInputs[0].trim()}
+                className="w-full mt-2 py-4 bg-gradient-to-r from-primary-cyan to-primary-blue rounded-2xl font-bold text-white dark:text-dark-900 shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:shadow-none transition-all active:scale-[0.98]"
               >
-                <span className="text-lg">{opt.emoji}</span>
-                <span>{opt.label}</span>
+                Confirm Deck
               </motion.button>
-            ))}
-          </motion.div>
-        )}
-        <div ref={scrollRef} className="h-20" />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-dark-900/5 dark:border-white/5 bg-white/80 dark:bg-dark-900/80 backdrop-blur-xl relative z-10">
+      <div className={`p-4 border-t border-dark-900/5 dark:border-white/5 bg-white/80 dark:bg-dark-900/80 backdrop-blur-xl relative z-10 transition-all duration-300 ${step === 0 ? 'pb-6' : ''}`}>
 
-        {/* Step 0: Identity Input with Examples or Domain Selection */}
+        {/* Step 0: Input Only (Chips moved to main view) */}
         {step === 0 && (
           <div className="space-y-4">
-            {/* Domain Selection - Now a text input for identity */}
-            {showDomainSelection && selectedPattern ? (
-              <div className="relative">
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && inputValue.trim()) {
-                      // Combine pattern context with identity
+            <div className="relative">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && inputValue.trim()) {
+                    // Logic handles both phases via existing 'handleSend' logic flow or manual implementation
+                    // Reusing the same manual block from original code for safety:
+                    if (showDomainSelection) {
                       const finalIdentity = inputValue.trim();
                       const newMessages = [...messages, { id: Date.now().toString(), sender: 'user', text: finalIdentity } as Message];
                       setMessages(newMessages);
                       setInputValue('');
-
                       setTimeout(() => {
                         setIdentity(finalIdentity);
-                        const nextBotMsg: Message = {
-                          id: 'bot-familiarity',
-                          sender: 'bot',
-                          text: `Perfect! "${finalIdentity}" who works on "${selectedPattern.label}".\n\nHow familiar are you already with this?`,
-                          type: 'text'
-                        };
+                        const nextBotMsg: Message = { id: 'bot-familiarity', sender: 'bot', text: `Perfect! "${finalIdentity}"...`, type: 'text' };
                         setMessages(prev => [...prev, nextBotMsg]);
                         setStep(1);
                         setShowDomainSelection(false);
                         setSelectedPattern(null);
                       }, 600);
+                    } else {
+                      handleSend(inputValue);
                     }
-                  }}
-                  placeholder="e.g. A Fantasy Writer, A Morning Runner, A Developer..."
-                  className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl pl-4 pr-12 py-4 text-dark-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-primary-cyan/50 transition-colors"
-                  autoFocus
-                />
-                <button
-                  onClick={() => {
-                    if (!inputValue.trim()) return;
+                  }
+                }}
+                placeholder={showDomainSelection ? "e.g. A Fantasy Writer, A Morning Runner..." : "Or type your own..."}
+                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl pl-5 pr-14 py-4 text-dark-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-primary-cyan/50 transition-colors text-lg"
+                autoFocus={showDomainSelection} // Auto-focus only on identity step
+              />
+              <button
+                onClick={() => {
+                  if (!inputValue.trim()) return;
+                  if (showDomainSelection) {
                     const finalIdentity = inputValue.trim();
                     const newMessages = [...messages, { id: Date.now().toString(), sender: 'user', text: finalIdentity } as Message];
                     setMessages(newMessages);
                     setInputValue('');
-
                     setTimeout(() => {
                       setIdentity(finalIdentity);
-                      const nextBotMsg: Message = {
-                        id: 'bot-familiarity',
-                        sender: 'bot',
-                        text: `Perfect! "${finalIdentity}" who works on "${selectedPattern.label}".\n\nHow familiar are you already with this?`,
-                        type: 'text'
-                      };
+                      const nextBotMsg: Message = { id: 'bot-familiarity', sender: 'bot', text: `Perfect! "${finalIdentity}"...`, type: 'text' };
                       setMessages(prev => [...prev, nextBotMsg]);
                       setStep(1);
                       setShowDomainSelection(false);
                       setSelectedPattern(null);
                     }, 600);
-                  }}
-                  disabled={!inputValue.trim()}
-                  className="absolute right-2 top-2 bottom-2 w-10 bg-gradient-to-br from-primary-cyan to-primary-blue rounded-xl flex items-center justify-center disabled:opacity-50 disabled:grayscale transition-all"
-                >
-                  <ArrowRight size={20} className="text-white dark:text-dark-900" />
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Tappable Pattern Examples */}
-                <div className="flex flex-wrap gap-2">
-                  {IDENTITY_EXAMPLES.map((ex, idx) => (
-                    <motion.button
-                      key={idx}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      onClick={() => setInputValue(ex.label)}
-                      className={`px-3 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${inputValue === ex.label
-                        ? 'bg-primary-cyan/20 border-primary-cyan/50 text-primary-cyan dark:text-primary-cyan'
-                        : 'bg-white dark:bg-white/5 border-dark-900/10 dark:border-white/20 text-dark-700 dark:text-white/70 hover:bg-primary-cyan/10 hover:border-primary-cyan/30'
-                        } border`}
-                    >
-                      <span>{ex.emoji}</span>
-                      <span>{ex.label}</span>
-                    </motion.button>
-                  ))}
-                </div>
-
-                {/* Custom Input */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend(inputValue)}
-                    placeholder="Or type your own..."
-                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl pl-4 pr-12 py-4 text-dark-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-primary-cyan/50 transition-colors"
-                  />
-                  <button
-                    onClick={() => handleSend(inputValue)}
-                    disabled={!inputValue.trim()}
-                    className="absolute right-2 top-2 bottom-2 w-10 bg-gradient-to-br from-primary-cyan to-primary-blue rounded-xl flex items-center justify-center disabled:opacity-50 disabled:grayscale transition-all"
-                  >
-                    <ArrowRight size={20} className="text-white dark:text-dark-900" />
-                  </button>
-                </div>
-
-                {/* Seriousness Nudge */}
-                <p className="text-xs text-center text-gray-500 dark:text-white/40">
-                  Pick something you're willing to work on!
-                </p>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Step 2: Micro-Habit Deck Input */}
-        {step === 2 && (
-          <div className="space-y-3">
-            <div className="flex justify-between items-center px-1 mb-2">
-              <span className="text-xs text-gray-500 dark:text-white/40 font-medium uppercase tracking-wider">Your Deck</span>
-              <button
-                onClick={handleMagicWand}
-                disabled={isGenerating}
-                className="flex items-center gap-1 text-xs text-primary-purple hover:text-primary-cyan transition-colors disabled:opacity-50"
+                  } else {
+                    handleSend(inputValue);
+                  }
+                }}
+                disabled={!inputValue.trim()}
+                className="absolute right-2 top-2 bottom-2 w-12 bg-gradient-to-br from-primary-cyan to-primary-blue rounded-xl flex items-center justify-center disabled:opacity-50 disabled:grayscale transition-all"
               >
-                {isGenerating ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <Sparkles size={12} />
-                )}
-                <span>{isGenerating ? 'Generating...' : 'Auto-Fill'}</span>
+                <ArrowRight size={24} className="text-white dark:text-dark-900" />
               </button>
             </div>
-
-            {habitInputs.map((habit, idx) => (
-              <motion.input
-                key={idx}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                type="text"
-                value={habit}
-                onChange={(e) => {
-                  const newInputs = [...habitInputs];
-                  newInputs[idx] = e.target.value;
-                  setHabitInputs(newInputs);
-                }}
-                placeholder={idx === 0 ? "🔥 High Energy: e.g. Write 500 words" : idx === 1 ? "⚡ Normal Day: e.g. Write 1 paragraph" : "🌱 Low Energy: e.g. Write 1 sentence"}
-                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-dark-900 dark:text-white placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:border-primary-cyan/50 transition-colors"
-              />
-            ))}
-
-            <button
-              onClick={() => handleSend(habitInputs)}
-              disabled={!habitInputs[0].trim()}
-              className="w-full mt-2 py-4 bg-gradient-to-r from-primary-cyan to-primary-blue rounded-xl font-bold text-white dark:text-dark-900 shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:shadow-none transition-all active:scale-[0.98]"
-            >
-              Confirm Deck
-            </button>
+            {/* Seriousness Nudge */}
+            {!showDomainSelection && (
+              <p className="text-xs text-center text-gray-500 dark:text-white/30">
+                Pick something you're willing to work on!
+              </p>
+            )}
           </div>
         )}
       </div>

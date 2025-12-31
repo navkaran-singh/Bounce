@@ -18,7 +18,21 @@ const getPlatformFlags = () => {
 };
 
 const TUTORIAL_COMPLETED_KEY = 'bounce_tutorial_completed';
-const INSTALL_PROMPT_SEEN_KEY = 'bounce_install_prompt';
+const INSTALL_PROMPT_SEEN_KEY = 'bounce_install_prompt_dismissed_at';
+const PROMPT_RESET_HOURS = 48; // Show again after 2 days
+
+// Check if enough time has passed since last dismissal
+const shouldShowAgain = (): boolean => {
+    const dismissedAt = localStorage.getItem(INSTALL_PROMPT_SEEN_KEY);
+    if (!dismissedAt) return true; // Never dismissed
+
+    // Handle legacy 'true' values or invalid timestamps - show again
+    const timestamp = parseInt(dismissedAt, 10);
+    if (isNaN(timestamp)) return true;
+
+    const hoursSince = (Date.now() - timestamp) / (1000 * 60 * 60);
+    return hoursSince >= PROMPT_RESET_HOURS;
+};
 
 export const InstallPrompt = () => {
     const [showPrompt, setShowPrompt] = useState(false);
@@ -31,16 +45,14 @@ export const InstallPrompt = () => {
 
     const { isIOS, isAndroid, isPWA, isDesktop } = platform;
 
-    // Track if user has dismissed (to prevent polling from re-showing)
-    const [isDismissed, setIsDismissed] = useState(() =>
-        localStorage.getItem(INSTALL_PROMPT_SEEN_KEY) === 'true'
-    );
+    // Track if user has dismissed (check if 2 days have passed)
+    const [isDismissed, setIsDismissed] = useState(() => !shouldShowAgain());
 
     useEffect(() => {
         // 👇 DEBUG: Set this to TRUE to see the modal on your computer immediately.
         const FORCE_DEBUG_MODE = false;
 
-        // Don't show if: already dismissed, already PWA, or already shown
+        // Don't show if: already dismissed (within 2 days), already PWA, or already shown
         if (isDismissed || isPWA) return;
 
         const hasTutorialCompleted = localStorage.getItem(TUTORIAL_COMPLETED_KEY);
@@ -55,11 +67,11 @@ export const InstallPrompt = () => {
             // Set up a listener for when tutorial completes
             const checkTutorial = () => {
                 // Re-check dismissed state in case user dismissed while we were polling
-                if (localStorage.getItem(INSTALL_PROMPT_SEEN_KEY)) return;
+                if (!shouldShowAgain()) return;
                 if (localStorage.getItem(TUTORIAL_COMPLETED_KEY)) {
                     setTimeout(() => {
                         // Final check before showing
-                        if (!localStorage.getItem(INSTALL_PROMPT_SEEN_KEY)) {
+                        if (shouldShowAgain()) {
                             setShowPrompt(true);
                         }
                     }, 10000);
@@ -84,7 +96,7 @@ export const InstallPrompt = () => {
     const handleDismiss = () => {
         setShowPrompt(false);
         setIsDismissed(true); // Prevent polling from re-triggering
-        localStorage.setItem(INSTALL_PROMPT_SEEN_KEY, 'true');
+        localStorage.setItem(INSTALL_PROMPT_SEEN_KEY, Date.now().toString()); // Store timestamp
     };
 
     return (
@@ -124,7 +136,7 @@ export const InstallPrompt = () => {
                                 {/* Android-specific messaging */}
                                 {isAndroid && (
                                     <>
-                                        <h3 className="font-bold text-white text-sm">Install Bounce</h3>
+                                        <h3 className="font-bold text-white text-sm">Make Bounce part of your day</h3>
                                         <p className="text-white/60 text-xs mt-1 leading-relaxed">
                                             Get the full app experience with offline access and faster performance.
                                         </p>
@@ -150,14 +162,21 @@ export const InstallPrompt = () => {
                         {isIOS && (
                             <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
                                 <div className="flex items-center gap-3 text-sm text-white/80">
-                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs font-bold">1</span>
+                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs font-bold shrink-0">1</span>
                                     <span>
-                                        Tap the <Share size={14} className="inline mx-1 text-primary-cyan" /> Share button below
+                                        Tap <Share size={14} className="inline mx-1 text-primary-cyan" /> Share button
                                     </span>
                                 </div>
+                                <div className="flex items-start gap-3 text-sm text-white/80">
+                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs font-bold shrink-0 mt-0.5">2</span>
+                                    <div className="flex flex-col">
+                                        <span>Scroll down & select <span className="font-bold text-white">Add to Home Screen</span></span>
+                                        <span className="text-[10px] text-white/40 mt-1">If missing, tap 'Edit Actions' at bottom</span>
+                                    </div>
+                                </div>
                                 <div className="flex items-center gap-3 text-sm text-white/80">
-                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs font-bold">2</span>
-                                    <span>Select <span className="font-bold text-white">Add to Home Screen</span></span>
+                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs font-bold shrink-0">3</span>
+                                    <span>Tap <span className="font-bold text-white">Add</span> (top right)</span>
                                 </div>
                             </div>
                         )}
@@ -165,14 +184,18 @@ export const InstallPrompt = () => {
                         {isAndroid && (
                             <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
                                 <div className="flex items-center gap-3 text-sm text-white/80">
-                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs font-bold">1</span>
+                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs font-bold shrink-0">1</span>
                                     <span>
-                                        Tap the <span className="inline-flex items-center mx-1">⋮</span> menu (top right)
+                                        Tap the <span className="inline-flex items-center mx-1 font-bold">⋮</span> menu
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-3 text-sm text-white/80">
-                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs font-bold">2</span>
-                                    <span>Select <span className="font-bold text-white">Install app</span> or <span className="font-bold text-white">Add to Home screen</span></span>
+                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs font-bold shrink-0">2</span>
+                                    <span>Scroll down & select <span className="font-bold text-white">Add to Home screen</span></span>
+                                </div>
+                                <div className="flex items-center gap-3 text-sm text-white/80">
+                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs font-bold shrink-0">3</span>
+                                    <span>Tap <span className="font-bold text-white">Install</span></span>
                                 </div>
                             </div>
                         )}

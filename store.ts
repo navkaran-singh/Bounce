@@ -10,8 +10,14 @@ import { generateWeeklyEvolutionPlan } from './services/ai';
 import { checkStageEligibility, getAutoPromotionMessage, getSuggestedUpgradeMessage } from './services/stageGatekeeper';
 import { getRandomResonanceStatements } from './data/resonanceTemplates';
 
+// 🚀 PERFORMANCE: Detect if running as native app (Capacitor) or web/PWA
+const isNativeApp = typeof (window as any)?.Capacitor !== 'undefined' &&
+  (window as any)?.Capacitor?.isNativePlatform?.();
 
-const capacitorStorage = {
+// 🚀 HYBRID STORAGE: Use fast localStorage for web/PWA, Capacitor Preferences for native
+// localStorage is synchronous and MUCH faster for cold starts
+const smartStorage = isNativeApp ? {
+  // Native App: Use async Capacitor Preferences
   getItem: async (name: string): Promise<string | null> => {
     const { value } = await Preferences.get({ key: name });
     return value;
@@ -22,7 +28,21 @@ const capacitorStorage = {
   removeItem: async (name: string): Promise<void> => {
     await Preferences.remove({ key: name });
   },
+} : {
+  // Web/PWA: Use fast synchronous localStorage (wrapped in Promise for zustand compatibility)
+  getItem: (name: string): Promise<string | null> => {
+    return Promise.resolve(localStorage.getItem(name));
+  },
+  setItem: (name: string, value: string): Promise<void> => {
+    localStorage.setItem(name, value);
+    return Promise.resolve();
+  },
+  removeItem: (name: string): Promise<void> => {
+    localStorage.removeItem(name);
+    return Promise.resolve();
+  },
 };
+
 
 // Helper to convert Firebase User to AppUser
 const toAppUser = (firebaseUser: User | null): AppUser | null => {
@@ -2750,9 +2770,7 @@ export const useStore = create<ExtendedUserState>()(
             await get().syncToFirebase(true);
           }
 
-          // 🛡️ SAFETY LOCK: Mark initial load as complete - safe to sync now
-          set({ initialLoadComplete: true });
-          if (import.meta.env.DEV) console.log("🛡️ [LOAD] Initial load complete - sync unlocked");
+          // 🚀 PERF: initialLoadComplete already set in onRehydrateStorage (non-blocking)
 
           // 🛡️ RACE FIX: Run daily checks now that cloud data is loaded
           // This ensures we have the correct lastDailyPlanDate before deciding to call AI
@@ -2765,14 +2783,14 @@ export const useStore = create<ExtendedUserState>()(
           get().checkSubscriptionStatus();
         } catch (error) {
           console.error("[LOAD] Error checking sync:", error);
-          // Still mark as complete on error to avoid blocking forever
-          set({ initialLoadComplete: true });
+          // 🚀 PERF: initialLoadComplete already set - just log the error
+          if (import.meta.env.DEV) console.error("[LOAD] Background sync error:", error);
         }
       },
     }),
     {
       name: 'bounce_state',
-      storage: createJSONStorage(() => capacitorStorage),
+      storage: createJSONStorage(() => smartStorage),
       partialize: (state) => ({
         theme: state.theme,
         user: state.user,
@@ -2842,14 +2860,21 @@ export const useStore = create<ExtendedUserState>()(
           state.setHasHydrated(true);
           // After rehydration, initialize auth listener
           state.initializeAuth();
-          // If user is already logged in (from persisted state), check for cloud updates
+
+          // 🚀 PERF FIX: Mark initial load complete IMMEDIATELY so UI can render
+          // Don't wait for network operations - show local data first
+          useStore.setState({ initialLoadComplete: true });
+
+          // If user is already logged in (from persisted state), sync in BACKGROUND
           if (state.user) {
-            if (import.meta.env.DEV) console.log("[REHYDRATE] User logged in, checking cloud sync...");
-            state.loadFromFirebase();
+            if (import.meta.env.DEV) console.log("[REHYDRATE] User logged in, starting BACKGROUND cloud sync...");
+            // 🚀 NON-BLOCKING: Fire and forget - don't await
+            state.loadFromFirebase().catch((e: Error) => {
+              if (import.meta.env.DEV) console.error("[REHYDRATE] Background sync failed:", e);
+            });
           } else {
-            // 🛡️ SAFETY LOCK: No user = no cloud sync needed, unlock immediately
+            // 🛡️ SAFETY LOCK: No user = no cloud sync needed
             if (import.meta.env.DEV) console.log("[REHYDRATE] No user logged in, skipping cloud sync");
-            useStore.setState({ initialLoadComplete: true });
           }
 
           // Check for missed days after hydration (triggers recovery mode if needed)

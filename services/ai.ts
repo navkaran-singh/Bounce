@@ -47,9 +47,9 @@ async function safeAIRequest(
 
       const text = response.text || "";
 
-      // 📊 TOKEN USAGE LOGGING
+      // 📊 TOKEN USAGE LOGGING (DEV only)
       const usage = (response as any).usageMetadata;
-      if (usage) {
+      if (import.meta.env.DEV && usage) {
         console.log(`📊 [TOKEN USAGE] ${modelName}:`, {
           input: usage.promptTokenCount || 0,
           output: usage.candidatesTokenCount || 0,
@@ -62,10 +62,10 @@ async function safeAIRequest(
       return text;
     } catch (err: any) {
       const errorMsg = err?.message || String(err);
-      console.warn(`🤖 [AI ERROR] Attempt ${attempt + 1}/${MAX_TOTAL_ATTEMPTS} (${modelName}):`, errorMsg);
+      if (import.meta.env.DEV) console.warn(`🤖 [AI ERROR] Attempt ${attempt + 1}/${MAX_TOTAL_ATTEMPTS} (${modelName}):`, errorMsg);
 
       if (attempt === MAX_TOTAL_ATTEMPTS - 1) {
-        console.error(`🤖 [AI] ❌ Circuit breaker tripped after ${MAX_TOTAL_ATTEMPTS} attempts`);
+        if (import.meta.env.DEV) console.error(`🤖 [AI] ❌ Circuit breaker tripped after ${MAX_TOTAL_ATTEMPTS} attempts`);
         break;
       }
 
@@ -228,9 +228,9 @@ export const generateHabits = async (identity: string, identityPattern?: string)
     });
     const text = result.text || "";
 
-    // 📊 TOKEN USAGE LOGGING
+    // 📊 TOKEN USAGE LOGGING (DEV only)
     const usage = (result as any).usageMetadata;
-    if (usage) {
+    if (import.meta.env.DEV && usage) {
       console.log(`📊 [TOKEN USAGE] generateHabits:`, {
         input: usage.promptTokenCount || 0,
         output: usage.candidatesTokenCount || 0,
@@ -535,9 +535,9 @@ export const generateDailyAdaptation = async (
     });
     const text = result.text || "";
 
-    // 📊 TOKEN USAGE LOGGING
+    // 📊 TOKEN USAGE LOGGING (DEV only)
     const usage = (result as any).usageMetadata;
-    if (usage) {
+    if (import.meta.env.DEV && usage) {
       console.log(`📊 [TOKEN USAGE] generateDailyAdaptation:`, {
         input: usage.promptTokenCount || 0,
         output: usage.candidatesTokenCount || 0,

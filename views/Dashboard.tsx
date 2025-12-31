@@ -143,11 +143,12 @@ const EditHabitModal: React.FC<{
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
             onClick={onClose}
         >
-            {/* Outer glow wrapper */}
-            <div className="relative w-full max-w-md">
+            {/* Wrapper to center content and handle scrolling */}
+            <div className="relative w-full max-w-md my-auto pointer-events-auto" onClick={e => e.stopPropagation()}>
+
                 {/* Ambient cyan glow behind card */}
                 <div className="absolute inset-0 bg-cyan-500/15 blur-2xl rounded-3xl" />
 
@@ -156,15 +157,15 @@ const EditHabitModal: React.FC<{
                     animate={{ y: 0, opacity: 1, scale: 1 }}
                     exit={{ y: 50, opacity: 0, scale: 0.95 }}
                     transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                    className="relative bg-white dark:bg-[#050A0F] rounded-3xl border border-gray-200 dark:border-cyan-500/30 shadow-2xl shadow-gray-200/50 dark:shadow-cyan-900/20 overflow-hidden"
-                    onClick={e => e.stopPropagation()}
+                    // Added max-h constraint and scroll
+                    className="relative bg-white dark:bg-[#050A0F] rounded-3xl border border-gray-200 dark:border-cyan-500/30 shadow-2xl shadow-gray-200/50 dark:shadow-cyan-900/20 overflow-hidden max-h-[85vh] flex flex-col"
                 >
                     {/* Subtle inner glow at top */}
                     <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-cyan-500/10 to-transparent pointer-events-none" />
 
-                    <div className="relative p-6">
+                    <div className="relative p-6 overflow-y-auto">
                         {/* Header */}
-                        <div className="flex items-center gap-3 mb-5">
+                        <div className="flex items-center gap-3 mb-5 shrink-0">
                             <div className="relative">
                                 {/* Pulsing glow behind icon */}
                                 <motion.div
@@ -223,7 +224,7 @@ const EditHabitModal: React.FC<{
                         </p>
 
                         {/* Buttons */}
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 mt-auto">
                             <button
                                 onClick={onClose}
                                 className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 font-semibold border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-[0.98]"
@@ -282,10 +283,19 @@ export const Dashboard: React.FC = () => {
     const [showNeverMissTwice, setShowNeverMissTwice] = useState(false);
 
     // Sync prompt state (for non-authenticated users)
+    const SYNC_PROMPT_KEY = 'bounce_sync_prompt_dismissed_at';
+    const SYNC_PROMPT_RESET_HOURS = 48;
     const [showSyncCard, setShowSyncCard] = useState(() => {
-        // Only show if user hasn't permanently dismissed it
-        const dismissed = localStorage.getItem('bounce_sync_prompt_dismissed');
-        return !dismissed;
+        // Show if never dismissed OR if 2 days have passed
+        const dismissedAt = localStorage.getItem(SYNC_PROMPT_KEY);
+        if (!dismissedAt) return true;
+
+        // Handle legacy 'true' values - treat as "show again"
+        const timestamp = parseInt(dismissedAt, 10);
+        if (isNaN(timestamp)) return true;
+
+        const hoursSince = (Date.now() - timestamp) / (1000 * 60 * 60);
+        return hoursSince >= SYNC_PROMPT_RESET_HOURS;
     });
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [dismissToast, setDismissToast] = useState<string | null>(null);
@@ -794,7 +804,6 @@ export const Dashboard: React.FC = () => {
                                             onChange={(e) => setIntentionInput(e.target.value)}
                                             placeholder="Set today's intention..."
                                             className="w-full bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-primary-cyan/50 backdrop-blur-sm"
-                                            autoFocus
                                         />
                                     </div>
                                     <button
@@ -848,7 +857,7 @@ export const Dashboard: React.FC = () => {
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                localStorage.setItem('bounce_sync_prompt_dismissed', 'true');
+                                                localStorage.setItem(SYNC_PROMPT_KEY, Date.now().toString());
                                                 setShowSyncCard(false);
                                                 setDismissToast('You can sign up anytime from Settings → Data Sovereignty');
                                                 setTimeout(() => setDismissToast(null), 4000);
@@ -1032,6 +1041,11 @@ export const Dashboard: React.FC = () => {
                                         <h3
                                             className={`text-lg font-bold text-gray-800 dark:text-white leading-tight flex items-center gap-2 cursor-pointer select-none ${zenMode ? 'justify-center text-2xl' : ''}`}
                                             data-tutorial="habit-text"
+                                            style={{
+                                                WebkitTouchCallout: 'none',
+                                                WebkitUserSelect: 'none',
+                                                userSelect: 'none'
+                                            }}
                                             onTouchStart={() => {
                                                 const timer = setTimeout(() => setIsEditHabitOpen(true), 500);
                                                 (window as any).__editHabitTimer = timer;
@@ -1115,7 +1129,7 @@ export const Dashboard: React.FC = () => {
 
                     <AnimatePresence>
                         {showPostCompletionActions && (
-                            <div className="absolute top-full mt-4 flex gap-3 z-40">
+                            <div className="flex gap-3 z-40 mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
                                 <motion.button
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                                     onClick={handleUndo}
@@ -1136,10 +1150,10 @@ export const Dashboard: React.FC = () => {
                         )}
                     </AnimatePresence>
                 </div>
-            </div>
+            </div >
 
             {/* Never Miss Twice Sheet - Shows after 7 PM if streak at risk */}
-            <NeverMissTwiceSheet
+            < NeverMissTwiceSheet
                 isOpen={showNeverMissTwice}
                 onClose={() => setShowNeverMissTwice(false)}
                 onQuickAction={() => {
@@ -1149,6 +1163,6 @@ export const Dashboard: React.FC = () => {
                 }}
                 currentHabit={currentHabitText}
             />
-        </div>
+        </div >
     );
 };

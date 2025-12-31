@@ -35,6 +35,67 @@ const WebApp: React.FC = () => {
     };
   }, []);
 
+  // 📱 SWIPE NAVIGATION LOGIC
+  const touchStartRef = useRef<{ x: number, y: number } | null>(null);
+  const touchEndRef = useRef<{ x: number, y: number } | null>(null);
+  const minSwipeDistance = 50;
+
+  // Define Tab Order: Habits -> Growth -> Stats
+  const TAB_ORDER = ['dashboard', 'growth', 'stats'];
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchEndRef.current = null;
+    touchStartRef.current = {
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    };
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEndRef.current = {
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    };
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStartRef.current || !touchEndRef.current) return;
+
+    // Calculate distances
+    const distanceX = touchStartRef.current.x - touchEndRef.current.x;
+    const distanceY = touchStartRef.current.y - touchEndRef.current.y;
+    const isLeftSwipe = distanceX > minSwipeDistance;
+    const isRightSwipe = distanceX < -minSwipeDistance;
+
+    // 🛑 DOMINANCE CHECK: Ensure it's a horizontal swipe, not vertical scroll
+    if (Math.abs(distanceX) < Math.abs(distanceY)) return;
+
+    // Get current index
+    const currentIndex = TAB_ORDER.indexOf(currentView);
+    if (currentIndex === -1) return; // Not on a tab (e.g. Onboarding)
+
+    if (isLeftSwipe) {
+      // SWIPE LEFT (Finger West) -> GO NEXT (Right Tab)
+      // e.g. Dashboard -> Growth -> Stats
+      if (currentIndex < TAB_ORDER.length - 1) {
+        // Only navigate if not last tab (Stats)
+        const nextView = TAB_ORDER[currentIndex + 1] as any;
+        setView(nextView);
+      }
+    }
+
+    if (isRightSwipe) {
+      // SWIPE RIGHT (Finger East) -> GO PREV (Left Tab)
+      // e.g. Stats -> Growth -> Dashboard
+      if (currentIndex > 0) {
+        // Only navigate if not first tab (Dashboard/Habits)
+        const prevView = TAB_ORDER[currentIndex - 1] as any;
+        setView(prevView);
+      }
+    }
+  };
+
+
   // 📊 ANALYTICS: Track app entry and return visits
   useEffect(() => {
     if (!_hasHydrated) return;
@@ -356,7 +417,13 @@ const WebApp: React.FC = () => {
       <main className="w-full h-full md:h-[calc(100vh-2rem)] md:my-4 md:rounded-[32px] md:border md:border-stone-300 dark:md:border-white/10 md:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] dark:md:shadow-[0_0_100px_-20px_rgba(6,182,212,0.15)] md:[transform:translateZ(0)] md:overflow-hidden max-w-lg mx-auto relative shadow-2xl bg-[#FDFCF8] dark:bg-[#0F0F10]/80 backdrop-blur-sm transition-all duration-300">
 
         {/* Scrollable Content Area */}
-        <div ref={scrollContainerRef} className="absolute inset-0 overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth">
+        <div
+          ref={scrollContainerRef}
+          className="absolute inset-0 overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
           <AnimatePresence mode="popLayout" custom={direction} initial={false}>
             <motion.div
               key={currentView}

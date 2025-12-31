@@ -244,8 +244,11 @@ export const Contract: React.FC = () => {
           <p className="text-[#F5F5F5] text-base font-medium leading-normal pb-3 pt-1 px-4 tracking-wide">
             Sign the Contract
           </p>
-          <p className="text-white/40 text-sm font-normal leading-normal pb-3 px-4">
+          <p className="text-white/40 text-sm font-normal leading-normal pb-2 px-4">
             {isHolding ? "Hold to Sign..." : "Press and Hold to Sign"}
+          </p>
+          <p className="text-white/25 text-xs font-normal leading-normal px-6">
+            After signing, you'll see your daily habit dashboard and start tracking your journey.
           </p>
         </div>
       </div>
