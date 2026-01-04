@@ -552,7 +552,8 @@ const BounceMomentAnimation: React.FC = () => {
                                         💤
                                     </motion.div>
                                     <div className="text-red-400 font-semibold mb-2">Life happened.</div>
-                                    <div className="text-gray-500 text-sm mb-4">You missed a day. No shame.</div>
+                                    <div className="text-gray-500 text-sm">You missed a day. No shame.</div>
+                                    <div className="text-gray-600 text-[10px] italic mb-4 mt-1">This is usually where people disappear.</div>
                                     <motion.div
                                         initial={{ opacity: 0, scale: 0.9 }}
                                         animate={{ opacity: 1, scale: 1 }}
@@ -685,7 +686,7 @@ export const LandingPage: React.FC = () => {
                 className={`fixed top-0 w-full z-50 border-b border-white/5 bg-[#050507]/80 backdrop-blur-md transition-transform duration-300`}
             >
                 <div className="px-6 py-4 flex justify-between items-center max-w-7xl mx-auto">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 max-sm:gap-3">
                         {/* Mobile hamburger */}
                         <button
                             onClick={() => setMobileNavOpen(true)}
@@ -695,7 +696,7 @@ export const LandingPage: React.FC = () => {
                                 <path d="M3 12h18M3 6h18M3 18h18" />
                             </svg>
                         </button>
-                        <img src="/pwa-192x192.png" alt="Bounce" className="w-8 h-8 rounded-lg" />
+                        <img src="/whisk.png" alt="Bounce" className="w-8 h-8 rounded-lg" />
                         <span className="font-bold tracking-tight text-gray-200">Bounce</span>
                     </div>
                     <Link to="/app" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Launch</Link>
@@ -703,7 +704,7 @@ export const LandingPage: React.FC = () => {
             </nav>
 
             {/* HERO SECTION - THE NUCLEAR OPTION */}
-            <section id="hero" className="relative z-10 pt-24 pb-12 md:pt-36 md:pb-24 px-6 max-w-7xl mx-auto">
+            <section id="hero" className="relative z-10 max-sm:pt-20 pt-12 pb-12 md:pt-36 md:pb-24 px-6 max-w-7xl mx-auto">
 
                 <div className="flex flex-col lg:flex-row gap-8 lg:gap-24 items-center">
 
@@ -715,7 +716,7 @@ export const LandingPage: React.FC = () => {
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full mb-8"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full mb-6"
                             >
                                 <Brain className="w-4 h-4 text-cyan-400" />
                                 <span className="text-sm font-semibold text-cyan-300">Built for ADHD brains</span>
@@ -739,13 +740,15 @@ export const LandingPage: React.FC = () => {
                                 transition={{ delay: 0.2 }}
                                 className="text-lg sm:text-xl text-gray-400 max-w-lg mx-auto lg:mx-0 leading-relaxed"
                             >
-                                Pick your energy. Choose from <span className="text-white">habits that match. </span><br className="hidden sm:block" />
-                                Miss a day? Recovery mode activates. <strong className="text-white">No streak resets.</strong>
+                                Your habits don’t crash instantly.
+                                <span className="text-white font-medium"> They quietly fade after one “I’ll do it tomorrow.” </span>
+                                <br className="hidden sm:block" />
+                                Bounce helps you continue after those missed days instead of restarting from zero.
                             </motion.p>
                         </div>
 
                         {/* MOBILE ONLY: Animation moved here */}
-                        <div className="w-full lg:hidden py-4">
+                        <div className="w-full lg:hidden pt-1 pb-4">
                             <BounceMomentAnimation />
                         </div>
 
@@ -809,7 +812,7 @@ export const LandingPage: React.FC = () => {
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-12 md:mb-20">
                         <h2 className="text-3xl font-bold mb-4">Every habit app does these 4 things that make you quit</h2>
-                        <p className="text-gray-400">Those apps weren't broken. They just weren't built for how your brain works.</p>
+                        <p className="text-gray-400">It's not you. Those apps aren't built for how your brain works.</p>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-8 lg:gap-16">
@@ -825,16 +828,15 @@ export const LandingPage: React.FC = () => {
                                 </div>
                                 <div className="space-y-4 flex-1">
                                     {[
-                                        { icon: '💔', text: 'Miss day 17 → streak resets to 0 → you delete the app in rage.' },
-                                        { icon: '🥱', text: 'Same difficulty whether energized or exhausted' },
-                                        { icon: '😔', text: 'Your cute pixel pet dies because you had a bad week. Guilt: activated.' },
-                                        { icon: '📋', text: 'Just another to-do list, not identity building' },
-                                    ].map((item, i) => (
-                                        <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-red-900/10 border border-red-500/10">
-                                            <span className="text-xl">{item.icon}</span>
-                                            <span className="text-gray-400 text-sm">{item.text}</span>
-                                        </div>
-                                    ))}
+                                        { icon: '💔', text: 'Miss one day → progress feels invalid → you quietly stop opening the app' },
+                                        { icon: '😶', text: 'The app keeps counting tasks while you lose trust in yourself' },
+                                        { icon: '😔', text: 'You start associating habits with guilt instead of growth' },
+                                        { icon: '🥱', text: 'Same expectations on high-energy and burnout days' },].map((item, i) => (
+                                            <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-red-900/10 border border-red-500/10">
+                                                <span className="text-xl">{item.icon}</span>
+                                                <span className="text-gray-400 text-sm">{item.text}</span>
+                                            </div>
+                                        ))}
                                 </div>
                             </div>
                         </div>
@@ -856,9 +858,9 @@ export const LandingPage: React.FC = () => {
                                 <div className="space-y-4 flex-1">
                                     {[
                                         { icon: '✨', text: 'Expects missed days. No resets, no shame.' },
-                                        { icon: '⚡', text: 'Pick High, Medium, or Low energy daily' },
-                                        { icon: '🌱', text: 'Recovery Mode offers a gentler restart' },
-                                        { icon: '🎯', text: 'Identity-first: habits match who you want to be' },
+                                        { icon: '⚡', text: 'Daily difficulty adapts to your actual energy.' },
+                                        { icon: '🌱', text: 'Designed for the mid-week drop - not the perfect week' },
+                                        { icon: '🎯', text: 'Each return rebuilds trust in yourself, not pressure to catch up' },
                                     ].map((item, i) => (
                                         <div key={i} className="flex items-center gap-4 p-4 rounded-lg bg-cyan-900/20 border border-cyan-500/20">
                                             <span className="text-xl">{item.icon}</span>
@@ -883,13 +885,13 @@ export const LandingPage: React.FC = () => {
                             whileInView={{ opacity: 1, y: 0 }}
                             className="inline-block px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs font-medium text-gray-300 mb-6"
                         >
-                            HOW IT WORKS
+                            WHEN YOU SLIP
                         </motion.div>
                         <h2 className="text-4xl md:text-5xl font-bold mb-6 tracking-tight">
-                            The <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">Anti-Rigid</span> System
+                            One missed day. <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">Then everything piles up.</span>
                         </h2>
                         <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-                            Most apps break when you break. Bounce is designed to flex.
+                            Here's what happens in Bounce instead.
                         </p>
                     </div>
 
@@ -1024,6 +1026,13 @@ export const LandingPage: React.FC = () => {
             <section id="pricing" className="relative z-10 py-16 md:py-24 px-6 border-t border-white/5 bg-gradient-to-b from-transparent to-[#050507]/50">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-12">
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            className="inline-block px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs font-medium text-gray-300 mb-6"
+                        >
+                            PRICING
+                        </motion.div>
                         <h2 className="text-3xl md:text-4xl font-bold mb-4">Start without pressure</h2>
                         <p className="text-gray-400 max-w-xl mx-auto">Upgrade when you're ready. No tricks. No "trial panic". No punishment for stopping.</p>
                     </div>
@@ -1160,7 +1169,7 @@ export const LandingPage: React.FC = () => {
                             },
                             {
                                 q: "Can I cancel premium anytime?",
-                                a: "Yes. Cancel in one click from settings. You keep premium until the end of your billing period, then drop back to free. No tricks, no retention games."
+                                a: "Yes. Cancel in one click from settings. You keep premium until the end of your billing period, then drop back to free."
                             },
                             {
                                 q: "What if I forget to open the app?",

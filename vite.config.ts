@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       allowedHosts: [
         'unmodulative-jeremy-alpinely.ngrok-free.dev',
         'calm-kids-prove.loca.lt',
-        'guarantees-commodity-followed-paying.trycloudflare.com'
+        'eligibility-television-soa-cbs.trycloudflare.com',
       ],
       proxy: {
         '/.netlify/functions': 'http://localhost:8888'
