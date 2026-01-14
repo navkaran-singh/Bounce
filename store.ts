@@ -2318,10 +2318,10 @@ export const useStore = create<ExtendedUserState>()(
         }
 
         // Only check if user has a subscription
-        if (!state.isPremium || !state.subscriptionId) {
-          if (import.meta.env.DEV) console.log("💎 [PREMIUM] No active subscription to check");
-          return;
-        }
+        // if (!state.isPremium || !state.subscriptionId) {
+        //   if (import.meta.env.DEV) console.log("💎 [PREMIUM] No active subscription to check");
+        //   return;
+        // }
 
         // Guard: Only check subscriptions, not one-time payments
         // Use paymentType which is set correctly by webhook
@@ -2564,6 +2564,23 @@ export const useStore = create<ExtendedUserState>()(
           // Use cloud's lastUpdated timestamp to keep sync state consistent
           const cloudLastUpdated = profile.lastUpdated || Date.now();
 
+          // Get habit repository and ensure microHabits is populated
+          const cloudRepo = settings?.habitRepository || { high: [], medium: [], low: [] };
+          // Use high energy habits by default, fallback to medium, then low
+          const cloudMicroHabits = cloudRepo.high?.length > 0
+            ? cloudRepo.high
+            : (cloudRepo.medium?.length > 0 ? cloudRepo.medium : cloudRepo.low || []);
+
+          if (import.meta.env.DEV) {
+            console.log("[SYNC] 🔄 Cloud data structure:", {
+              hasIdentity: !!profile.identity,
+              hasSettings: !!settings,
+              habitRepository: cloudRepo,
+              microHabits: cloudMicroHabits,
+              willRedirectTo: profile.identity ? 'dashboard' : 'onboarding'
+            });
+          }
+
           // Apply cloud data to local state
           set({
             identity: profile.identity || '',
@@ -2600,8 +2617,8 @@ export const useStore = create<ExtendedUserState>()(
             soundEnabled: settings?.soundEnabled ?? state.soundEnabled,
             goal: settings?.goal || state.goal,
             energyTime: settings?.energyTime || '',
-            habitRepository: settings?.habitRepository || { high: [], medium: [], low: [] },
-            microHabits: settings?.habitRepository?.high || [],
+            habitRepository: cloudRepo,
+            microHabits: cloudMicroHabits,
             history,
             currentView: profile.identity ? 'dashboard' : 'onboarding',
             lastSync: Date.now(),

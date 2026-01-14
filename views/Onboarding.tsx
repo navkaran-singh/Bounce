@@ -6,6 +6,7 @@ import { Message, IdentityType, InitialFamiliarity } from '../types';
 import { generateHabits, GenerateHabitsResult } from '../services/ai';
 import { getHabitsFromTemplate } from '../services/habitTemplateService';
 import { trackFirstAction } from '../services/analytics';
+import { AuthModal } from '../components/AuthModal';
 
 // Familiarity options for v8 behavior-based stage initialization
 const FAMILIARITY_OPTIONS: { label: string; value: InitialFamiliarity; emoji: string }[] = [
@@ -104,7 +105,7 @@ const Tooltip: React.FC<{ text: string; onClose: () => void; delay?: number }> =
 );
 
 export const Onboarding: React.FC = () => {
-  const { identity, setIdentity, setIdentityPattern, setHabitsWithLevels, setView, dismissedTooltips, dismissTooltip, setIdentityProfile } = useStore();
+  const { identity, setIdentity, setIdentityPattern, setHabitsWithLevels, setView, dismissedTooltips, dismissTooltip, setIdentityProfile, user } = useStore();
   const [inputValue, setInputValue] = useState('');
   const [habitInputs, setHabitInputs] = useState<string[]>(['', '', '']);
   const [generatedHabits, setGeneratedHabits] = useState<GenerateHabitsResult | null>(null);
@@ -112,6 +113,7 @@ export const Onboarding: React.FC = () => {
   const [selectedFamiliarity, setSelectedFamiliarity] = useState<InitialFamiliarity | null>(null);
   const [selectedPattern, setSelectedPattern] = useState<typeof IDENTITY_EXAMPLES[0] | null>(null);
   const [showDomainSelection, setShowDomainSelection] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<Message[]>([
@@ -708,7 +710,23 @@ export const Onboarding: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* Sign-in option for returning users - only show if not logged in */}
+        {!user && step === 0 && !showDomainSelection && (
+          <div className="mt-4 pt-4 border-t border-white/10 text-center">
+            <p className="text-xs text-gray-400 mb-2">Already set up on another device?</p>
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="text-sm font-medium text-primary-cyan hover:text-white transition-colors"
+            >
+              Sign in to sync your data →
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   );
 };

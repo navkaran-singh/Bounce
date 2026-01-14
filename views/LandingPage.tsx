@@ -730,7 +730,7 @@ export const LandingPage: React.FC = () => {
                             >
                                 Quit 5 habit apps?{' '}
                                 <span className="bg-gradient-to-r from-cyan-300 via-white to-purple-300 bg-clip-text text-transparent">
-                                    Try the one built for quitters.
+                                    Try the one designed for comebacks.
                                 </span>
                             </motion.h1>
 
@@ -811,8 +811,8 @@ export const LandingPage: React.FC = () => {
             <section id="comparison" className="relative z-10 py-16 md:py-24 px-6 bg-[#050507]/50">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-12 md:mb-20">
-                        <h2 className="text-3xl font-bold mb-4">Every habit app does these 4 things that make you quit</h2>
-                        <p className="text-gray-400">It's not you. Those apps aren't built for how your brain works.</p>
+                        <h2 className="text-3xl font-bold mb-4">Why most habit apps stop working after week 2</h2>
+                        <p className="text-gray-400">It's not motivation. It's that life doesn't fit into checkboxes.</p>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-8 lg:gap-16">
@@ -822,16 +822,16 @@ export const LandingPage: React.FC = () => {
                             <div className="relative p-6 md:p-8 rounded-3xl border border-red-500/20 bg-[#0A0505] backdrop-blur-xl h-full flex flex-col">
                                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-red-500/20">
                                     <div className="flex items-center gap-2 text-red-400 font-mono text-sm">
-                                        <Activity size={16} /> THE STREAK TRAP
+                                        <Activity size={16} /> THE RIGIDITY PROBLEM
                                     </div>
                                     <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
                                 </div>
                                 <div className="space-y-4 flex-1">
                                     {[
-                                        { icon: '💔', text: 'Miss one day → progress feels invalid → you quietly stop opening the app' },
-                                        { icon: '😶', text: 'The app keeps counting tasks while you lose trust in yourself' },
-                                        { icon: '😔', text: 'You start associating habits with guilt instead of growth' },
-                                        { icon: '🥱', text: 'Same expectations on high-energy and burnout days' },].map((item, i) => (
+                                        { icon: '📅', text: 'Same task difficulty on a Monday morning vs Friday night' },
+                                        { icon: '🔄', text: "Miss one day, and you're just... waiting. Nothing helps you restart." },
+                                        { icon: '📈', text: 'Apps track streaks, but streaks break — then what?' },
+                                        { icon: '😶', text: 'No recovery path. Just a silent reset and fading motivation.' },].map((item, i) => (
                                             <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-red-900/10 border border-red-500/10">
                                                 <span className="text-xl">{item.icon}</span>
                                                 <span className="text-gray-400 text-sm">{item.text}</span>
@@ -857,10 +857,10 @@ export const LandingPage: React.FC = () => {
                                 </div>
                                 <div className="space-y-4 flex-1">
                                     {[
-                                        { icon: '✨', text: 'Expects missed days. No resets, no shame.' },
-                                        { icon: '⚡', text: 'Daily difficulty adapts to your actual energy.' },
-                                        { icon: '🌱', text: 'Designed for the mid-week drop - not the perfect week' },
-                                        { icon: '🎯', text: 'Each return rebuilds trust in yourself, not pressure to catch up' },
+                                        { icon: '⚡', text: 'Daily difficulty adapts to your actual energy level.' },
+                                        { icon: '🌱', text: 'Miss a day? Recovery Mode gives you an easy win to restart.' },
+                                        { icon: '📊', text: 'Tracks bounce-back rate, not just streaks.' },
+                                        { icon: '🎯', text: 'Designed for the mid-week dip — not the perfect week.' },
                                     ].map((item, i) => (
                                         <div key={i} className="flex items-center gap-4 p-4 rounded-lg bg-cyan-900/20 border border-cyan-500/20">
                                             <span className="text-xl">{item.icon}</span>
