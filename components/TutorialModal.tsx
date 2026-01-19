@@ -23,6 +23,15 @@ const TUTORIAL_STEPS: TutorialStep[] = [
         color: 'cyan',
     },
     {
+        id: 'resilience-orb',
+        target: '[data-tutorial="resilience-orb"]',
+        title: 'The Resilience Orb',
+        description: 'This is your core. It reflects your state: it glows when you\'re consistent, fractures when you slip, and turns purple when you\'re in recovery.',
+        position: 'bottom',
+        emoji: '🔮',
+        color: 'cyan',
+    },
+    {
         id: 'habit-card',
         target: '[data-tutorial="habit-card"]',
         title: 'Your Micro-Habit',

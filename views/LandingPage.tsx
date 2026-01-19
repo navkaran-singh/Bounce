@@ -830,7 +830,7 @@ export const LandingPage: React.FC = () => {
                                     {[
                                         { icon: '📅', text: 'Same task difficulty on a Monday morning vs Friday night' },
                                         { icon: '🔄', text: "Miss one day, and you're just... waiting. Nothing helps you restart." },
-                                        { icon: '📈', text: 'Apps track streaks, but streaks break — then what?' },
+                                        { icon: '📈', text: 'Apps track streaks, but streaks break. Then what?' },
                                         { icon: '😶', text: 'No recovery path. Just a silent reset and fading motivation.' },].map((item, i) => (
                                             <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-red-900/10 border border-red-500/10">
                                                 <span className="text-xl">{item.icon}</span>
@@ -860,7 +860,7 @@ export const LandingPage: React.FC = () => {
                                         { icon: '⚡', text: 'Daily difficulty adapts to your actual energy level.' },
                                         { icon: '🌱', text: 'Miss a day? Recovery Mode gives you an easy win to restart.' },
                                         { icon: '📊', text: 'Tracks bounce-back rate, not just streaks.' },
-                                        { icon: '🎯', text: 'Designed for the mid-week dip — not the perfect week.' },
+                                        { icon: '🎯', text: 'Designed for the mid-week dip, not the perfect week.' },
                                     ].map((item, i) => (
                                         <div key={i} className="flex items-center gap-4 p-4 rounded-lg bg-cyan-900/20 border border-cyan-500/20">
                                             <span className="text-xl">{item.icon}</span>
@@ -1040,7 +1040,7 @@ export const LandingPage: React.FC = () => {
                     <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                         {/* Free Plan */}
                         <div className="p-8 rounded-3xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
-                            <h3 className="text-xl font-semibold mb-1 text-gray-400">Free</h3>
+                            <h3 className="text-xl font-semibold mb-1 text-gray-400">Free Tier</h3>
                             <p className="text-sm text-gray-500 mb-4">A safe place to start</p>
                             <div className="text-4xl font-bold mb-6 text-white">$0<span className="text-lg text-gray-500 font-normal"> / forever</span></div>
                             <ul className="space-y-4 mb-8 text-gray-300">

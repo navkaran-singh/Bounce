@@ -987,6 +987,7 @@ export const Dashboard: React.FC = () => {
                     layout
                     className="relative mb-6 transition-transform"
                     animate={{ scale: zenMode ? 1.2 : 1 }}
+                    data-tutorial="resilience-orb"
                 >
                     <Orb
                         state={orbState}

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import WebApp from './WebApp';
 import { LandingPage } from './views/LandingPage';
+import { WeeklyTracker } from './views/WeeklyTracker';
 import { PrivacyPolicy } from './views/Legal/PrivacyPolicy';
 import { TermsOfService } from './views/Legal/TermsOfService';
 import { RefundPolicy } from './views/Legal/RefundPolicy';
@@ -65,6 +66,7 @@ const App: React.FC = () => {
                     {/* PWA users skip landing page entirely */}
                     <Route path="/" element={<PWAOrLanding />} />
                     <Route path="/app" element={<WebApp />} />
+                    <Route path="/weekly-tracker" element={<WeeklyTracker />} />
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/terms" element={<TermsOfService />} />
                     <Route path="/refund" element={<RefundPolicy />} />
